@@ -31,41 +31,38 @@ def analyze_file(filename, fs=1e6, verbose=False):
     if verbose:
         print(f"Symbol rate: {sym_rate:.0f} Hz (sps={sps_est:.2f}, confidence={sym_confidence:.1f})")
 
-    # CFO estimation from raw IQ — x⁴ is data-free for both BPSK and QPSK.
-    # Constrain the search to |4·CFO| < CFO_SEARCH_LIMIT (signal model: |CFO|≤0.01
-    # cycles/sample → |4·CFO| ≤ 0.04; use 0.05 for margin).
-    _CFO_SEARCH_LIMIT = 0.05   # fraction of fs for 4·CFO search
-    n_iq = len(iq)
-    t_iq = np.arange(n_iq, dtype=float)
-    fft4_iq = np.abs(np.fft.fft(iq ** 4))
-    # Zero out bins outside the expected CFO range to suppress noise peaks
-    _bin_max = max(1, int(np.ceil(_CFO_SEARCH_LIMIT * n_iq)))
-    fft4_iq[_bin_max: n_iq - _bin_max] = 0
-    fft4_iq[0] = 0  # DC always zero
-    k_cfo = int(np.argmax(fft4_iq))
-    cfo_raw = float(k_cfo) / n_iq
-    if cfo_raw > 0.5:
-        cfo_raw -= 1.0
-    cfo_per_sample = cfo_raw / 4.0
-    iq_cfo = iq * np.exp(-1j * 2 * np.pi * cfo_per_sample * t_iq)
+    # CFO candidates from raw IQ — x⁴ is data-free for both BPSK and QPSK.
+    # At 2 dB on ~40 symbols the true tone is not always the top x⁴ peak, but it
+    # is reliably in the top 3, so let decode consistency pick ("decoding as a sensor").
+    t_iq = np.arange(len(iq), dtype=float)
+    result = None
+    for cfo_per_sample in _cfo_candidates(iq, top_k=3):
+        iq_cfo = iq * np.exp(-1j * 2 * np.pi * cfo_per_sample * t_iq)
 
-    # Rank sps candidates by M4-power quality (rotation- and CFO-invariant).
-    # Always include sps=6 as fallback.
-    all_sps = _sps_candidates(sps_est)
-    sps_try = _rank_sps_by_quality(iq_cfo, all_sps, top_k=2, force_include=6)
+        # Rank sps candidates by M4-power quality (rotation- and CFO-invariant).
+        # Always include sps=6 as fallback.
+        all_sps = _sps_candidates(sps_est)
+        sps_try = _rank_sps_by_quality(iq_cfo, all_sps, top_k=2, force_include=6)
 
-    # Modulation classification: use the forced-fallback sps (6) if available,
-    # else the top-1 quality sps.  The forced value is reliable; the quality ranking
-    # can be misleading at low SNR.
-    _mod_sps = 6 if 6 in sps_try else sps_try[0]
-    syms_rough = matched_filter_demod(iq_cfo, rrc_filter(0.35, _mod_sps), _mod_sps)
-    mod_est = identify_modulation(syms_rough, fs)
-    if verbose:
-        print(f"Modulation: {mod_est} (sps={_mod_sps})")
-    beta_try = [0.25, 0.5, 0.35]
+        # Modulation classification: use the forced-fallback sps (6) if available,
+        # else the top-1 quality sps.  The forced value is reliable; the quality ranking
+        # can be misleading at low SNR.
+        _mod_sps = 6 if 6 in sps_try else sps_try[0]
+        syms_rough = matched_filter_demod(iq_cfo, rrc_filter(0.35, _mod_sps), _mod_sps)
+        mod_est = identify_modulation(syms_rough, fs)
+        beta_try = [0.25, 0.5, 0.35]
 
-    result = search_rotations(iq_cfo, sps_try, mod_est, fs=fs, beta=beta_try,
-                              snr_est_db=snr_est, n_info_bits=400)
+        r = search_rotations(iq_cfo, sps_try, mod_est, fs=fs, beta=beta_try,
+                             snr_est_db=snr_est, n_info_bits=400)
+        r['cfo'], r['modulation'] = cfo_per_sample, mod_est
+        if verbose:
+            print(f"CFO {cfo_per_sample:+.5f}: {mod_est} cons={r['consistency']:.3f}")
+        if result is None or r['score'] > result['score']:
+            result = r
+        # Correct hypotheses re-encode at ~1.0, wrong ones top out near 0.94.
+        if result['consistency'] >= _CONSISTENCY_ACCEPT:
+            break
+    mod_est = result['modulation']
 
     elapsed = time.time() - t0
 
@@ -80,8 +77,26 @@ def analyze_file(filename, fs=1e6, verbose=False):
         'beta_used': result['beta_used'],
         'snr_est_db': snr_est,
         'phase': result['phase'],
+        'cfo': result['cfo'],
         'runtime': elapsed,
     }
+
+
+_CONSISTENCY_ACCEPT = 0.98
+_CFO_SEARCH_LIMIT = 0.05   # |4·CFO| bound; signal model |CFO| ≤ 0.01 → 0.04, plus margin
+
+
+def _cfo_candidates(iq, top_k=3, pad=16):
+    """Top-k CFO estimates (cycles/sample) from local peaks of the zero-padded x⁴ spectrum."""
+    n_fft = pad * len(iq)
+    spec = np.abs(np.fft.fft(iq ** 4, n_fft))
+    freqs = np.fft.fftfreq(n_fft)
+    spec[np.abs(freqs) >= _CFO_SEARCH_LIMIT] = 0
+    spec[0] = 0
+    is_peak = (spec > np.roll(spec, 1)) & (spec >= np.roll(spec, -1))
+    peaks = np.flatnonzero(is_peak)
+    peaks = peaks[np.argsort(-spec[peaks])][:top_k]
+    return [float(freqs[k]) / 4.0 for k in peaks] or [0.0]
 
 
 def _sps_candidates(sps_est):

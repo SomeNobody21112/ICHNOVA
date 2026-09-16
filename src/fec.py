@@ -63,10 +63,11 @@ def _build_trellis(generators, K):
 _TRELLIS_CACHE: dict = {}
 
 
-def viterbi_decode(llrs, generators, K):
+def viterbi_decode(llrs, generators, K, terminated=True):
     """Fully-vectorized soft-decision Viterbi decoder.
     llrs: soft LLRs (LLR > 0 favors bit=0).
-    Returns decoded bits (trimmed of tail) as uint8 array.
+    terminated=False: stream was cut mid-codeword (no zero tail) — keep every step.
+    Returns decoded bits (trimmed of tail if terminated) as uint8 array.
     """
     n_out = len(generators)
     n_states = 1 << (K - 1)
@@ -104,7 +105,7 @@ def viterbi_decode(llrs, generators, K):
         decoded[t] = state & 1   # b = ns & 1 in left-shift trellis
         state = prev
 
-    info_len = max(0, n_steps - (K - 1))
+    info_len = max(0, n_steps - (K - 1)) if terminated else n_steps
     return decoded[:info_len]
 
 

@@ -80,7 +80,10 @@ def try_decode(llrs, code, interleaver_dims):
     if code['generators'] is None:
         decoded = (deinterleaved < 0).astype(np.uint8)
     else:
-        decoded = viterbi_decode(deinterleaved, code['generators'], code['K'])
+        # The block interleaver truncates the codeword, so there is no zero tail:
+        # decode the full path, otherwise re-encoding caps consistency at ~0.9.
+        decoded = viterbi_decode(deinterleaved, code['generators'], code['K'],
+                                 terminated=False)
 
     consistency = reencode_consistency(decoded, llrs, code, interleaver_dims)
     return decoded, consistency
