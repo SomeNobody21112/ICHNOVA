@@ -1,5 +1,18 @@
 # SIH26147 — Session Progress Report
 
+## Session 3 — Evidence-first baseline hardening
+
+Full report with all measurements: `reports/BASELINE_HARDENING_REPORT.md`.
+
+- Removed every dataset-derived constant from inference: sps [4,6,8], force_include=6, sps=6 modulation filter, β [0.25,0.5,0.35], 0.12 coded bonus, K7-only search.
+- New acceptance: dual-code syndrome sign test (exact Binomial null) with Bonferroni over all tested hypotheses (α = 1%); outcomes DECODED / SIGNAL_NO_CODE / UNKNOWN.
+- bench-v1: sealed 30/30 (0 false accepts, 16.6 s); train 63/100 (0 false accepts, 37.8 s). Lost 13 train files, all 32-bit blocks that cannot reach significance; gained 16 BPSK sps 4/8 files.
+- Null set (1,350 files): 6/900 false accepts on non-catalogue signals (≤1.45%); 11/450 wrong-interleaver accepts on coded data remain.
+- Viterbi verified against exhaustive ML with an independent encoder; fixed terminated traceback.
+- Remaining blockers before Cyclic-CAF / SAGE-Lite are listed in the report.
+
+---
+
 ## Session 2 — 26/30 → 30/30
 
 ### 8. Unterminated-codeword decoding (fixes test_012, test_019)
