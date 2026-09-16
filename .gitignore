@@ -1,0 +1,5 @@
+__pycache__/
+*.pyc
+# Regenerate deterministically from repo root: python src/generate.py sealed | train
+data/
+results/

@@ -7,6 +7,7 @@ import time
 import numpy as np
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
+sys.stdout.reconfigure(encoding='utf-8')  # Windows consoles choke on 'β'
 
 from pipeline import analyze_file
 
@@ -50,7 +51,7 @@ def run_sealed_test(data_dir='data/sealed', n_files=30, verbose=True):
         original_bits = np.array(gt['original_bits'], dtype=np.uint8)
         ber = complement_tolerant_ber(result['payload_bits'], original_bits)
 
-        status = 'OK' if (ber < 0.01 and result['consistency'] >= 0.75) else 'FAIL'
+        status = 'OK' if (ber < 0.01 and result['consistency'] >= 0.98) else 'FAIL'
         if status == 'OK':
             successes += 1
         else:
@@ -91,7 +92,8 @@ def run_sealed_test(data_dir='data/sealed', n_files=30, verbose=True):
 
     # Save results
     os.makedirs('results', exist_ok=True)
-    with open('results/sealed_results.json', 'w') as f:
+    out = os.path.join('results', os.path.basename(os.path.normpath(data_dir)) + '_results.json')
+    with open(out, 'w') as f:
         json.dump({
             'successes': successes,
             'total': n_files,
@@ -104,5 +106,8 @@ def run_sealed_test(data_dir='data/sealed', n_files=30, verbose=True):
 
 
 if __name__ == '__main__':
-    successes, total, results = run_sealed_test()
-    sys.exit(0 if successes >= 28 else 1)
+    # usage: python sealed_test.py [data_dir] [n_files]   (e.g. data/train 100)
+    data_dir = sys.argv[1] if len(sys.argv) > 1 else 'data/sealed'
+    n_files = int(sys.argv[2]) if len(sys.argv) > 2 else 30
+    successes, total, results = run_sealed_test(data_dir, n_files)
+    sys.exit(0 if successes == total else 1)

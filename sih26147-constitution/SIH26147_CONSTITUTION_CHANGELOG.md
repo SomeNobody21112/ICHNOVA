@@ -1,4 +1,22 @@
 # SIH26147 — CONSTITUTION CHANGELOG
+
+## v2.1 (code-verified, 2026-09-16)
+
+| Item | v2.0 claim | v2.1 (measured) |
+|---|---|---|
+| Sealed benchmark | 28/30, fails test_020/025 (2 dB QPSK) | **30/30**, consistency 1.000 on all files. v2.0 failures don't reproduce on regenerated data |
+| Codeword termination | "zero-terminated" | Truncated by the interleaver (60/120 of 812 bits), no tail. Root cause of the consistency ceiling |
+| Consistency separation | success ≥0.984 / failure ≤0.866 | correct = 1.000, wrong ≤0.942; accept threshold 0.98 |
+| Modulation ID | cumulant C20 | lag-1 autocorrelation of s² (CFO-invariant) |
+| CFO | M-power on symbols | x⁴ on raw IQ, 16× zero-pad, top-3 candidates selected by decode |
+| Regression tests | 6/6 (`tests/test_core.py` not in repo) | 4/4, new `tests/test_core.py` |
+| Phase 2 commit 677241f | — | Unverified push scored 4/30; reverted |
+| Held-out evidence | sealed set | Train set: 60/100 (Phase 1: 35/100) |
+
+Unchanged: research direction, novelty audit, P1/P2 feature list. Cyclic-CAF and SAGE-Lite move from P0 to P1 pending train-set evidence.
+
+---
+
 ## v1.0 (Gemini audit, 2026-09-11) → v2.0 (Opus research-verified audit, 2026-09-16)
 
 ---

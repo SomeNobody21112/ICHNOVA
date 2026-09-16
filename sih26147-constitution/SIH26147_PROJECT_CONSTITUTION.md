@@ -12,6 +12,8 @@
 
 ---
 
+> **⚠ Baseline superseded (v2.1, 2026-09-16):** the code in this repo now scores **30/30** on the regenerated sealed set and **60/100** on the 100-file train set. The test_020/test_025 2 dB QPSK failures described below come from an earlier codebase/dataset and do not reproduce here (current test_020 = QPSK 8 dB, test_025 = QPSK 5 dB, both pass). See `SIH26147_CURRENT_STATE.md` and the v2.1 entry in `SIH26147_CONSTITUTION_CHANGELOG.md`. Kept for plan/history.
+
 ## 2. Constitutional Purpose
 
 This document defines the single source of truth for the technical, scientific, experimental, architectural, and strategic direction of SIH26147.
@@ -162,18 +164,18 @@ Sequential, feed-forward blind signal-analysis pipeline in pure NumPy/SciPy on C
 
 ### 9.3 Current Verified Performance
 
-**Baseline: 28/30 successful recoveries (~93%) on sealed held-out benchmark.**
+**Baseline (v2.1): 30/30 on the sealed benchmark; 60/100 on the train set.** (v2.0 figure of 28/30 was from an earlier codebase.)
 
 **Genie experiment: 100% payload recovery** when correct upstream parameters are supplied.
 
 > The core decoding chain is capable of successful recovery when required upstream parameters are known. The principal remaining limitation is concentrated in blind parameter estimation.
 
-30/30 remains a **target**, not a currently achieved result.
+30/30 was achieved 2026-09-16 (v2.1). Because the fixes were diagnosed on the sealed set, the train set and fresh seeds are now the held-out evidence.
 
 ### 9.4 Signal Generation Parameters (verified from generate.py)
 
 - Modulations: BPSK, QPSK. Sample rate: fs = 1,000,000 Hz. Payload: 400 random info bits/file.
-- FEC: K=7 rate-1/2 convolutional, generators 171/133 octal (NASA/CCSDS), zero-terminated.
+- FEC: K=7 rate-1/2 convolutional, generators 171/133 octal (NASA/CCSDS), zero-terminated at the encoder — **but the block interleaver keeps only rows×cols (60/120) of the 812 coded bits, so the received codeword is truncated and has no tail** (v2.1 correction).
 - Interleaver: block, dimensions per split.
 - Channel: RRC pulse shaping, random carrier offset (±0.01 cyc/sample), fractional timing offset (±0.5 sample), random static phase, AWGN.
 
@@ -194,7 +196,7 @@ Sequential, feed-forward blind signal-analysis pipeline in pure NumPy/SciPy on C
 
 The existing estimator uses spectral/cyclostationary information from |x| and |x|². At sufficiently low SNR, noise-generated spectral features dominate the true signal feature.
 
-### 10.2 Known 2 dB QPSK Failures (from sealed_results.json)
+### 10.2 Known 2 dB QPSK Failures (historical — v2.0 codebase; do not reproduce in v2.1)
 
 | File | GT Mod | GT SNR | GT Symbol Rate | EST Symbol Rate | Consistency | BER | Status |
 |---|---|---|---|---|---|---|---|
@@ -309,14 +311,14 @@ Before introducing a new estimator or feedback mechanism: (1) baseline must be r
 | Block interleaver identification | **PROVEN within validated scope** |
 | Vectorized soft-decision Viterbi | **PROVEN** |
 | Re-encode consistency | **PROVEN** |
-| 28/30 sealed recovery | **PROVEN** |
+| 30/30 sealed recovery | **PROVEN** (v2.1) |
 | Genie 100% recovery | **PROVEN** (upper-bound diagnostic) |
-| Modulation ID (cumulant C20) | **PROVEN** (100% on sealed set) |
+| Modulation ID (lag-1 autocorr of s², replaced C20) | **PROVEN** (100% on sealed set) |
 | Rank-based blind FEC ID | **PARTIALLY PROVEN** (collapses ~0.1% BER) |
 | Frame sync / bit-stream correlation | **PLANNED** (stub only) |
 | SAGE-Lite feedback | **LOCKED — NOT YET PROVEN** |
 | Cyclic-CAF estimator | **LOCKED — NOT YET PROVEN** |
-| 30/30 sealed recovery | **TARGET — NOT YET PROVEN** |
+| Train-set recovery | **60/100 — next target** |
 
 ---
 
@@ -507,7 +509,7 @@ Payload BER < 0.01
 
 **Gate 2 — SAGE-Lite:** Rescue ≥1 failure, no unexplained regression, bounded runtime, reproducible.
 
-**Gate 3 — Sealed Regression:** Full 28/30 must not regress. 30/30 is the target.
+**Gate 3 — Sealed Regression:** 30/30 must not regress; train-set score must not drop.
 
 ---
 
@@ -549,7 +551,7 @@ F1 (Detection) through F12 (Runtime). Primary failure from logged evidence, not 
 
 ## 28. Benchmark Framework
 
-**Level 1 — Sealed Regression:** Original 30-file benchmark. Current: 28/30. Target: 30/30.
+**Level 1 — Sealed Regression:** Original 30-file benchmark. Current: 30/30 (v2.1).
 
 **Level 2 — Controlled Synthetic:** Systematic variation of SNR, CFO, timing, modulation, roll-off, sps, FEC, interleaver.
 

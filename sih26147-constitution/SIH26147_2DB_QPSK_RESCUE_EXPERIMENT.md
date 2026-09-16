@@ -8,6 +8,8 @@
 
 ---
 
+> **⚠ Baseline superseded (v2.1, 2026-09-16):** the code in this repo now scores **30/30** on the regenerated sealed set and **60/100** on the 100-file train set. The test_020/test_025 2 dB QPSK failures described below come from an earlier codebase/dataset and do not reproduce here (current test_020 = QPSK 8 dB, test_025 = QPSK 5 dB, both pass). See `SIH26147_CURRENT_STATE.md` and the v2.1 entry in `SIH26147_CONSTITUTION_CHANGELOG.md`. Kept for plan/history.
+
 ## 1. Objective
 
 Determine whether the combination of an improved symbol-rate estimator (Cyclic-CAF) and decoding-assisted parameter refinement (SAGE-Lite) can recover QPSK signals at ~2 dB SNR that fail under the existing feed-forward baseline pipeline.

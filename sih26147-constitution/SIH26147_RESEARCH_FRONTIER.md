@@ -5,6 +5,8 @@ Ranked by **development priority** (MVP-relevance × feasibility × expected imp
 
 ---
 
+> **⚠ Baseline superseded (v2.1, 2026-09-16):** the code in this repo now scores **30/30** on the regenerated sealed set and **60/100** on the 100-file train set. The test_020/test_025 2 dB QPSK failures described below come from an earlier codebase/dataset and do not reproduce here (current test_020 = QPSK 8 dB, test_025 = QPSK 5 dB, both pass). See `SIH26147_CURRENT_STATE.md` and the v2.1 entry in `SIH26147_CONSTITUTION_CHANGELOG.md`. Kept for plan/history.
+
 ## Priority 1 — Cyclic-CAF Symbol-Rate Estimation
 
 **Status:** LOCKED for immediate implementation
