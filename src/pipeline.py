@@ -72,7 +72,7 @@ def analyze_iq(iq, fs=1e6, _oracle=None):
     mods = [o['modulation']] if 'modulation' in o else list(MODULATIONS)
     beta = float(o.get('beta', RX_BETA))
 
-    fronts = []
+    fronts, rejected_serial = [], 0
     hyp = {k: [] for k in ('front', 'code', 'rows', 'cols', 'n', 'pos', 'sum', 'sq')}
     for cfo in cfo_list:
         iq_c = iq * np.exp(-2j * np.pi * cfo * n)
@@ -92,6 +92,17 @@ def analyze_iq(iq, fs=1e6, _oracle=None):
                 for rot in rots:
                     t = time.perf_counter()
                     llrs = psk_llrs(ys * np.exp(-1j * rot), mod, S, N)
+                    # The syndrome null needs serially independent hard decisions. Random,
+                    # interleaved payload at the true symbol rate gives that; a front-end that
+                    # oversamples the signal (sps too small) repeats each symbol, which biases
+                    # short parity checks. Reject front-ends whose neighbouring decisions agree
+                    # significantly more than half the time (exact one-sided sign test).
+                    step = 1 if mod == 'BPSK' else 2
+                    same = np.count_nonzero((llrs[step:] < 0) == (llrs[:-step] < 0))
+                    if float(sign_test_log10p(same, len(llrs) - step)) <= np.log10(ALPHA):
+                        rejected_serial += 1
+                        timers['syndrome_search'] += time.perf_counter() - t
+                        continue
                     th = np.tanh(np.clip(llrs, -40, 40) / 2)
                     fi = len(fronts)
                     fronts.append({'cfo': cfo, 'sps': s, 'modulation': mod, 'phase': phase,
@@ -205,7 +216,8 @@ def analyze_iq(iq, fs=1e6, _oracle=None):
         'sps_candidates': [int(s) for s in sps_list],
         'modulation_stats': [_modulation_stat(r) for r in sps_table if r['sps'] in sps_list],
         'top_hypotheses': top, 'runner_up_margin_log10': runner_margin,
-        'n_front_ends': len(fronts), 'timers_s': timers,
+        'n_front_ends': len(fronts), 'front_ends_rejected_serial_dependence': rejected_serial,
+        'timers_s': timers,
     }
     result['runtime'] = time.perf_counter() - t_start
     return result
