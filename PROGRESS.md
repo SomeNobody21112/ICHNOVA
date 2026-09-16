@@ -1,5 +1,11 @@
 # SIH26147 — Session Progress Report
 
+## Session 4 — Structural acceptance
+
+See `reports/STRUCTURAL_ACCEPTANCE_REPORT.md`. Wrong-structure null exposed 17% wrong accepts under the syndrome-only rule; modulation-consistency + block-length + soft path-metric checks cut them to 0.9% (held-out split) with no recall loss. Full null set: 0/900 false accepts, 0/450 wrong decodes. bench-v1 unchanged (30/30, 63/100).
+
+---
+
 ## Session 3 — Evidence-first baseline hardening
 
 Full report with all measurements: `reports/BASELINE_HARDENING_REPORT.md`.

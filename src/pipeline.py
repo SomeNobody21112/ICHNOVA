@@ -23,6 +23,7 @@ import numpy as np
 from modem import load_iq, rrc_filter
 from analyze import (estimate_symbol_rate, lag1_correlation, estimate_carrier_phase,
                      matched_filter_demod, symbol_snr_m2m4, psk_llrs)
+from scipy.special import bdtr, bdtrc, ndtr
 from blind_id import (CODE_CATALOGUE, interleaver_candidates, deinterleave_index,
                       syndrome_checks, sign_test_log10p, decode_hypothesis)
 
@@ -34,6 +35,11 @@ RX_BETA = 0.3           # one RRC matched filter, mid-range of the common 0.1–
 N_SPS_RANKED = 3        # compute budget: best sps by quality (their divisors are added)
 N_CFO_PER_ORDER = 3     # compute budget: strongest x² and x⁴ spectral peaks
 ALPHA = 0.01            # target false-accept probability per file under the null
+ACCEPT_SEARCH = 20      # significant hypotheses examined by the structural checks
+# Structural checks (eval/acceptance.py, calibrated on the even-indexed null-set files, reported
+# on the odd-indexed ones): wrong-structure accepts 39/225 -> 2/225, wrong-hypothesis 5 -> 0.
+BL_DELTA_SYMBOLS = 1.7  # 99th pct shortfall of correct hypotheses' coverage vs transmission span
+PM_FLOOR = 0.926        # 99th pct of top-1 soft path metric on calibration null files
 MODULATIONS = ('BPSK', 'QPSK')
 
 
@@ -42,12 +48,13 @@ def analyze_file(filename, fs=1e6, verbose=False):
     return analyze_iq(load_iq(filename), fs=fs)
 
 
-def analyze_iq(iq, fs=1e6, _oracle=None):
+def analyze_iq(iq, fs=1e6, _oracle=None, _top_k=5, _keep_bits=False, _all_hypotheses=False):
     """Blind analysis of complex baseband samples.
 
     `_oracle` is evaluation-only (eval/ladder.py): ground-truth values that replace the
     corresponding estimates (keys: modulation, sps, cfo, beta, timing_offset, phase,
-    interleaver). Normal inference never passes it; acceptance is never oracled."""
+    interleaver, exclude_interleaver). Normal inference never passes it; acceptance is
+    never oracled. `_top_k` / `_keep_bits` only widen the logged hypothesis list (eval)."""
     o = _oracle or {}
     timers = dict.fromkeys(['cfo', 'sps', 'matched_filter', 'syndrome_search',
                             'viterbi', 'scoring'], 0.0)
@@ -82,6 +89,7 @@ def analyze_iq(iq, fs=1e6, _oracle=None):
             timers['matched_filter'] += time.perf_counter() - t
             if len(y) < MIN_SYMBOLS:
                 continue
+            span = _front_end_evidence(y)
             for mod in mods:
                 phase = float(o['phase']) if 'phase' in o else estimate_carrier_phase(y, mod)
                 ys = y * np.exp(-1j * phase)
@@ -107,9 +115,11 @@ def analyze_iq(iq, fs=1e6, _oracle=None):
                     fi = len(fronts)
                     fronts.append({'cfo': cfo, 'sps': s, 'modulation': mod, 'phase': phase,
                                    'rotation': rot, 'llrs': llrs,
-                                   'symbol_snr_db': float(10 * np.log10(S / N + 1e-30))})
+                                   'symbol_snr_db': float(10 * np.log10(S / N + 1e-30)), **span})
                     dims_list = ([tuple(o['interleaver'])] if 'interleaver' in o
                                  else interleaver_candidates(len(llrs)))
+                    if 'exclude_interleaver' in o:
+                        dims_list = [d for d in dims_list if d != tuple(o['exclude_interleaver'])]
                     for rows, cols in dims_list:
                         if rows * cols > len(llrs):
                             continue
@@ -128,46 +138,72 @@ def analyze_iq(iq, fs=1e6, _oracle=None):
 
     t = time.perf_counter()
     M = len(hyp['n'])
-    top, accepted, best_log10p, runner_margin = [], False, 0.0, None
+    top, best_log10p, runner_margin, rejected = [], 0.0, None, []
     log10_threshold = float(np.log10(ALPHA / max(M, 1)))
+    described = {}
+
+    def describe(k):
+        """Decode hypothesis k and collect every score the UI and acceptance rules use."""
+        if k in described:
+            return described[k]
+        fr = fronts[hyp['front'][k]]
+        code = CODE_CATALOGUE[hyp['code'][k]]
+        dims = (hyp['rows'][k], hyp['cols'][k])
+        t0 = time.perf_counter()
+        dec = _decode_both_polarities(fr['llrs'], code, dims)
+        timers['viterbi'] += time.perf_counter() - t0
+        n_steps = dims[0] * dims[1] // 2
+        d = {
+            'code': code['name'], 'interleaver': list(dims), 'sps': fr['sps'],
+            'cfo': fr['cfo'], 'modulation': fr['modulation'],
+            'rotation': fr['rotation'] + dec['flip'], 'phase': fr['phase'],
+            'symbol_snr_db': fr['symbol_snr_db'],
+            'n_checks': int(hyp['n'][k]), 'n_positive': int(hyp['pos'][k]),
+            'log10_p': float(log10p[k]), 'syndrome_z': float(z[k]),
+            'covered_bits': dec['covered_bits'], 'total_observed_bits': len(fr['llrs']),
+            'coverage_ratio': dec['covered_bits'] / len(fr['llrs']),
+            'consistency': dec['consistency'], 'path_metric': dec['path_metric'],
+            # MDL: a rate-1/2 code needs n_steps free bits instead of 2·n_steps, pays the soft
+            # disagreement, and pays log2(M) to name the hypothesis.
+            'mdl_savings_bits': float(n_steps - dec['soft_disagreement_nats'] / np.log(2) - np.log2(M)),
+            'uncoded_mdl_savings_bits': 0.0,
+            'active_symbols': fr['active_symbols'],
+            'covered_symbols': dec['covered_bits'] / (1 if fr['modulation'] == 'BPSK' else 2),
+            'bpsk_presence_log10p': fr['bpsk_presence_log10p'],
+            'bpsk_contradiction_log10p': fr['bpsk_contradiction_log10p'],
+            '_decoded_bits': dec['decoded_bits'],
+        }
+        d['structural_rejection'] = _structural_rejection(d)
+        described[k] = d
+        return d
+
+    accepted_k = None
     if M:
         log10p = sign_test_log10p(np.array(hyp['pos']), np.array(hyp['n']))
         z = np.array(hyp['sum']) / np.sqrt(np.maximum(np.array(hyp['sq']), 1e-300))
         order = np.lexsort((-z, log10p))
         best_log10p = float(log10p[order[0]])
-        accepted = best_log10p <= log10_threshold
-        best_key = (hyp['code'][order[0]], hyp['rows'][order[0]], hyp['cols'][order[0]])
-        for k in order[1:]:
-            if (hyp['code'][k], hyp['rows'][k], hyp['cols'][k]) != best_key:
-                runner_margin = float(log10p[k] - best_log10p)
+        # Acceptance: walk significant hypotheses in p-value order; the first that also passes
+        # the structural checks (modulation, block length, soft path metric) is accepted.
+        for k in order[:ACCEPT_SEARCH]:
+            if log10p[k] > log10_threshold:
+                break
+            d = describe(k)
+            if d['structural_rejection'] is None:
+                accepted_k = k
+                break
+            rejected.append({key: d[key] for key in ('code', 'interleaver', 'modulation', 'sps',
+                                                     'log10_p', 'structural_rejection')})
+        ref = order[0] if accepted_k is None else accepted_k
+        ref_key = (hyp['code'][ref], hyp['rows'][ref], hyp['cols'][ref])
+        for k in order:
+            if (hyp['code'][k], hyp['rows'][k], hyp['cols'][k]) != ref_key:
+                runner_margin = float(log10p[k] - log10p[ref])
                 break
     timers['scoring'] += time.perf_counter() - t
+    accepted = accepted_k is not None
     if M:
-        for k in order[:5]:
-            fr = fronts[hyp['front'][k]]
-            code = CODE_CATALOGUE[hyp['code'][k]]
-            dims = (hyp['rows'][k], hyp['cols'][k])
-            t = time.perf_counter()
-            dec = _decode_both_polarities(fr['llrs'], code, dims)
-            timers['viterbi'] += time.perf_counter() - t
-            n_steps = dims[0] * dims[1] // 2
-            top.append({
-                'code': code['name'], 'interleaver': list(dims), 'sps': fr['sps'],
-                'cfo': fr['cfo'], 'modulation': fr['modulation'],
-                'rotation': fr['rotation'] + dec['flip'], 'phase': fr['phase'],
-                'symbol_snr_db': fr['symbol_snr_db'],
-                'n_checks': int(hyp['n'][k]), 'n_positive': int(hyp['pos'][k]),
-                'log10_p': float(log10p[k]), 'syndrome_z': float(z[k]),
-                'covered_bits': dec['covered_bits'], 'total_observed_bits': len(fr['llrs']),
-                'coverage_ratio': dec['covered_bits'] / len(fr['llrs']),
-                'consistency': dec['consistency'], 'path_metric': dec['path_metric'],
-                # MDL: a rate-1/2 code needs n_steps free bits instead of 2·n_steps, pays
-                # the soft disagreement, and pays log2(M) to name the hypothesis.
-                'mdl_savings_bits': float(n_steps - dec['soft_disagreement_nats'] / np.log(2)
-                                          - np.log2(M)),
-                'uncoded_mdl_savings_bits': 0.0,
-                '_decoded_bits': dec['decoded_bits'],
-            })
+        top = [describe(k) for k in order[:_top_k]]
 
     signal_front = _signal_front(cfo_cands, sps_table, o)
     result = {
@@ -175,6 +211,7 @@ def analyze_iq(iq, fs=1e6, _oracle=None):
         'interleaver': None, 'modulation': None, 'sps': None, 'symbol_rate_est': None,
         'cfo': None, 'beta': beta, 'phase': None, 'rotation': None,
     }
+    accepted_desc = None
     if accepted:
         # Several front-ends can pass the accepted (code, interleaver) equally: a QPSK π/2
         # rotation, or any complement (π), is still a codeword of these codes, only with a
@@ -182,21 +219,17 @@ def analyze_iq(iq, fs=1e6, _oracle=None):
         # start state 0 (a reset encoder at the start of the capture), so the best zero-start
         # path metric over front-ends and both polarities breaks the tie. Without that
         # assumption the ambiguity needs frame synchronisation.
-        b = top[0]
-        best_key = (hyp['code'][order[0]], hyp['rows'][order[0]], hyp['cols'][order[0]])
-        for k in order[1:]:
+        b = describe(accepted_k)
+        acc_key = (hyp['code'][accepted_k], hyp['rows'][accepted_k], hyp['cols'][accepted_k])
+        for k in order:
             if log10p[k] > log10_threshold:
                 break
-            if (hyp['code'][k], hyp['rows'][k], hyp['cols'][k]) != best_key:
+            if k == accepted_k or (hyp['code'][k], hyp['rows'][k], hyp['cols'][k]) != acc_key:
                 continue
-            fr = fronts[hyp['front'][k]]
-            t = time.perf_counter()
-            dec = _decode_both_polarities(fr['llrs'], CODE_CATALOGUE[best_key[0]], best_key[1:])
-            timers['viterbi'] += time.perf_counter() - t
-            if dec['path_metric'] > b['path_metric']:
-                b = dict(b, _decoded_bits=dec['decoded_bits'], path_metric=dec['path_metric'],
-                         sps=fr['sps'], cfo=fr['cfo'], modulation=fr['modulation'],
-                         phase=fr['phase'], rotation=fr['rotation'] + dec['flip'])
+            d = describe(k)
+            if d['structural_rejection'] is None and d['path_metric'] > b['path_metric']:
+                b = d
+        accepted_desc = {key: val for key, val in b.items() if key != '_decoded_bits'}
         result.update(status='DECODED', payload_bits=b['_decoded_bits'], code=b['code'],
                       interleaver=b['interleaver'], modulation=b['modulation'], sps=b['sps'],
                       symbol_rate_est=fs / b['sps'], cfo=b['cfo'], phase=b['phase'],
@@ -206,10 +239,14 @@ def analyze_iq(iq, fs=1e6, _oracle=None):
                       **signal_front)
         result['payload_bits'] = _hard_bits(iq, signal_front, beta)
     for h in top:
-        h.pop('_decoded_bits')
+        bits = h.pop('_decoded_bits', None)
+        if _keep_bits and bits is not None:
+            h['decoded_bits'] = bits.tolist()
 
     result['accept'] = {'log10_p': best_log10p, 'log10_threshold': log10_threshold,
-                        'n_hypotheses': M, 'alpha': ALPHA}
+                        'n_hypotheses': M, 'alpha': ALPHA, 'accepted_hypothesis': accepted_desc,
+                        'significant_but_rejected': rejected,
+                        'rules': {'bl_delta_symbols': BL_DELTA_SYMBOLS, 'pm_floor': PM_FLOOR}}
     result['diagnostics'] = {
         'cfo_candidates': cfo_cands, 'detection_log10_p': float(detection_log10p),
         'raw_sps_estimate': float(raw_sps), 'sps_table': sps_table,
@@ -219,8 +256,72 @@ def analyze_iq(iq, fs=1e6, _oracle=None):
         'n_front_ends': len(fronts), 'front_ends_rejected_serial_dependence': rejected_serial,
         'timers_s': timers,
     }
+    if _all_hypotheses and M:
+        result['diagnostics']['all_hypotheses'] = {
+            'code': [CODE_CATALOGUE[c]['name'] for c in hyp['code']],
+            'rows': hyp['rows'], 'cols': hyp['cols'],
+            'sps': [fronts[f]['sps'] for f in hyp['front']],
+            'modulation': [fronts[f]['modulation'] for f in hyp['front']],
+            'cfo': [fronts[f]['cfo'] for f in hyp['front']],
+            'n_checks': hyp['n'], 'n_positive': hyp['pos'],
+            'log10_p': [float(v) for v in log10p]}
     result['runtime'] = time.perf_counter() - t_start
     return result
+
+
+def _structural_rejection(d):
+    """Reason a significant hypothesis is structurally implausible, or None.
+
+    MC  a QPSK hypothesis on a signal with a significant BPSK signature, or a BPSK hypothesis
+        whose BPSK-consistency count is significantly too low (exact binomial tests at ALPHA);
+    BL  it explains fewer symbols than the measured transmission span (minus BL_DELTA_SYMBOLS);
+    PM  its soft Viterbi path metric is below PM_FLOOR."""
+    log_alpha = np.log10(ALPHA)
+    if d['modulation'] == 'QPSK' and d['bpsk_presence_log10p'] <= log_alpha:
+        return 'modulation: BPSK signature present, QPSK hypothesis contradicted'
+    if d['modulation'] == 'BPSK' and d['bpsk_contradiction_log10p'] <= log_alpha:
+        return 'modulation: symbols inconsistent with BPSK'
+    if d['covered_symbols'] < d['active_symbols'] - BL_DELTA_SYMBOLS:
+        return (f"block length: covers {d['covered_symbols']:.0f} of ~{d['active_symbols']} "
+                f"transmitted symbols")
+    if d['path_metric'] < PM_FLOOR:
+        return f"soft path metric {d['path_metric']:.3f} below floor {PM_FLOOR}"
+    return None
+
+
+def _front_end_evidence(y):
+    """Per-front-end evidence logged for acceptance rules.
+
+    active_symbols: end of the transmission, the split point minimising the squared error of a
+      two-level fit to |y|² (assumes the burst starts at the capture start).
+    bpsk_presence_log10p: with w = y², non-overlapping pairs v = w(2m+1)·conj(w(2m)) have
+      Re(v) > 0 for BPSK (w keeps one phase up to slow drift) and a fair-coin sign for QPSK
+      (w = ±j·a² flips with the data). Exact one-sided binomial p of the positive count;
+      phase-frame free and insensitive to residual CFO.
+    bpsk_contradiction_log10p: if the signal were BPSK with the M2M4-estimated S, N, each w has
+      Re(w) > 0 with p1 ≈ Φ(√S/√(2N + N²/2S)), so Re(v) > 0 with q = p1² + (1−p1)²; lower-tail
+      binomial p of the observed positive count."""
+    e = np.abs(y) ** 2
+    L = len(e)
+    c1, c2 = np.cumsum(e), np.cumsum(e * e)
+    k = np.arange(MIN_SYMBOLS, L + 1)
+    head = c2[k - 1] - c1[k - 1] ** 2 / k
+    tail_n = L - k
+    tail = np.where(tail_n > 0, (c2[-1] - c2[k - 1]) - (c1[-1] - c1[k - 1]) ** 2 / np.maximum(tail_n, 1), 0.0)
+    active = int(k[np.argmin(head + tail)]) if len(k) else L
+    ya = y[:active]
+    w = ya ** 2
+    m = len(w) // 2
+    v = w[1:2 * m:2] * np.conj(w[0:2 * m:2])
+    pos = int(np.count_nonzero(np.real(v) > 0))
+    presence = float(bdtrc(pos - 1, m, 0.5)) if pos > 0 else 1.0
+    S, N = symbol_snr_m2m4(ya)
+    p1 = float(ndtr(np.sqrt(S) / np.sqrt(2 * N + N * N / (2 * S + 1e-30)))) if S > 0 else 0.5
+    q = max(p1 * p1 + (1 - p1) ** 2, 0.5)
+    contradiction = float(bdtr(pos, m, q))
+    return {'active_symbols': active,
+            'bpsk_presence_log10p': float(np.log10(max(presence, 1e-300))),
+            'bpsk_contradiction_log10p': float(np.log10(max(contradiction, 1e-300)))}
 
 
 def _decode_both_polarities(llrs, code, dims):

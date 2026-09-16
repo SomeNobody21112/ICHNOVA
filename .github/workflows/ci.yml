@@ -19,6 +19,6 @@ jobs:
       - name: Generate bench-v1 sealed set (deterministic, seed0 99000)
         run: python src/generate.py sealed
       - name: bench-v1 regression tripwire
-        # Measured on the reference machine: 30/30 passes, 0 false accepts (commit after 7a74986). The gate leaves a 2-file margin for
+        # Measured on the reference machine: 30/30 passes, 0 false accepts (structural acceptance). The gate leaves a 2-file margin for
         # cross-platform floating-point differences; any false accept fails the build.
         run: python sealed_test.py data/sealed 30 --min-pass 28 --max-false-accept 0
