@@ -66,7 +66,10 @@ def reencode_consistency(decoded_bits, llrs, code, interleaver_dims):
 
 
 def try_decode(llrs, code, interleaver_dims):
-    """Attempt decode with given code and interleaver hypothesis."""
+    """Attempt decode with given code and interleaver hypothesis.
+    Returns (decoded_bits, consistency, path_metric).
+    path_metric is the normalised Viterbi log-likelihood (coded only; 0.0 for uncoded).
+    """
     if interleaver_dims is not None:
         rows, cols = interleaver_dims
         n = rows * cols
@@ -79,11 +82,12 @@ def try_decode(llrs, code, interleaver_dims):
 
     if code['generators'] is None:
         decoded = (deinterleaved < 0).astype(np.uint8)
+        path_metric = 0.0
     else:
-        decoded = viterbi_decode(deinterleaved, code['generators'], code['K'])
+        decoded, path_metric = viterbi_decode(deinterleaved, code['generators'], code['K'])
 
     consistency = reencode_consistency(decoded, llrs, code, interleaver_dims)
-    return decoded, consistency
+    return decoded, consistency, path_metric
 
 
 def generate_interleaver_candidates(n_bits, min_r=2, max_r=16, min_c=4, max_c=24):
@@ -106,18 +110,18 @@ def generate_interleaver_candidates(n_bits, min_r=2, max_r=16, min_c=4, max_c=24
 def blind_identify(llrs, n_info_bits_approx=400):
     """Search code catalogue and interleaver candidates; return best hypothesis.
 
-    Strategy: for each code (K7, K5, K3, uncoded), try ALL interleaver candidates
-    and keep the best (max consistency).  After exhausting all candidates for a
-    coded code, if its best score (consistency + _CODED_BONUS) exceeds 1.0 (the
-    max uncoded score), stop — no uncoded or weaker code can beat it.
-
-    This avoids the pitfall of exiting early on a wrong interleaver with moderate
-    consistency before reaching the correct (higher-consistency) one.
+    Scoring strategy:
+    - Coded K7: primary key = normalised Viterbi path_metric.
+        path_metric = best_path_loglik / sum(|llrs|)
+        ≈ 1.0 when Viterbi finds the transmitted codeword (correct interleaver).
+        < 1.0 when forced to correct high-confidence bits (wrong interleaver).
+      Final score = path_metric + _CODED_BONUS so that correct K7 (≈1.0+bonus)
+      beats both wrong K7 (≈0.75+bonus<1.0) and uncoded (fixed 1.0).
+    - Uncoded: score = 1.0 (always); wins only when ALL coded hypotheses give
+      path_metric < 1.0 - _CODED_BONUS (i.e., no coded hypothesis is reliable).
     """
     candidates = generate_interleaver_candidates(len(llrs))
 
-    # Only search K7 and uncoded — K5/K3 add false-positive wrong hypotheses
-    # and are not needed for the current benchmark (which uses K7 exclusively).
     _active_codes = [c for c in CODE_CATALOGUE
                      if c['name'] in ('conv_k7_r12_171_133', 'uncoded')]
 
@@ -125,21 +129,26 @@ def blind_identify(llrs, n_info_bits_approx=400):
     best_score = -1.0
 
     for code in _active_codes:
-        # If a previous coded code already scored above the uncoded ceiling, stop.
         if best_score > 1.0:
             break
 
         is_coded = code['generators'] is not None
+
+        # Track the best candidate for this code by its primary metric
+        code_best_primary = -1.0   # path_metric for coded; dummy for uncoded
         code_best_cons = -1.0
         code_best_result = None
 
         for il_dims in candidates:
             try:
-                decoded, consistency = try_decode(llrs, code, il_dims)
+                decoded, consistency, path_metric = try_decode(llrs, code, il_dims)
             except Exception:
                 continue
 
-            if consistency > code_best_cons:
+            primary = path_metric if is_coded else consistency
+
+            if primary > code_best_primary:
+                code_best_primary = primary
                 code_best_cons = consistency
                 code_best_result = {
                     'decoded_bits': decoded,
@@ -151,7 +160,7 @@ def blind_identify(llrs, n_info_bits_approx=400):
         if code_best_result is None:
             continue
 
-        score = code_best_cons + (_CODED_BONUS if is_coded else 0.0)
+        score = code_best_primary + (_CODED_BONUS if is_coded else 0.0)
         code_best_result['score'] = score
 
         if score > best_score:

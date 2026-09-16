@@ -32,21 +32,22 @@ def analyze_file(filename, fs=1e6, verbose=False):
         print(f"Symbol rate: {sym_rate:.0f} Hz (sps={sps_est:.2f}, confidence={sym_confidence:.1f})")
 
     # CFO estimation from raw IQ — x⁴ is data-free for both BPSK and QPSK.
-    # Constrain the search to |4·CFO| < CFO_SEARCH_LIMIT (signal model: |CFO|≤0.01
-    # cycles/sample → |4·CFO| ≤ 0.04; use 0.05 for margin).
-    _CFO_SEARCH_LIMIT = 0.05   # fraction of fs for 4·CFO search
+    # Signal model: |CFO| ≤ 0.01 → |4·CFO| ≤ 0.04. Use 0.042 + fine refinement.
+    _CFO_SEARCH_LIMIT = 0.042
     n_iq = len(iq)
     t_iq = np.arange(n_iq, dtype=float)
     fft4_iq = np.abs(np.fft.fft(iq ** 4))
-    # Zero out bins outside the expected CFO range to suppress noise peaks
     _bin_max = max(1, int(np.ceil(_CFO_SEARCH_LIMIT * n_iq)))
     fft4_iq[_bin_max: n_iq - _bin_max] = 0
-    fft4_iq[0] = 0  # DC always zero
+    fft4_iq[0] = 0
     k_cfo = int(np.argmax(fft4_iq))
     cfo_raw = float(k_cfo) / n_iq
     if cfo_raw > 0.5:
         cfo_raw -= 1.0
-    cfo_per_sample = cfo_raw / 4.0
+    cfo_coarse = cfo_raw / 4.0
+
+    # Fine-tune CFO: search ±0.006 around coarse estimate using M4 quality
+    cfo_per_sample = _refine_cfo(iq, cfo_coarse, t_iq)
     iq_cfo = iq * np.exp(-1j * 2 * np.pi * cfo_per_sample * t_iq)
 
     # Rank sps candidates by M4-power quality (rotation- and CFO-invariant).
@@ -119,6 +120,27 @@ def _rank_sps_by_quality(iq, sps_list, top_k=2, force_include=6):
     if force_include not in selected and force_include in sps_list:
         selected.append(force_include)
     return selected
+
+
+def _refine_cfo(iq, cfo_coarse, t_iq, sps=6, n_steps=41):
+    """Fine-tune CFO by maximising M4-power lag-1 autocorrelation quality."""
+    best_q = -1.0
+    best_cfo = cfo_coarse
+    for delta in np.linspace(-0.006, 0.006, n_steps):
+        cfo_try = cfo_coarse + delta
+        if abs(cfo_try) > 0.012:
+            continue
+        iq_try = iq * np.exp(-1j * 2 * np.pi * cfo_try * t_iq)
+        syms = matched_filter_demod(iq_try, rrc_filter(0.35, sps), sps)
+        if len(syms) < 10:
+            continue
+        s4 = syms ** 4
+        q = float(np.abs(np.mean(s4[1:] * np.conj(s4[:-1]))) /
+                  (np.mean(np.abs(s4) ** 2) + 1e-20))
+        if q > best_q:
+            best_q = q
+            best_cfo = cfo_try
+    return best_cfo
 
 
 def _fail_result(iq, fs, reason, elapsed):
