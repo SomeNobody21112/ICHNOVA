@@ -1,0 +1,42 @@
+# RF Analysis Platform — operator console
+
+Working name; the product name is not final. Prototype for SIH 2026 problem statement SIH26147 (sponsor: NTRO). Not an official Government of India system.
+
+React 19 + TypeScript + Vite. The console asks one question of every capture: *what evidence supports this signal interpretation?*
+
+## Run
+
+```bash
+pip install -r ../requirements.txt
+npm install
+npm run build
+python ../server/app.py          # http://127.0.0.1:8765 — engine API + built console
+```
+
+Development with hot reload: keep `server/app.py` running and use `npm run dev` (http://localhost:5173, `/api` is proxied to 8765). Without the server the console still works, replaying stored benchmark evidence (the top bar shows ENGINE OFFLINE · REPLAY).
+
+## Sign in with Google
+
+1. Google Cloud console → APIs & Services → Credentials → OAuth client ID (Web application).
+2. Authorised JavaScript origins: `http://localhost:5173` and `http://127.0.0.1:8765`.
+3. `cp .env.example .env.local`, set `VITE_GOOGLE_CLIENT_ID`, rebuild.
+
+Without a client ID the Google button is disabled and operator credentials / demo analyst work offline. Identity is kept in the browser only; the ID token is decoded, not verified server-side (prototype).
+
+## Data honesty
+
+Every figure carries a label:
+
+| Label | Meaning |
+|---|---|
+| BENCHMARK | Real engine output on synthetic benchmark captures (`public/evidence`, `public/benchmark.json`) |
+| LIVE | Real engine output on a capture analysed in this session |
+| SIMULATED | Monitoring network, stations, incidents, occupancy (`src/lib/sim.ts`) |
+| EXPERIMENTAL | Implemented but not validated (e.g. genome similarity) |
+| NOT ESTABLISHED | Not built or not validated (ML models, FSK/QAM, RS/LDPC, …) |
+
+Regenerate the real-data layer after changing the receiver: `python ../server/export_frontend_data.py` (needs generated datasets and evaluation results; see the root README).
+
+## Map
+
+`src/assets/india-*.topo.json`: DataMeet India boundaries, Survey of India depiction (CC BY 4.0).

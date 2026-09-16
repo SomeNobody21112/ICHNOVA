@@ -1,0 +1,346 @@
+{
+ "generated_from_commit": "a6a8ce2",
+ "bench_v1": {
+  "baseline_4c8188b": {
+   "sealed": {
+    "pass": 30,
+    "n": 30,
+    "false_accepts": null,
+    "outcomes": {
+     "PASS": 30,
+     "FAIL": 0
+    },
+    "runtime_s": 109.2,
+    "source": "reports/data/baseline_4c8188b_sealed_results.json"
+   },
+   "train": {
+    "pass": 60,
+    "n": 100,
+    "false_accepts": null,
+    "outcomes": {
+     "PASS": 60,
+     "FAIL": 40
+    },
+    "runtime_s": 1326.2,
+    "source": "reports/data/baseline_4c8188b_train_results.json"
+   }
+  },
+  "hardened_0f71803": {
+   "sealed": {
+    "pass": 30,
+    "n": 30,
+    "false_accepts": 0,
+    "outcomes": {
+     "PASS": 30
+    },
+    "runtime_s": 16.6,
+    "source": "reports/data/v1_sealed_results.json"
+   },
+   "train": {
+    "pass": 63,
+    "n": 100,
+    "false_accepts": 0,
+    "outcomes": {
+     "UNKNOWN": 17,
+     "PASS": 63,
+     "SIGNAL_NO_CODE": 20
+    },
+    "runtime_s": 37.8,
+    "source": "reports/data/v1_train_results.json"
+   }
+  },
+  "structural_current": {
+   "sealed": {
+    "pass": 30,
+    "n": 30,
+    "false_accepts": 0,
+    "outcomes": {
+     "PASS": 30
+    },
+    "runtime_s": 5.6,
+    "source": "reports/data/v1_sealed_results_structural.json"
+   },
+   "train": {
+    "pass": 63,
+    "n": 100,
+    "false_accepts": 0,
+    "outcomes": {
+     "UNKNOWN": 17,
+     "PASS": 63,
+     "SIGNAL_NO_CODE": 20
+    },
+    "runtime_s": 16.9,
+    "source": "reports/data/v1_train_results_structural.json"
+   }
+  }
+ },
+ "oracle_ladder": {
+  "sealed": {
+   "stages": {
+    "O0": 30,
+    "O1": 0,
+    "O2": 0,
+    "O3": 0,
+    "O4": 0,
+    "O5": 0,
+    "O6": 0,
+    "O7": 0
+   },
+   "never": 0,
+   "n": 30,
+   "o7_first_pass_32bit": 0,
+   "source": "reports/data/sealed_ladder.json"
+  },
+  "train": {
+   "stages": {
+    "O0": 63,
+    "O1": 0,
+    "O2": 5,
+    "O3": 6,
+    "O4": 0,
+    "O5": 1,
+    "O6": 0,
+    "O7": 24
+   },
+   "never": 1,
+   "n": 100,
+   "o7_first_pass_32bit": 23,
+   "source": "reports/data/train_ladder.json"
+  }
+ },
+ "nullset": {
+  "n": 1350,
+  "confusion": {
+   "8psk_k7": {
+    "UNKNOWN": 95,
+    "SIGNAL_NO_CODE": 5
+   },
+   "k3": {
+    "SIGNAL_NO_CODE": 59,
+    "UNKNOWN": 60,
+    "k3": 31
+   },
+   "k5": {
+    "UNKNOWN": 63,
+    "SIGNAL_NO_CODE": 50,
+    "k5": 37
+   },
+   "k7": {
+    "SIGNAL_NO_CODE": 38,
+    "UNKNOWN": 51,
+    "k7": 61
+   },
+   "noise": {
+    "UNKNOWN": 479,
+    "SIGNAL_NO_CODE": 21
+   },
+   "uncoded_bpsk": {
+    "UNKNOWN": 16,
+    "SIGNAL_NO_CODE": 134
+   },
+   "uncoded_qpsk": {
+    "UNKNOWN": 122,
+    "SIGNAL_NO_CODE": 28
+   }
+  },
+  "correct_by_esn0": {
+   "k3": {
+    "6": {
+     "correct": 6,
+     "n": 37
+    },
+    "3": {
+     "correct": 1,
+     "n": 43
+    },
+    "9": {
+     "correct": 8,
+     "n": 34
+    },
+    "12": {
+     "correct": 16,
+     "n": 36
+    }
+   },
+   "k5": {
+    "3": {
+     "correct": 3,
+     "n": 44
+    },
+    "6": {
+     "correct": 5,
+     "n": 38
+    },
+    "9": {
+     "correct": 13,
+     "n": 34
+    },
+    "12": {
+     "correct": 16,
+     "n": 34
+    }
+   },
+   "k7": {
+    "12": {
+     "correct": 25,
+     "n": 36
+    },
+    "9": {
+     "correct": 20,
+     "n": 40
+    },
+    "3": {
+     "correct": 3,
+     "n": 34
+    },
+    "6": {
+     "correct": 13,
+     "n": 40
+    }
+   }
+  },
+  "runtime_mean_s": 0.544,
+  "hypotheses_mean": 9508,
+  "source": "results/nullset_rows.jsonl (reports/data/nullset_report_structural.md)"
+ },
+ "acceptance": {
+  "params": {
+   "delta": 1.6800000000000068,
+   "t": 0.9263986419015836,
+   "m": 2.0
+  },
+  "evaluation_split": [
+   {
+    "rule": "R0",
+    "recall": 0.3111111111111111,
+    "wrong_hyp": 5,
+    "n_coded": 225,
+    "null_fa": 3,
+    "n_null": 450,
+    "wrongnull_fa": 39,
+    "n_wrong": 225
+   },
+   {
+    "rule": "R0+MC",
+    "recall": 0.32,
+    "wrong_hyp": 1,
+    "n_coded": 225,
+    "null_fa": 3,
+    "n_null": 450,
+    "wrongnull_fa": 34,
+    "n_wrong": 225
+   },
+   {
+    "rule": "R0+BL",
+    "recall": 0.3111111111111111,
+    "wrong_hyp": 4,
+    "n_coded": 225,
+    "null_fa": 2,
+    "n_null": 450,
+    "wrongnull_fa": 12,
+    "n_wrong": 225
+   },
+   {
+    "rule": "R0+RM",
+    "recall": 0.3111111111111111,
+    "wrong_hyp": 3,
+    "n_coded": 225,
+    "null_fa": 3,
+    "n_null": 450,
+    "wrongnull_fa": 26,
+    "n_wrong": 225
+   },
+   {
+    "rule": "R0+PM",
+    "recall": 0.3244444444444444,
+    "wrong_hyp": 0,
+    "n_coded": 225,
+    "null_fa": 0,
+    "n_null": 450,
+    "wrongnull_fa": 4,
+    "n_wrong": 225
+   },
+   {
+    "rule": "R0+MC+BL",
+    "recall": 0.32,
+    "wrong_hyp": 1,
+    "n_coded": 225,
+    "null_fa": 2,
+    "n_null": 450,
+    "wrongnull_fa": 7,
+    "n_wrong": 225
+   },
+   {
+    "rule": "R0+MC+BL+RM",
+    "recall": 0.30666666666666664,
+    "wrong_hyp": 0,
+    "n_coded": 225,
+    "null_fa": 2,
+    "n_null": 450,
+    "wrongnull_fa": 1,
+    "n_wrong": 225
+   },
+   {
+    "rule": "R0+MC+BL+PM",
+    "recall": 0.32,
+    "wrong_hyp": 0,
+    "n_coded": 225,
+    "null_fa": 0,
+    "n_null": 450,
+    "wrongnull_fa": 2,
+    "n_wrong": 225
+   }
+  ],
+  "adopted": "R0+MC+BL+PM",
+  "source": "results/acceptance_rows.jsonl (reports/data/acceptance_rules.md)"
+ },
+ "scoring": [
+  {
+   "method": "hard_consistency",
+   "auc": 0.834,
+   "tpr_at_zero_fp": 0.0,
+   "identification": 0.967,
+   "null_range": "[0.86, 1.00]"
+  },
+  {
+   "method": "soft_path_metric",
+   "auc": 0.994,
+   "tpr_at_zero_fp": 0.939,
+   "identification": 0.989,
+   "null_range": "[0.00, 0.95]"
+  },
+  {
+   "method": "mdl_savings_bits",
+   "auc": 0.8,
+   "tpr_at_zero_fp": 0.0,
+   "identification": 0.972,
+   "null_range": "[-1041.59, 114.79]"
+  },
+  {
+   "method": "sign_test_evidence",
+   "auc": 0.96,
+   "tpr_at_zero_fp": 0.844,
+   "identification": 0.9,
+   "null_range": "[-2.47, 2.18]"
+  },
+  {
+   "method": "syndrome_z",
+   "auc": 0.966,
+   "tpr_at_zero_fp": 0.889,
+   "identification": 0.944,
+   "null_range": "[0.00, 3.62]"
+  }
+ ],
+ "runtime": {
+  "stage_share": {
+   "cfo": 0.0065,
+   "sps": 0.0364,
+   "matched_filter": 0.045,
+   "syndrome_search": 0.8056,
+   "viterbi": 0.0556,
+   "scoring": 0.0508
+  },
+  "source": "results/train_diagnostics.jsonl"
+ },
+ "research_issue": "Wrong-interleaver hypotheses can still pass on 0.9% of wrong-structure runs (2/225, held-out split); low-SNR recall is limited (K7 3/34 at 3 dB Es/N0)."
+}

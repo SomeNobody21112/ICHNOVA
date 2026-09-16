@@ -31,6 +31,15 @@ python eval/nullset.py compare                         # scoring-method comparis
 
 Latest results and limitations: `reports/BASELINE_HARDENING_REPORT.md`.
 
+## Operator console
+
+```bash
+cd frontend && npm install && npm run build && cd ..
+python server/app.py      # http://127.0.0.1:8765
+```
+
+Upload an .IQ/.wav capture (or pick a benchmark capture) and follow the evidence chain from raw IQ to decision; browse the Experiment Lab for the measured numbers. Monitoring-network views use clearly labelled simulated data. Details, including Google sign-in setup: `frontend/README.md`.
+
 ## Layout
 
 | Path | Purpose |
@@ -41,6 +50,8 @@ Latest results and limitations: `reports/BASELINE_HARDENING_REPORT.md`.
 | `src/fec.py` | Conv encoder, vectorized soft Viterbi, block interleaver |
 | `src/modem.py` | Modulation, RRC, channel model, IQ/WAV I/O |
 | `src/generate.py` | Deterministic bench-v1 generator |
+| `server/` | Local analysis API (`app.py`), evidence packs, frontend data export |
+| `frontend/` | Operator console (React + Vite) |
 | `eval/` | SNR utility, oracle ladder, null set / calibration / scoring comparison |
 | `reports/` | Measured reports and their raw evidence |
 | `PROGRESS.md` | Session-by-session engineering log |
