@@ -1,173 +1,115 @@
-"""Blind FEC/interleaver identification via catalogue + consistency."""
+"""Blind FEC / interleaver identification: dual-code syndrome test over a code catalogue.
+
+Every codeword of a rate-1/2 convolutional code (c1 = g1*u, c2 = g2*u over GF(2)) satisfies
+    g2(D)·c1(D) + g1(D)·c2(D) = 0.
+For each trellis step t ≥ K-1 this gives one parity check over the received coded bits,
+valid for any encoder start state and for codewords truncated at any point. With soft
+values th = tanh(LLR/2), a check's soft value is the product of th over its bits.
+
+Null model: if the coded bits are independent and symmetric (noise, uncoded random data),
+each check's sign is a fair coin, and consecutive checks are linearly independent over
+GF(2) (check t is the first to involve c1(t), c2(t)), so the number of positive checks is
+exactly Binomial(n_checks, 1/2). The p-value P(X >= n_positive) is therefore exact under
+that null, needs no LLR calibration, and grows stronger with every covered bit, so a
+hypothesis covering 36 bits can never look as certain as one covering 120.
+Wrong-interleaver hypotheses on truly coded data are not guaranteed to follow this null;
+their behaviour is measured empirically (eval/nullset.py).
+"""
 
 import numpy as np
-from fec import conv_encode, viterbi_decode, block_interleave, block_deinterleave_soft
+from scipy.special import bdtrc
+from fec import conv_encode, viterbi_decode, block_interleave, block_deinterleave
 
 
+# Generator convention (fec.conv_encode): bit j of g taps the input delayed by j samples
+# (bit 0 = current input). This is the bit-reversal of the MATLAB poly2trellis / "MSB =
+# current input" convention, so "171/133" here equals "117/155" in that convention.
 CODE_CATALOGUE = [
-    {
-        'name': 'conv_k7_r12_171_133',
-        'generators': [0o171, 0o133],
-        'K': 7,
-        'rate': 0.5,
-    },
-    {
-        'name': 'conv_k5_r12_23_35',
-        'generators': [0o23, 0o35],
-        'K': 5,
-        'rate': 0.5,
-    },
-    {
-        'name': 'conv_k3_r12_7_5',
-        'generators': [0o7, 0o5],
-        'K': 3,
-        'rate': 0.5,
-    },
-    {
-        'name': 'uncoded',
-        'generators': None,
-        'K': 0,
-        'rate': 1.0,
-    },
+    {'name': 'conv_k7_r12_171_133', 'generators': [0o171, 0o133], 'K': 7},
+    {'name': 'conv_k5_r12_23_35', 'generators': [0o23, 0o35], 'K': 5},
+    {'name': 'conv_k3_r12_7_5', 'generators': [0o7, 0o5], 'K': 3},
 ]
 
-# A coded hypothesis with consistency C gets comparison score C + CODED_BONUS.
-# The uncoded hypothesis trivially achieves consistency = 1.0 (decoded = hard(LLRs),
-# reencoded = same).  Choosing CODED_BONUS = 0.12 means any coded hypothesis with
-# consistency >= 0.88 outscores uncoded.  The genie analysis shows correct coded
-# hypotheses achieve 0.85–0.97, so 0.12 is just enough to prefer them.
-# We try ALL interleaver candidates for each code before deciding whether it beats
-# uncoded — this avoids an early exit on a wrong interleaver with moderate consistency.
-_CODED_BONUS = 0.12
+# Receiver search domain for single-block interleavers (a receiver spec, max 384 bits).
+INTERLEAVER_ROWS = (2, 16)
+INTERLEAVER_COLS = (4, 24)
 
 
-def reencode_consistency(decoded_bits, llrs, code, interleaver_dims):
-    """Hard-bit re-encode consistency: fraction of received bits matching re-encoding."""
-    if code['generators'] is None:
-        reencoded = np.asarray(decoded_bits, dtype=np.uint8)
-    else:
-        reencoded = conv_encode(decoded_bits, code['generators'], code['K'])
+def interleaver_candidates(n_llrs):
+    """Block interleavers r×c within the search domain with 0.5·n ≤ r·c ≤ n.
 
-    if interleaver_dims is not None:
-        rows, cols = interleaver_dims
-        n = rows * cols
-        reencoded_padded = np.zeros(n, dtype=np.uint8)
-        reencoded_padded[:min(len(reencoded), n)] = reencoded[:n]
-        reencoded_interleaved = block_interleave(reencoded_padded, rows, cols)
-    else:
-        reencoded_interleaved = reencoded
-
-    L = min(len(reencoded_interleaved), len(llrs))
-    if L == 0:
-        return 0.0
-
-    hard_received = (llrs[:L] < 0).astype(np.uint8)
-    return float(np.mean(hard_received == reencoded_interleaved[:L]))
+    The lower bound allows the matched-filter tail (extra near-zero symbols) to make up
+    to half of the observed stream."""
+    return [(r, c)
+            for r in range(INTERLEAVER_ROWS[0], INTERLEAVER_ROWS[1] + 1)
+            for c in range(INTERLEAVER_COLS[0], INTERLEAVER_COLS[1] + 1)
+            if 0.5 * n_llrs <= r * c <= n_llrs]
 
 
-def try_decode(llrs, code, interleaver_dims):
-    """Attempt decode with given code and interleaver hypothesis."""
-    if interleaver_dims is not None:
-        rows, cols = interleaver_dims
-        n = rows * cols
-        L = min(len(llrs), n)
-        llrs_padded = np.zeros(n)
-        llrs_padded[:L] = llrs[:L]
-        deinterleaved = block_deinterleave_soft(llrs_padded, rows, cols)
-    else:
-        deinterleaved = llrs
-
-    if code['generators'] is None:
-        decoded = (deinterleaved < 0).astype(np.uint8)
-    else:
-        # The block interleaver truncates the codeword, so there is no zero tail:
-        # decode the full path, otherwise re-encoding caps consistency at ~0.9.
-        decoded = viterbi_decode(deinterleaved, code['generators'], code['K'],
-                                 terminated=False)
-
-    consistency = reencode_consistency(decoded, llrs, code, interleaver_dims)
-    return decoded, consistency
+_DEINTERLEAVE_INDEX = {}
 
 
-def generate_interleaver_candidates(n_bits, min_r=2, max_r=16, min_c=4, max_c=24):
-    """Generate candidate block interleaver dimensions.
-
-    Lower bound is 0.5 * n_bits: the RRC filter adds extra symbols at the tail,
-    so n_llrs is typically 10–35% larger than n_il_bits.  Upper bound 1.0 * n_bits
-    (not 1.2) because the true interleaver is always <= n_llrs.
-    """
-    candidates = []
-    for r in range(min_r, max_r + 1):
-        for c in range(min_c, max_c + 1):
-            n = r * c
-            if 0.5 * n_bits <= n <= n_bits:
-                candidates.append((r, c))
-    candidates.append(None)
-    return candidates
+def deinterleave_index(rows, cols):
+    """Index array idx such that stream[idx] is the deinterleaved coded sequence."""
+    key = (rows, cols)
+    if key not in _DEINTERLEAVE_INDEX:
+        _DEINTERLEAVE_INDEX[key] = block_deinterleave(np.arange(rows * cols), rows, cols)
+    return _DEINTERLEAVE_INDEX[key]
 
 
-def blind_identify(llrs, n_info_bits_approx=400):
-    """Search code catalogue and interleaver candidates; return best hypothesis.
+def syndrome_checks(th, code):
+    """Soft parity-check values of g2(D)·c1(D) + g1(D)·c2(D) for steps t = K-1 … T-1.
 
-    Strategy: for each code (K7, K5, K3, uncoded), try ALL interleaver candidates
-    and keep the best (max consistency).  After exhausting all candidates for a
-    coded code, if its best score (consistency + _CODED_BONUS) exceeds 1.0 (the
-    max uncoded score), stop — no uncoded or weaker code can beat it.
+    th: tanh(LLR/2) of the deinterleaved stream, c1/c2 alternating (LLR > 0 means bit 0)."""
+    g1, g2 = code['generators']
+    K = code['K']
+    T = len(th) // 2
+    n = T - K + 1
+    if n <= 0:
+        return np.empty(0)
+    c1, c2 = th[0:2 * T:2], th[1:2 * T:2]
+    prod = np.ones(n)
+    for j in range(K):
+        if (g2 >> j) & 1:
+            prod *= c1[K - 1 - j:K - 1 - j + n]
+        if (g1 >> j) & 1:
+            prod *= c2[K - 1 - j:K - 1 - j + n]
+    return prod
 
-    This avoids the pitfall of exiting early on a wrong interleaver with moderate
-    consistency before reaching the correct (higher-consistency) one.
-    """
-    candidates = generate_interleaver_candidates(len(llrs))
 
-    # Only search K7 and uncoded — K5/K3 add false-positive wrong hypotheses
-    # and are not needed for the current benchmark (which uses K7 exclusively).
-    _active_codes = [c for c in CODE_CATALOGUE
-                     if c['name'] in ('conv_k7_r12_171_133', 'uncoded')]
+def sign_test_log10p(n_positive, n_checks):
+    """log10 P(Binomial(n_checks, 1/2) ≥ n_positive), vectorized."""
+    n_positive = np.asarray(n_positive)
+    p = bdtrc(n_positive - 1, n_checks, 0.5)
+    return np.log10(np.where(n_positive > 0, np.maximum(p, 1e-300), 1.0))
 
-    best_result = None
-    best_score = -1.0
 
-    for code in _active_codes:
-        # If a previous coded code already scored above the uncoded ceiling, stop.
-        if best_score > 1.0:
-            break
+def decode_hypothesis(llrs, code, dims):
+    """Viterbi-decode one hypothesis and compute the comparison scores for it.
 
-        is_coded = code['generators'] is not None
-        code_best_cons = -1.0
-        code_best_result = None
-
-        for il_dims in candidates:
-            try:
-                decoded, consistency = try_decode(llrs, code, il_dims)
-            except Exception:
-                continue
-
-            if consistency > code_best_cons:
-                code_best_cons = consistency
-                code_best_result = {
-                    'decoded_bits': decoded,
-                    'consistency': consistency,
-                    'code': code,
-                    'interleaver': il_dims,
-                }
-
-        if code_best_result is None:
-            continue
-
-        score = code_best_cons + (_CODED_BONUS if is_coded else 0.0)
-        code_best_result['score'] = score
-
-        if score > best_score:
-            best_score = score
-            best_result = code_best_result
-
-    if best_result is None:
-        return {
-            'decoded_bits': np.array([], dtype=np.uint8),
-            'consistency': 0.0,
-            'score': 0.0,
-            'code': CODE_CATALOGUE[-1],
-            'interleaver': None,
-        }
-
-    return best_result
+    Returns decoded bits plus: covered bits, hard re-encode consistency, soft path metric
+    Σ L·(1-2c)/Σ|L|, and soft disagreement D = Σ_mismatch |L| (nats, for MDL)."""
+    rows, cols = dims
+    n = rows * cols
+    stream = np.asarray(llrs[:n], dtype=float)
+    deint = stream[deinterleave_index(rows, cols)]
+    T = n // 2
+    decoded = viterbi_decode(deint[:2 * T], code['generators'], code['K'], terminated=False)
+    reenc = conv_encode(decoded, code['generators'], code['K'])[:2 * T]
+    full = np.zeros(n, dtype=np.uint8)
+    full[:2 * T] = reenc
+    reint = block_interleave(full, rows, cols)
+    covered = np.zeros(n, dtype=np.uint8)
+    covered[:2 * T] = 1
+    covered = block_interleave(covered, rows, cols).astype(bool)
+    L = stream[covered]
+    c = reint[covered]
+    mismatch = (L < 0).astype(np.uint8) != c
+    abs_sum = float(np.sum(np.abs(L))) + 1e-12
+    return {
+        'decoded_bits': decoded,
+        'covered_bits': int(covered.sum()),
+        'consistency': float(1.0 - mismatch.mean()) if len(L) else 0.0,
+        'path_metric': float(np.sum(L * (1 - 2.0 * c)) / abs_sum),
+        'soft_disagreement_nats': float(np.sum(np.abs(L[mismatch]))),
+    }

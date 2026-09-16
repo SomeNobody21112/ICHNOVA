@@ -95,10 +95,12 @@ def viterbi_decode(llrs, generators, K, terminated=True):
         cand_b = metrics[prev_b] + bm[prev_b, b_for_ns]   # [n_states]
         use_a = cand_a >= cand_b
         metrics = np.where(use_a, cand_a, cand_b)
+        metrics -= metrics.max()   # renormalize: float32 metrics would otherwise grow with length
         paths[t] = np.where(use_a, prev_a, prev_b)
 
     # Traceback: input bit b = LSB of next-state (left-shift convention)
-    state = int(np.argmax(metrics))
+    # A terminated codeword ends in state 0; a truncated one ends in the best state.
+    state = 0 if terminated else int(np.argmax(metrics))
     decoded = np.empty(n_steps, dtype=np.uint8)
     for t in range(n_steps - 1, -1, -1):
         prev = int(paths[t, state])
