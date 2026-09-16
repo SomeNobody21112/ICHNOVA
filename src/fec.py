@@ -97,7 +97,6 @@ def viterbi_decode(llrs, generators, K):
         paths[t] = np.where(use_a, prev_a, prev_b)
 
     # Traceback: input bit b = LSB of next-state (left-shift convention)
-    best_final = float(np.max(metrics))
     state = int(np.argmax(metrics))
     decoded = np.empty(n_steps, dtype=np.uint8)
     for t in range(n_steps - 1, -1, -1):
@@ -106,12 +105,7 @@ def viterbi_decode(llrs, generators, K):
         state = prev
 
     info_len = max(0, n_steps - (K - 1))
-    # Normalized path metric: best path log-likelihood / sum(|llrs|).
-    # = 1.0 when the Viterbi follows the transmitted codeword exactly;
-    # < 1.0 when it must correct high-confidence bits (wrong interleaver/params).
-    llrs_norm = float(np.sum(np.abs(llrs_f))) + 1e-10
-    path_metric = best_final / llrs_norm
-    return decoded[:info_len], path_metric
+    return decoded[:info_len]
 
 
 def block_interleave(bits, rows, cols):
