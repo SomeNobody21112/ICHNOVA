@@ -32,27 +32,27 @@ function ScaleArt({ level }: { level: number }) {
     <svg viewBox="0 0 80 80" className="scale-svg" aria-hidden>
       <circle cx="40" cy="40" r="37" className="scale-ring" />
       {level === 0 && <>
-        <motion.circle cx="40" cy="40" r="6" fill="#3ec28f" initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', delay: 0.2 }} />
-        <motion.circle cx="40" cy="40" r="6" fill="none" stroke="#3ec28f" strokeWidth="1.5" animate={{ r: [6, 22], opacity: [0.9, 0] }} transition={{ repeat: Infinity, duration: 2.2 }} />
+        <motion.circle cx="40" cy="40" r="6" fill="var(--green)" initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', delay: 0.2 }} />
+        <motion.circle cx="40" cy="40" r="6" fill="none" stroke="var(--green)" strokeWidth="1.5" animate={{ r: [6, 22], opacity: [0.9, 0] }} transition={{ repeat: Infinity, duration: 2.2 }} />
       </>}
-      {level === 1 && dots(34, 26, 11).map(([x, y], i) => <motion.circle key={i} cx={x} cy={y} r="2.4" fill={i % 7 === 0 ? '#e9b949' : i % 3 === 0 ? '#5fd0f0' : '#3ec28f'} initial={{ opacity: 0 }} animate={{ opacity: 0.9 }} transition={{ delay: 0.3 + i * 0.02 }} />)}
+      {level === 1 && dots(34, 26, 11).map(([x, y], i) => <motion.circle key={i} cx={x} cy={y} r="2.4" fill={i % 7 === 0 ? 'var(--amber)' : i % 3 === 0 ? 'var(--cyan)' : 'var(--green)'} initial={{ opacity: 0 }} animate={{ opacity: 0.9 }} transition={{ delay: 0.3 + i * 0.02 }} />)}
       {level === 2 && <>
-        <path d="M40 24 L32 60 M40 24 L48 60 M35 46 H45" stroke="#a4b4c3" strokeWidth="2" fill="none" />
-        {[10, 18, 26].map((r, i) => <motion.path key={r} d={`M${40 - r * 0.7} ${24 - r * 0.7} A ${r} ${r} 0 0 1 ${40 + r * 0.7} ${24 - r * 0.7}`} stroke="#5fd0f0" strokeWidth="1.6" fill="none" animate={{ opacity: [0.2, 1, 0.2] }} transition={{ repeat: Infinity, duration: 1.8, delay: i * 0.3 }} />)}
+        <path d="M40 24 L32 60 M40 24 L48 60 M35 46 H45" stroke="var(--text-2)" strokeWidth="2" fill="none" />
+        {[10, 18, 26].map((r, i) => <motion.path key={r} d={`M${40 - r * 0.7} ${24 - r * 0.7} A ${r} ${r} 0 0 1 ${40 + r * 0.7} ${24 - r * 0.7}`} stroke="var(--cyan)" strokeWidth="1.6" fill="none" animate={{ opacity: [0.2, 1, 0.2] }} transition={{ repeat: Infinity, duration: 1.8, delay: i * 0.3 }} />)}
       </>}
       {level === 3 && <>
-        {masts.map(([x, y], i) => masts.slice(i + 1).map(([x2, y2], j) => <motion.line key={`${i}-${j}`} x1={x} y1={y} x2={x2} y2={y2} stroke="#1e6e8c" strokeWidth="1" initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ delay: 0.4 + (i + j) * 0.08, duration: 0.6 }} />))}
-        {masts.map(([x, y], i) => <circle key={i} cx={x} cy={y} r="3.6" fill={i === 4 ? '#e9b949' : '#5fd0f0'} />)}
+        {masts.map(([x, y], i) => masts.slice(i + 1).map(([x2, y2], j) => <motion.line key={`${i}-${j}`} x1={x} y1={y} x2={x2} y2={y2} stroke="var(--cyan)" strokeWidth="1" initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ delay: 0.4 + (i + j) * 0.08, duration: 0.6 }} />))}
+        {masts.map(([x, y], i) => <circle key={i} cx={x} cy={y} r="3.6" fill={i === 4 ? 'var(--amber)' : 'var(--cyan)'} />)}
       </>}
       {level === 4 && [[26, 28], [54, 28], [40, 54]].map(([cx, cy], k) => (
         <g key={k}>
-          <circle cx={cx} cy={cy} r="15" fill="rgba(95,208,240,0.08)" stroke="#2a86a8" strokeDasharray="3 3" />
-          {dots(6, 9, k * 40).map(([x, y], i) => <circle key={i} cx={x - 40 + cx} cy={y - 40 + cy} r="1.8" fill="#5fd0f0" />)}
+          <circle cx={cx} cy={cy} r="15" fill="var(--cyan)" fillOpacity={0.08} stroke="var(--accent)" strokeDasharray="3 3" />
+          {dots(6, 9, k * 40).map(([x, y], i) => <circle key={i} cx={x - 40 + cx} cy={y - 40 + cy} r="1.8" fill="var(--cyan)" />)}
         </g>
       ))}
       {level === 5 && <>
-        <motion.path d={OUTLINE_PATH} fill="rgba(95,208,240,0.14)" stroke="#5fd0f0" strokeWidth="1.2" initial={{ pathLength: 0, opacity: 0 }} animate={{ pathLength: 1, opacity: 1 }} transition={{ duration: 1.6, delay: 0.4 }} />
-        {[[30, 32], [44, 48], [36, 58], [52, 36], [26, 44]].map(([x, y], i) => <motion.circle key={i} cx={x} cy={y} r="2" fill="#e9b949" animate={{ opacity: [0.3, 1, 0.3] }} transition={{ repeat: Infinity, duration: 2, delay: i * 0.3 }} />)}
+        <motion.path d={OUTLINE_PATH} fill="var(--accent)" fillOpacity={0.16} stroke="var(--cyan)" strokeWidth="1.2" initial={{ pathLength: 0, opacity: 0 }} animate={{ pathLength: 1, opacity: 1 }} transition={{ duration: 1.6, delay: 0.4 }} />
+        {[[30, 32], [44, 48], [36, 58], [52, 36], [26, 44]].map(([x, y], i) => <motion.circle key={i} cx={x} cy={y} r="2" fill="var(--amber)" animate={{ opacity: [0.3, 1, 0.3] }} transition={{ repeat: Infinity, duration: 2, delay: i * 0.3 }} />)}
       </>}
     </svg>
   )
@@ -123,9 +123,9 @@ export default function Intelligence() {
       {level === 'NATIONAL' && (
         <div className="col" style={{ gap: 14 }}>
           <div className="grid g-4">
-            <Panel title="Active signal classes"><HBars items={[{ label: 'Known', value: known, color: '#3ec28f' }, { label: 'Recurring', value: recurrent, color: '#5fd0f0' }, { label: 'Emerging', value: emerging, color: '#a393ff' }, { label: 'Unknown', value: unknownN, color: '#e9b949' }]} /></Panel>
-            <Panel title="Anomalies"><HBars items={[{ label: 'New', value: world.anomalies.filter((a) => a.kind === 'New').length, color: '#f08c4a' }, { label: 'Persistent', value: world.anomalies.filter((a) => a.kind === 'Persistent').length, color: '#e9b949' }, { label: 'Recurring', value: world.anomalies.filter((a) => a.kind === 'Recurring').length, color: '#5fd0f0' }]} /></Panel>
-            <Panel title="Interference & incidents"><HBars items={[{ label: 'Active cases', value: world.incidents.filter((i) => i.status !== 'CLOSED').length, color: '#f08c4a' }, { label: 'Cross-station', value: world.incidents.filter((i) => i.stationIds.length > 1).length, color: '#e9b949' }, { label: 'Closed', value: world.incidents.filter((i) => i.status === 'CLOSED').length, color: '#465666' }]} /></Panel>
+            <Panel title="Active signal classes"><HBars items={[{ label: 'Known', value: known, color: 'var(--green)' }, { label: 'Recurring', value: recurrent, color: 'var(--cyan)' }, { label: 'Emerging', value: emerging, color: 'var(--violet)' }, { label: 'Unknown', value: unknownN, color: 'var(--amber)' }]} /></Panel>
+            <Panel title="Anomalies"><HBars items={[{ label: 'New', value: world.anomalies.filter((a) => a.kind === 'New').length, color: 'var(--orange)' }, { label: 'Persistent', value: world.anomalies.filter((a) => a.kind === 'Persistent').length, color: 'var(--amber)' }, { label: 'Recurring', value: world.anomalies.filter((a) => a.kind === 'Recurring').length, color: 'var(--cyan)' }]} /></Panel>
+            <Panel title="Interference & incidents"><HBars items={[{ label: 'Active cases', value: world.incidents.filter((i) => i.status !== 'CLOSED').length, color: 'var(--orange)' }, { label: 'Cross-station', value: world.incidents.filter((i) => i.stationIds.length > 1).length, color: 'var(--amber)' }, { label: 'Closed', value: world.incidents.filter((i) => i.status === 'CLOSED').length, color: 'var(--faint)' }]} /></Panel>
             <Panel title="Spectrum activity"><HBars items={BANDS.map((b, k) => ({ label: b.id, value: STATIONS.reduce((a, _, i) => a + occupancy(i, k, 13), 0) / STATIONS.length }))} max={1} fmt={(v) => `${Math.round(v * 100)}%`} /></Panel>
           </div>
           <div className="grid" style={{ gridTemplateColumns: 'minmax(0, 1.1fr) minmax(0, 0.9fr)' }}>

@@ -52,6 +52,7 @@ export default function Analysis() {
   const [realList, setRealList] = useState<ReplayIndexEntry[]>([])
   const [real, setReal] = useState<ReplayIndexEntry | null>(null)
   const [realResult, setRealResult] = useState<RealAnalysis | null>(null)
+  const [sampleTab, setSampleTab] = useState<'real' | 'bench'>('real')
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => { fetch('/samples/samples.json').then((r) => r.json()).then(setSamples).catch(() => setSamples([])) }, [])
@@ -167,24 +168,27 @@ export default function Analysis() {
               <div className="muted" style={{ fontSize: 12 }}>{file ? `${(file.size / 1024).toFixed(1)} KB` : '.iq = interleaved float32 I/Q · .wav = int16 stereo I/Q'}</div>
               <input ref={inputRef} type="file" accept=".iq,.wav,.bin,.raw" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) { setFile(f); setSample(null) } }} />
             </div>
-            <div className="divider" style={{ margin: '14px 0 10px' }}>or a benchmark capture</div>
-            <div className="col" style={{ gap: 6 }}>
+            <div className="divider" style={{ margin: '16px 0 10px' }}>or choose a sample recording</div>
+            <div className="seg" style={{ width: '100%', marginBottom: 10 }} role="tablist">
+              <button role="tab" aria-selected={sampleTab === 'real'} className={sampleTab === 'real' ? 'on' : ''} style={{ flex: 1 }} onClick={() => setSampleTab('real')}>Real transmissions · {realList.length}</button>
+              <button role="tab" aria-selected={sampleTab === 'bench'} className={sampleTab === 'bench' ? 'on' : ''} style={{ flex: 1 }} onClick={() => setSampleTab('bench')}>Benchmark · {samples.length}</button>
+            </div>
+            {sampleTab === 'bench' && <div className="col" style={{ gap: 6 }}>
               {samples.map((s) => (
-                <button key={s.name} className={`chip${sample?.name === s.name ? ' on' : ''}`} style={{ height: 'auto', padding: '7px 10px', borderRadius: 6, justifyContent: 'flex-start', textAlign: 'left' }}
+                <button key={s.name} className={`chip${sample?.name === s.name ? ' on' : ''}`} style={{ height: 'auto', padding: '7px 10px', borderRadius: 6, flexDirection: 'column', alignItems: 'flex-start', gap: 2, textAlign: 'left' }}
                   onClick={() => { setSample(s); setReal(null); setFile(null); if (s.format === 'wav') setMeta({ ...meta, fs: String(s.fs_hz) }) }}>
-                  <span className="mono" style={{ minWidth: 150 }}>{s.name}</span><span className="muted" style={{ fontSize: 11.5, whiteSpace: 'normal' }}>{s.description}</span>
+                  <span className="mono" style={{ whiteSpace: 'normal' }}>{s.name}</span><span className="muted" style={{ fontSize: 11.5, whiteSpace: 'normal' }}>{s.description}</span>
                 </button>
               ))}
-            </div>
-            <div className="divider" style={{ margin: '14px 0 10px' }}>or a real government transmission (recorded .wav, GPS-timed)</div>
-            <div className="col" style={{ gap: 6 }}>
+            </div>}
+            {sampleTab === 'real' && <div className="col" style={{ gap: 6 }}>
               {realList.map((e) => (
-                <button key={e.id} className={`chip${real?.id === e.id ? ' on' : ''}`} style={{ height: 'auto', padding: '7px 10px', borderRadius: 6, justifyContent: 'flex-start', textAlign: 'left' }}
+                <button key={e.id} className={`chip${real?.id === e.id ? ' on' : ''}`} style={{ height: 'auto', padding: '7px 10px', borderRadius: 6, flexDirection: 'column', alignItems: 'flex-start', gap: 2, textAlign: 'left' }}
                   onClick={() => { setReal(e); setSample(null); setFile(null) }}>
-                  <span className="mono" style={{ minWidth: 150 }}>{e.station}</span><span className="muted" style={{ fontSize: 11.5, whiteSpace: 'normal' }}>{e.operator.split(' — ')[0]} · {e.frequency_khz >= 1000 ? `${e.frequency_khz / 1000} MHz` : `${e.frequency_khz} kHz`} · {e.receiver}</span>
+                  <span className="mono" style={{ whiteSpace: 'normal' }}>{e.station}</span><span className="muted" style={{ fontSize: 11.5, whiteSpace: 'normal' }}>{e.operator.split(' — ')[0]} · {e.frequency_khz >= 1000 ? `${e.frequency_khz / 1000} MHz` : `${e.frequency_khz} kHz`} · {e.receiver}</span>
                 </button>
               ))}
-            </div>
+            </div>}
           </Panel>
           <Panel title="2 · Capture metadata" right={<span className="muted" style={{ fontSize: 11.5 }}>recorded with the evidence</span>}>
             <div className="form-grid">

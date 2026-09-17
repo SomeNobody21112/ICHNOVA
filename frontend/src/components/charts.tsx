@@ -1,8 +1,34 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { cssVar, parseColor, rampStops, useTheme } from '../lib/theme'
 import type { AllHypotheses } from '../lib/types'
+
+/** Canvas cannot read var(); resolve theme tokens (and 'var(--x)' strings) to concrete colours. */
+export function resolveColor(c: string) {
+  const m = /^var\((--[\w-]+)\)$/.exec(c.trim())
+  return m ? cssVar(m[1]) : c
+}
+export function withAlpha(c: string, a: number) {
+  const [r, g, b] = parseColor(resolveColor(c))
+  return `rgba(${r},${g},${b},${a})`
+}
+let rampCache: { key: string; spec: number[][]; occ: number[][] } | null = null
+function ramp(kind: 'spec' | 'occ') {
+  const key = document.documentElement.dataset.theme ?? 'light'
+  if (!rampCache || rampCache.key !== key) rampCache = { key, spec: rampStops('spec'), occ: rampStops('occ') }
+  return rampCache[kind]
+}
+function interp(stops: number[][], t: number) {
+  const x = Math.max(0, Math.min(1, t))
+  const p = x * (stops.length - 1)
+  const i = Math.min(stops.length - 2, Math.floor(p))
+  const f = p - i
+  const a = stops[i], b = stops[i + 1]
+  return `rgb(${a[0] + (b[0] - a[0]) * f | 0},${a[1] + (b[1] - a[1]) * f | 0},${a[2] + (b[2] - a[2]) * f | 0})`
+}
 
 function useCanvas(draw: (ctx: CanvasRenderingContext2D, w: number, h: number) => void, deps: unknown[]) {
   const ref = useRef<HTMLCanvasElement>(null)
+  const { theme } = useTheme()
   const [size, setSize] = useState({ w: 0, h: 0 })
   useEffect(() => {
     const el = ref.current
@@ -22,29 +48,17 @@ function useCanvas(draw: (ctx: CanvasRenderingContext2D, w: number, h: number) =
     ctx.clearRect(0, 0, size.w, size.h)
     draw(ctx, size.w, size.h)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [size, ...deps])
+  }, [size, theme, ...deps])
   return ref
 }
 
-// Perceptual dark-to-cyan-to-amber ramp for spectra.
+// Spectrum and occupancy ramps come from the theme (--ramp-*, --occ-*): background-coloured when quiet.
 export function specColor(t: number) {
-  const x = Math.max(0, Math.min(1, t))
-  const stops = [[8, 12, 17], [16, 38, 58], [22, 92, 122], [60, 170, 205], [150, 222, 238], [240, 205, 110]]
-  const p = x * (stops.length - 1)
-  const i = Math.min(stops.length - 2, Math.floor(p))
-  const f = p - i
-  const a = stops[i], b = stops[i + 1]
-  return `rgb(${a[0] + (b[0] - a[0]) * f | 0},${a[1] + (b[1] - a[1]) * f | 0},${a[2] + (b[2] - a[2]) * f | 0})`
+  return interp(ramp('spec'), t)
 }
 
 export function occColor(t: number) {
-  const x = Math.max(0, Math.min(1, t))
-  const stops = [[13, 20, 27], [18, 52, 70], [30, 110, 140], [233, 185, 73], [240, 140, 74]]
-  const p = x * (stops.length - 1)
-  const i = Math.min(stops.length - 2, Math.floor(p))
-  const f = p - i
-  const a = stops[i], b = stops[i + 1]
-  return `rgb(${a[0] + (b[0] - a[0]) * f | 0},${a[1] + (b[1] - a[1]) * f | 0},${a[2] + (b[2] - a[2]) * f | 0})`
+  return interp(ramp('occ'), t)
 }
 
 /** Matrix heatmap: data[row][col], rows drawn top→bottom. */
@@ -64,7 +78,7 @@ export function Heatmap({ data, height = 220, color = occColor, onCell, highligh
       ctx.fillRect(c * cw, r * ch, Math.ceil(cw), Math.ceil(ch))
     }
     if (highlightRow != null) {
-      ctx.strokeStyle = 'rgba(95,208,240,0.9)'
+      ctx.strokeStyle = withAlpha('var(--accent)', 0.9)
       ctx.lineWidth = 1.5
       ctx.strokeRect(0.5, highlightRow * ch + 0.5, w - 1, ch - 1)
     }
@@ -168,10 +182,10 @@ export function LiveWaterfall({ height = 380, channels = 160, events, running = 
         if (top > h) continue
         const x = ev.f0 * cw - 2, bw = (ev.f1 - ev.f0 + 1) * cw + 4
         boxes.current.push({ id: ev.id, x, y: top, w: bw, h: bh })
-        ctx.strokeStyle = hover === ev.id ? '#ffffff' : ev.tone
+        ctx.strokeStyle = resolveColor(hover === ev.id ? 'var(--text)' : ev.tone)
         ctx.lineWidth = hover === ev.id ? 1.6 : 1.1
         ctx.strokeRect(x + 0.5, top + 0.5, bw, Math.max(bh, 6))
-        ctx.fillStyle = ev.tone
+        ctx.fillStyle = resolveColor(ev.tone)
         ctx.font = '10px "IBM Plex Mono", monospace'
         ctx.fillText(ev.label, x + 3, top + Math.max(bh, 6) + 11)
       }
@@ -198,17 +212,17 @@ export function Constellation({ points, height = 260, ideal }: { points: number[
   const ref = useCanvas((ctx, w, h) => {
     const s = Math.min(w, h) / 2 - 12
     const cx = w / 2, cy = h / 2
-    ctx.strokeStyle = '#1c2834'
+    ctx.strokeStyle = cssVar('--line-2')
     ctx.lineWidth = 1
     for (const k of [0.5, 1, 1.5]) { ctx.beginPath(); ctx.arc(cx, cy, (s / 1.8) * k, 0, Math.PI * 2); ctx.stroke() }
     ctx.beginPath(); ctx.moveTo(cx - s, cy); ctx.lineTo(cx + s, cy); ctx.moveTo(cx, cy - s); ctx.lineTo(cx, cy + s); ctx.stroke()
     const scale = s / 1.8
-    ctx.fillStyle = 'rgba(95,208,240,0.55)'
+    ctx.fillStyle = withAlpha('var(--cyan)', 0.6)
     for (const [re, im] of points) {
       ctx.beginPath(); ctx.arc(cx + re * scale, cy - im * scale, 1.7, 0, Math.PI * 2); ctx.fill()
     }
     const ref: number[][] = ideal === 'BPSK' ? [[1, 0], [-1, 0]] : ideal === 'QPSK' ? [[0.707, 0.707], [-0.707, 0.707], [0.707, -0.707], [-0.707, -0.707]] : []
-    ctx.strokeStyle = '#e9b949'
+    ctx.strokeStyle = cssVar('--amber')
     ctx.lineWidth = 1.5
     for (const [re, im] of ref) {
       const x = cx + re * scale, y = cy - im * scale
@@ -232,7 +246,7 @@ export function LinePlot({ series, height = 180, yLabel, xLabel, yMin, yMax, mar
     <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ width: '100%', height }} role="img">
       {[0, 0.25, 0.5, 0.75, 1].map((k) => (
         <g key={k}>
-          <line x1={pl} x2={W - pr} y1={pt + k * (H - pt - pb)} y2={pt + k * (H - pt - pb)} stroke="#1c2834" />
+          <line x1={pl} x2={W - pr} y1={pt + k * (H - pt - pb)} y2={pt + k * (H - pt - pb)} stroke="var(--line)" />
           <text x={pl - 6} y={pt + k * (H - pt - pb) + 3} textAnchor="end" className="axis">{(y1 - k * (y1 - y0)).toFixed(Math.abs(y1 - y0) < 5 ? 1 : 0)}</text>
         </g>
       ))}
@@ -257,7 +271,7 @@ export function LinePlot({ series, height = 180, yLabel, xLabel, yMin, yMax, mar
   )
 }
 
-export function Sparkline({ values, color = '#5fd0f0', w = 90, h = 26 }: { values: number[]; color?: string; w?: number; h?: number }) {
+export function Sparkline({ values, color = 'var(--cyan)', w = 90, h = 26 }: { values: number[]; color?: string; w?: number; h?: number }) {
   const mn = Math.min(...values), mx = Math.max(...values)
   const d = values.map((v, i) => `${i ? 'L' : 'M'}${(i / (values.length - 1)) * w},${h - 2 - ((v - mn) / (mx - mn || 1)) * (h - 4)}`).join('')
   return <svg width={w} height={h}><path d={d} fill="none" stroke={color} strokeWidth={1.4} /></svg>
@@ -284,7 +298,7 @@ export function Donut({ parts, size = 120, label }: { parts: { value: number; co
   const r = 44, c = 2 * Math.PI * r
   return (
     <svg viewBox="0 0 120 120" width={size} height={size}>
-      <circle cx="60" cy="60" r={r} fill="none" stroke="#131c26" strokeWidth="14" />
+      <circle cx="60" cy="60" r={r} fill="none" stroke="var(--panel-3)" strokeWidth="14" />
       {parts.map((p) => {
         const len = (p.value / total) * c
         const el = <circle key={p.label} cx="60" cy="60" r={r} fill="none" stroke={p.color} strokeWidth="14" strokeDasharray={`${len} ${c - len}`} strokeDashoffset={-acc} transform="rotate(-90 60 60)" />
@@ -297,7 +311,7 @@ export function Donut({ parts, size = 120, label }: { parts: { value: number; co
 }
 
 /** Radial fingerprint: 10 genome axes as a closed polygon plus spokes. */
-export function GenomeGlyph({ values, size = 150, color = '#5fd0f0', compare, labels }: { values: number[]; size?: number; color?: string; compare?: number[]; labels?: string[] }) {
+export function GenomeGlyph({ values, size = 150, color = 'var(--cyan)', compare, labels }: { values: number[]; size?: number; color?: string; compare?: number[]; labels?: string[] }) {
   const n = values.length, R = 50
   const pt = (v: number, i: number) => {
     const a = (i / n) * Math.PI * 2 - Math.PI / 2
@@ -306,10 +320,10 @@ export function GenomeGlyph({ values, size = 150, color = '#5fd0f0', compare, la
   const poly = (vals: number[]) => vals.map((v, i) => pt(Math.max(0.06, v), i).map((x) => x.toFixed(1)).join(',')).join(' ')
   return (
     <svg viewBox={labels ? '-40 -12 200 144' : '0 0 120 120'} width={size} height={size * (labels ? 0.72 : 1)} style={{ overflow: 'visible' }}>
-      {[0.33, 0.66, 1].map((k) => <polygon key={k} points={poly(Array(n).fill(k))} fill="none" stroke="#1c2834" />)}
-      {values.map((_, i) => { const [x, y] = pt(1, i); return <line key={i} x1="60" y1="60" x2={x} y2={y} stroke="#18232f" /> })}
-      {compare && <polygon points={poly(compare)} fill="rgba(233,185,73,0.10)" stroke="#e9b949" strokeWidth="1" strokeDasharray="3 2" />}
-      <polygon points={poly(values)} fill={`${color}22`} stroke={color} strokeWidth="1.4" />
+      {[0.33, 0.66, 1].map((k) => <polygon key={k} points={poly(Array(n).fill(k))} fill="none" stroke="var(--line)" />)}
+      {values.map((_, i) => { const [x, y] = pt(1, i); return <line key={i} x1="60" y1="60" x2={x} y2={y} stroke="var(--line)" /> })}
+      {compare && <polygon points={poly(compare)} fill="var(--amber)" fillOpacity={0.1} stroke="var(--amber)" strokeWidth="1" strokeDasharray="3 2" />}
+      <polygon points={poly(values)} fill={color} fillOpacity={0.14} stroke={color} strokeWidth="1.4" />
       {values.map((v, i) => { const [x, y] = pt(Math.max(0.06, v), i); return <circle key={i} cx={x} cy={y} r="1.8" fill={color} /> })}
       {labels?.map((l, i) => {
         const [x, y] = pt(1.28, i)
@@ -319,7 +333,7 @@ export function GenomeGlyph({ values, size = 150, color = '#5fd0f0', compare, la
   )
 }
 
-const CODE_COLORS: Record<string, string> = { K7: '#5fd0f0', K5: '#a393ff', K3: '#3ec28f' }
+const CODE_COLORS: Record<string, string> = { K7: 'var(--cyan)', K5: 'var(--violet)', K3: 'var(--green)' }
 
 /** Every tested hypothesis: x = hypothesis index (grouped by code), y = −log10 p, with the Bonferroni line. */
 export function Landscape({ all, threshold, isAccepted, isRejected, filter, height = 260 }: {
@@ -337,8 +351,8 @@ export function Landscape({ all, threshold, isAccepted, isRejected, filter, heig
     const pl = 34, pb = 16, pt = 8
     const o = order()
     const sy = (v: number) => pt + (1 - v / ymax) * (h - pt - pb)
-    ctx.strokeStyle = '#1c2834'
-    ctx.fillStyle = '#6c7f91'
+    ctx.strokeStyle = cssVar('--line')
+    ctx.fillStyle = cssVar('--muted')
     ctx.font = '10px "IBM Plex Mono", monospace'
     for (let k = 0; k <= 4; k++) {
       const v = (ymax * k) / 4
@@ -346,19 +360,20 @@ export function Landscape({ all, threshold, isAccepted, isRejected, filter, heig
       ctx.fillText(v.toFixed(0), 4, sy(v) + 3)
     }
     const sx = (j: number) => pl + (j / Math.max(1, n - 1)) * (w - pl - 4)
+    const C = { acc: cssVar('--green'), rej: cssVar('--orange'), sig: cssVar('--amber') }
     o.forEach((i, j) => {
       if (!filter(i)) return
       const acc = isAccepted(i), rej = isRejected(i)
       const v = -all.log10_p[i]
-      ctx.fillStyle = acc ? '#3ec28f' : rej ? '#f08c4a' : v >= -threshold ? '#e9b949' : `${CODE_COLORS[all.code[i]] ?? '#5fd0f0'}88`
+      ctx.fillStyle = acc ? C.acc : rej ? C.rej : v >= -threshold ? C.sig : withAlpha(CODE_COLORS[all.code[i]] ?? 'var(--cyan)', 0.55)
       const r = acc || rej ? 3.2 : 1.3
       ctx.beginPath(); ctx.arc(sx(j), sy(v), r, 0, Math.PI * 2); ctx.fill()
     })
-    ctx.strokeStyle = '#e9b949'
+    ctx.strokeStyle = C.sig
     ctx.setLineDash([5, 4])
     ctx.beginPath(); ctx.moveTo(pl, sy(-threshold)); ctx.lineTo(w, sy(-threshold)); ctx.stroke()
     ctx.setLineDash([])
-    ctx.fillStyle = '#e9b949'
+    ctx.fillStyle = C.sig
     ctx.fillText(`acceptance bar  −log10(α/M) = ${(-threshold).toFixed(2)}`, pl + 6, sy(-threshold) - 5)
   }, [all, threshold, filter, isAccepted, isRejected, ymax])
   return <div className="canvas-box" style={{ height }}><canvas ref={ref} /></div>
@@ -378,13 +393,13 @@ export function TimelineStrip({ lanes, events, from, to, height = 150, onPick }:
     <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: H }}>
       {days.map((d) => (
         <g key={d}>
-          <line x1={sx(d)} x2={sx(d)} y1={0} y2={H - 18} stroke="#1c2834" />
+          <line x1={sx(d)} x2={sx(d)} y1={0} y2={H - 18} stroke="var(--line)" />
           <text x={sx(d) + 3} y={H - 5} className="axis">{new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</text>
         </g>
       ))}
       {lanes.map((l, i) => (
         <g key={l.id}>
-          <line x1={pl} x2={W - 10} y1={i * lh + lh / 2} y2={i * lh + lh / 2} stroke="#18232f" />
+          <line x1={pl} x2={W - 10} y1={i * lh + lh / 2} y2={i * lh + lh / 2} stroke="var(--line)" />
           <text x={pl - 8} y={i * lh + lh / 2 + 3} textAnchor="end" className="axis">{l.label}</text>
         </g>
       ))}
@@ -392,7 +407,7 @@ export function TimelineStrip({ lanes, events, from, to, height = 150, onPick }:
         const i = lanes.findIndex((l) => l.id === e.lane)
         if (i < 0) return null
         return (
-          <circle key={k} cx={sx(e.t)} cy={i * lh + lh / 2} r={4} fill={e.tone ?? '#e9b949'} stroke="#080c11" strokeWidth="1.5"
+          <circle key={k} cx={sx(e.t)} cy={i * lh + lh / 2} r={4} fill={e.tone ?? 'var(--amber)'} stroke="var(--panel)" strokeWidth="1.5"
             style={{ cursor: onPick && e.id ? 'pointer' : 'default', animation: `fadein 0.4s ${k * 0.012}s both` }}
             onClick={() => e.id && onPick?.(e.id)}>
             <title>{new Date(e.t).toLocaleString('en-GB', { timeZone: 'Asia/Kolkata' })}</title>

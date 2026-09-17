@@ -1,19 +1,21 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { rampStops, useTheme } from '../lib/theme'
 import { FIELD_LABEL, lightTimeMs, type AmMetrics, type Census, type DecodeEv, type LayoutPos, type LiveState, type ReceiverEv, type RowListener, type Runs, type StationInfo, type SymbolEv } from '../lib/live'
 import { Icon } from './ui'
 
-const RAMP = [[6, 10, 15], [12, 30, 46], [18, 70, 96], [40, 140, 176], [110, 210, 232], [236, 214, 130], [250, 244, 220]]
-const LUT = (() => {
+/** 256-entry colour table from the theme's spectrum ramp (quiet = page background). */
+function buildLut() {
+  const ramp = rampStops('spec')
   const out = new Uint8ClampedArray(256 * 3)
   for (let v = 0; v < 256; v++) {
-    const p = (v / 255) * (RAMP.length - 1)
-    const i = Math.min(RAMP.length - 2, Math.floor(p))
+    const p = (v / 255) * (ramp.length - 1)
+    const i = Math.min(ramp.length - 2, Math.floor(p))
     const f = p - i
-    for (let c = 0; c < 3; c++) out[v * 3 + c] = RAMP[i][c] + (RAMP[i + 1][c] - RAMP[i][c]) * f
+    for (let c = 0; c < 3; c++) out[v * 3 + c] = ramp[i][c] + (ramp[i + 1][c] - ramp[i][c]) * f
   }
   return out
-})()
+}
 
 export interface FreqLabel { hz: number; text: string; tone?: string }
 
@@ -22,7 +24,14 @@ export function RealWaterfall({ subscribe, height = 320, labels = [], unit = 'Hz
   subscribe: (fn: RowListener) => () => void; height?: number; labels?: FreqLabel[]; unit?: 'Hz' | 'kHz'; idle?: string
 }) {
   const canvas = useRef<HTMLCanvasElement>(null)
+  const { theme } = useTheme()
+  const lut = useRef<Uint8ClampedArray | null>(null)
   const [span, setSpan] = useState<[number, number] | null>(null)
+  useEffect(() => {
+    lut.current = buildLut()
+    const el = canvas.current
+    if (el) el.getContext('2d')?.clearRect(0, 0, el.width, el.height)
+  }, [theme])
   const pending = useRef<{ row: Uint8Array; f0: number; f1: number }[]>([])
   useEffect(() => subscribe((row, f0, f1) => { pending.current.push({ row, f0, f1 }) }), [subscribe])
   useEffect(() => {
@@ -37,6 +46,7 @@ export function RealWaterfall({ subscribe, height = 320, labels = [], unit = 'Hz
       const w = el.clientWidth, h = el.clientHeight
       if (el.width !== w || el.height !== h) { el.width = w; el.height = h }
       const ctx = el.getContext('2d')!
+      const LUT = lut.current ?? (lut.current = buildLut())
       const shift = rows.length * rowH
       ctx.drawImage(el, 0, 0, w, h - shift, 0, shift, w, h - shift)
       rows.reverse().forEach((r, k) => {
@@ -78,7 +88,7 @@ export function RealWaterfall({ subscribe, height = 320, labels = [], unit = 'Hz
   )
 }
 
-const SYMBOL_TONE: Record<string, string> = { M: '#5fd0f0', H: '#a393ff', '1': '#e9b949', '0': '#2a3a48', '10': '#e9b949', '01': '#f08c4a', '11': '#ef8f5a', '00': '#2a3a48' }
+const SYMBOL_TONE: Record<string, string> = { M: 'var(--cyan)', H: 'var(--violet)', '1': 'var(--amber)', '0': 'var(--line-3)', '10': 'var(--amber)', '01': 'var(--orange)', '11': 'var(--orange)', '00': 'var(--line-3)' }
 
 /** Sixty-second dial: each received second lands on its UTC position; markers, bits and erasures are colour-coded. */
 export function MinuteDial({ symbols, positions, size = 300 }: { symbols: SymbolEv[]; positions?: LayoutPos[]; size?: number }) {
@@ -105,11 +115,11 @@ export function MinuteDial({ symbols, positions, size = 300 }: { symbols: Symbol
       {Array.from({ length: 60 }, (_, i) => {
         const s = byPos.get(i)
         const kind = positions?.[i]?.kind
-        const fill = s ? (s.symbol ? SYMBOL_TONE[s.symbol] ?? '#2a3a48' : 'transparent') : '#0f171f'
+        const fill = s ? (s.symbol ? SYMBOL_TONE[s.symbol] ?? 'var(--line-3)' : 'transparent') : 'var(--panel-3)'
         return (
           <g key={i} onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)}>
-            <path d={seg(i, r0 - 10, r0 - 4)} fill={kind === 'M' || kind === 'H' ? '#1d4b5d' : kind === 'P' ? '#4b3f8c' : kind === 'F' ? '#24323f' : '#141d26'} />
-            <motion.path d={seg(i, r0, r1)} fill={fill} stroke={s && !s.symbol ? '#ef5a5a' : i === cur ? '#ffffff' : 'none'} strokeWidth={i === cur ? 1.4 : 1}
+            <path d={seg(i, r0 - 10, r0 - 4)} fill={kind === 'M' || kind === 'H' ? 'var(--cyan)' : kind === 'P' ? 'var(--violet)' : kind === 'F' ? 'var(--line-3)' : 'var(--line)'} fillOpacity={kind === 'M' || kind === 'H' || kind === 'P' ? 0.45 : 1} />
+            <motion.path d={seg(i, r0, r1)} fill={fill} stroke={s && !s.symbol ? 'var(--red)' : i === cur ? 'var(--text)' : 'none'} strokeWidth={i === cur ? 1.4 : 1}
               initial={false} animate={{ opacity: s ? 0.45 + 0.55 * Math.max(0.2, s.confidence) : 1 }} transition={{ duration: 0.4 }} />
           </g>
         )

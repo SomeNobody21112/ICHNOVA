@@ -40,17 +40,17 @@ export default function Genome() {
       <div className="grid" style={{ gridTemplateColumns: 'minmax(0, 1.1fr) minmax(0, 0.9fr)', alignItems: 'start' }}>
         <Panel title="Genome map" sub="Each point is a signal; nearby points have similar fingerprints. Click to inspect." right={<Tag kind="SIMULATED" />}>
           <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 400 }}>
-            <rect width={W} height={H} fill="none" stroke="#1c2834" />
+            <rect width={W} height={H} fill="none" stroke="var(--line)" />
             {signals.map((s) => {
               const [x, y] = pos(s.genome)
-              const c = s.status === 'DECODED' ? '#3ec28f' : s.status === 'UNKNOWN' ? '#e9b949' : '#5fd0f0'
+              const c = s.status === 'DECODED' ? 'var(--green)' : s.status === 'UNKNOWN' ? 'var(--amber)' : 'var(--cyan)'
               const on = s.id === rec.id
               const near = sims.some((m) => m.s.id === s.id)
-              return <circle key={s.id} cx={x} cy={y} r={on ? 7 : near ? 5 : 3.2} fill={c} opacity={on || near ? 1 : 0.55} stroke={on ? '#fff' : near ? '#e9b949' : 'none'} strokeWidth={1.5} style={{ cursor: 'pointer', transition: 'r 0.2s' }} onClick={() => setSel(s.id)}><title>{s.id}</title></circle>
+              return <circle key={s.id} cx={x} cy={y} r={on ? 7 : near ? 5 : 3.2} fill={c} opacity={on || near ? 1 : 0.55} stroke={on ? 'var(--text)' : near ? 'var(--amber)' : 'none'} strokeWidth={1.5} style={{ cursor: 'pointer', transition: 'r 0.2s' }} onClick={() => setSel(s.id)}><title>{s.id}</title></circle>
             })}
-            {sims.map(({ s }) => { const [x1, y1] = pos(rec.genome); const [x2, y2] = pos(s.genome); return <line key={s.id} x1={x1} y1={y1} x2={x2} y2={y2} stroke="#e9b949" strokeOpacity="0.35" strokeDasharray="3 3" /> })}
+            {sims.map(({ s }) => { const [x1, y1] = pos(rec.genome); const [x2, y2] = pos(s.genome); return <line key={s.id} x1={x1} y1={y1} x2={x2} y2={y2} stroke="var(--amber)" strokeOpacity="0.35" strokeDasharray="3 3" /> })}
           </svg>
-          <div className="legend"><span><i style={{ background: '#3ec28f' }} />Decoded</span><span><i style={{ background: '#5fd0f0' }} />Signal, no code</span><span><i style={{ background: '#e9b949' }} />Unknown</span></div>
+          <div className="legend"><span><i style={{ background: 'var(--green)' }} />Decoded</span><span><i style={{ background: 'var(--cyan)' }} />Signal, no code</span><span><i style={{ background: 'var(--amber)' }} />Unknown</span></div>
         </Panel>
         <div className="col" style={{ gap: 14 }}>
           <Panel title={<span className="mono">{rec.id}</span>} right={<><Stamp status={rec.status} /><Tag kind={rec.provenance} /></>}>

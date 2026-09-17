@@ -1,4 +1,4 @@
-# RF Analysis Platform — operator console
+# ICHNOVA — operator console
 
 Working name; the product name is not final. Prototype for SIH 2026 problem statement SIH26147 (sponsor: NTRO). Not an official Government of India system.
 
@@ -14,6 +14,13 @@ python ../server/app.py          # http://127.0.0.1:8765 — engine API + built 
 ```
 
 Development with hot reload: keep `server/app.py` running and use `npm run dev` (http://localhost:5173, `/api` is proxied to 8765). Without the server the console still works, replaying stored benchmark evidence (the top bar shows ENGINE OFFLINE · REPLAY).
+
+## Look, themes and accessibility
+
+- **Light and dark themes.** Every colour is a CSS token in `src/styles.css` (`:root[data-theme='light'|'dark']`); canvases read the same tokens (`src/lib/theme.tsx`). The choice and text size are remembered in `localStorage` (`ichnova.theme`, `ichnova.textScale`) and applied before first paint (`index.html`).
+- **Accessibility bar** on every screen (`src/components/utility.tsx`): skip to content, text size A−/A/A+, Light/Dark.
+- **Brand** (`src/components/brand.tsx`): the ICHNOVA mark, wordmark and lockup are drawn as SVG from the brand sheet, so they follow the theme (gold on dark, ink on light).
+- **Layout** follows Indian spectrum-administration portals doing similar work: DoT [Tarang Sanchar](https://tarangsanchar.gov.in/emfportal) (accessibility bar, one primary action, headline statistics, footer with last-updated) and [Saral Sanchar](https://saralsanchar.gov.in/) (WPC licensing: short service cards, grouped menus), plus NTIA ITS spectrum monitoring pages (breadcrumbs). Hence: grouped sidebar, breadcrumbs, four task cards on Home, secondary charts folded under "Show spectrum trends", and long lists behind tabs. Design reference only; ICHNOVA is not affiliated with these portals.
 
 ## Live Monitor (real transmissions)
 

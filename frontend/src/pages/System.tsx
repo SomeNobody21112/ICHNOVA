@@ -49,10 +49,10 @@ export default function System() {
 
       <div className="grid" style={{ gridTemplateColumns: 'minmax(0, 1.2fr) minmax(0, 0.8fr)', alignItems: 'start' }}>
         <Panel title="Data flow" sub="Heavy DSP runs at the edge; the centre receives evidence, not raw spectrum">
-          <div className="grid" style={{ gridTemplateColumns: '1fr auto 1fr', alignItems: 'center' }}>
-            <Flow items={EDGE} label="Edge · monitoring station" tone="#2a86a8" />
-            <div className="col" style={{ alignItems: 'center', gap: 4 }}><Icon name="chevron" size={22} /><span className="mono muted" style={{ fontSize: 10.5 }}>evidence<br />packs</span></div>
-            <Flow items={CENTRAL} label="Central · regional / national" tone="#5a4bb0" />
+          <div className="grid" style={{ gridTemplateColumns: 'minmax(0, 1fr) auto minmax(0, 1fr)', alignItems: 'stretch' }}>
+            <Flow items={EDGE} label="Edge · monitoring station" tone="var(--accent)" />
+            <div className="col" style={{ alignItems: 'center', justifyContent: 'center', gap: 4 }}><Icon name="chevron" size={22} /><span className="mono muted" style={{ fontSize: 10.5 }}>evidence<br />packs</span></div>
+            <Flow items={CENTRAL} label="Central · regional / national" tone="var(--violet)" />
           </div>
         </Panel>
         <Panel title="Engine configuration" right={<Tag kind="BENCHMARK">From evidence pack</Tag>}>

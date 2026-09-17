@@ -389,8 +389,8 @@ export function HypothesisExplorer({ pack }: { pack: EvidencePack }) {
           right={<Tag kind={provOf(pack)} />}>
           <Landscape all={all} threshold={a.log10_threshold} isAccepted={isAcc} isRejected={isRej} filter={filter} height={270} />
           <div className="legend" style={{ marginTop: 8 }}>
-            <span><i style={{ background: '#5fd0f0' }} />K7</span><span><i style={{ background: '#a393ff' }} />K5</span><span><i style={{ background: '#3ec28f' }} />K3</span>
-            <span><i style={{ background: '#e9b949' }} />Significant</span><span><i style={{ background: '#f08c4a' }} />Rejected by structure check</span><span><i style={{ background: '#3ec28f', borderRadius: 5 }} />Accepted</span>
+            <span><i style={{ background: 'var(--cyan)' }} />K7</span><span><i style={{ background: 'var(--violet)' }} />K5</span><span><i style={{ background: 'var(--green)' }} />K3</span>
+            <span><i style={{ background: 'var(--amber)' }} />Significant</span><span><i style={{ background: 'var(--orange)' }} />Rejected by structure check</span><span><i style={{ background: 'var(--green)', borderRadius: 5 }} />Accepted</span>
           </div>
         </Panel>
         <Panel title="Filters">
@@ -445,8 +445,8 @@ export function ViewsPanel({ pack }: { pack: EvidencePack }) {
     <div className="grid g-2">
       <div><div className="panel-title" style={{ marginBottom: 6 }}>Waterfall (time–frequency)</div><Spectrogram db={v.spectrogram.db} f={v.spectrogram.f_hz} t={v.spectrogram.t_s} height={200} /></div>
       <div><div className="panel-title" style={{ marginBottom: 6 }}>Constellation {r.status === 'DECODED' ? '(accepted front-end)' : '(best candidate front-end)'}</div><Constellation points={v.constellation} ideal={ideal} height={214} /></div>
-      <div><div className="panel-title" style={{ marginBottom: 6 }}>Power spectral density</div><LinePlot series={[{ x: v.psd.f_hz.map((f) => f / 1e3), y: v.psd.db, color: '#5fd0f0', fill: true }]} yLabel="dB" xLabel="kHz" height={170} /></div>
-      <div><div className="panel-title" style={{ marginBottom: 6 }}>IQ samples</div><LinePlot series={[{ x: v.timeseries.i.map((_, i) => i), y: v.timeseries.i, color: '#5fd0f0', width: 1 }, { x: v.timeseries.q.map((_, i) => i), y: v.timeseries.q, color: '#a393ff', width: 1 }]} xLabel="sample" height={170} /></div>
+      <div><div className="panel-title" style={{ marginBottom: 6 }}>Power spectral density</div><LinePlot series={[{ x: v.psd.f_hz.map((f) => f / 1e3), y: v.psd.db, color: 'var(--cyan)', fill: true }]} yLabel="dB" xLabel="kHz" height={170} /></div>
+      <div><div className="panel-title" style={{ marginBottom: 6 }}>IQ samples</div><LinePlot series={[{ x: v.timeseries.i.map((_, i) => i), y: v.timeseries.i, color: 'var(--cyan)', width: 1 }, { x: v.timeseries.q.map((_, i) => i), y: v.timeseries.q, color: 'var(--violet)', width: 1 }]} xLabel="sample" height={170} /></div>
       {r.payload_len > 0 && (
         <div style={{ gridColumn: '1 / -1' }}>
           <div className="row" style={{ marginBottom: 6 }}><span className="panel-title grow">{r.status === 'DECODED' ? 'Decoded payload bits' : 'Hard-decision bits (not decoded)'}</span><span className="mono muted" style={{ fontSize: 11.5 }}>{r.payload_len} bits · polarity unresolved without frame sync</span></div>

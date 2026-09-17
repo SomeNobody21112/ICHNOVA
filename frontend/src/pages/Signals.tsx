@@ -50,17 +50,17 @@ export function SignalLibrary() {
             <thead><tr><th>Signal</th><th>Status</th><th>Fingerprint</th><th>Station</th><th className="num">Frequency</th><th className="num">Bandwidth</th><th>Modulation</th><th>Structure</th><th className="num">Hypotheses</th><th className="num">Seen</th><th className="num">Last seen</th><th>Data</th></tr></thead>
             <tbody>{rows.slice(0, 400).map((s) => (
               <tr key={s.id} className="click" onClick={() => nav(`/app/signals/${s.id}`)}>
-                <td className="mono">{s.id}</td>
-                <td><Stamp status={s.status} investigate={s.investigate} />{reviews[s.id] && <div className="muted" style={{ fontSize: 11 }}>reviewed: {reviews[s.id].action}</div>}</td>
-                <td><GenomeGlyph values={s.genome} size={34} color={s.status === 'DECODED' ? '#3ec28f' : s.status === 'UNKNOWN' ? '#e9b949' : '#5fd0f0'} /></td>
+                <td className="mono nowrap">{s.id}</td>
+                <td className="nowrap"><Stamp status={s.status} investigate={s.investigate} />{reviews[s.id] && <div className="muted" style={{ fontSize: 11 }}>reviewed: {reviews[s.id].action}</div>}</td>
+                <td><GenomeGlyph values={s.genome} size={34} color={s.status === 'DECODED' ? 'var(--green)' : s.status === 'UNKNOWN' ? 'var(--amber)' : 'var(--cyan)'} /></td>
                 <td className="dim nowrap">{stationName(s.stationId)}</td>
-                <td className="num">{fmtFreq(s.centerHz)}</td>
-                <td className="num">{fmtBw(s.bandwidthHz)}</td>
+                <td className="num nowrap">{s.centerHz == null ? <span className="muted">—</span> : fmtFreq(s.centerHz)}</td>
+                <td className="num nowrap">{s.bandwidthHz == null ? <span className="muted">—</span> : fmtBw(s.bandwidthHz)}</td>
                 <td className="mono">{s.modulation ?? '—'}</td>
-                <td className="mono">{s.code ? `${CODE_SHORT(s.code)} · ${s.interleaver?.[0]}×${s.interleaver?.[1]}` : '—'}</td>
+                <td className="mono nowrap">{s.code ? `${CODE_SHORT(s.code)} · ${s.interleaver?.[0]}×${s.interleaver?.[1]}` : '—'}</td>
                 <td className="num">{fmtInt(s.hypotheses)}</td>
                 <td className="num">{s.occurrences}</td>
-                <td className="num">{fmtAgo(s.lastSeen, now)}</td>
+                <td className="num nowrap">{fmtAgo(s.lastSeen, now)}</td>
                 <td><Tag kind={s.provenance} /></td>
               </tr>
             ))}</tbody>
@@ -107,30 +107,28 @@ export function SignalDetail() {
   const extraAudit = audit.filter((a) => a.subject === rec.id)
   return (
     <div className="page">
-      <div className="row" style={{ marginBottom: 10 }}>
-        <button className="btn btn-ghost btn-sm" onClick={() => nav(-1)}><Icon name="back" size={13} /> Back</button>
-        <span className="muted" style={{ fontSize: 12 }}>Signals / {rec.id}</span>
-      </div>
-      <motion.div className="panel" style={{ padding: '16px 18px', marginBottom: 14 }} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}>
-        <div className="row-wrap" style={{ gap: 26, alignItems: 'flex-start' }}>
-          <div style={{ minWidth: 260 }}>
-            <div className="eyebrow">Signal</div>
-            <div className="mono" style={{ fontSize: 22, fontWeight: 500 }}>{rec.id}</div>
-            <div className="row" style={{ marginTop: 6 }}><Tag kind={rec.provenance} />{rec.description && <span className="muted" style={{ fontSize: 12 }}>{rec.description}</span>}</div>
+      <motion.div className="panel detail-head" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}>
+        <div className="detail-top">
+          <div style={{ minWidth: 0 }}>
+            <div className="eyebrow">Signal record</div>
+            <h1 className="page-title mono" style={{ fontSize: 22 }}>{rec.id}</h1>
+            <div className="row-wrap" style={{ marginTop: 6 }}><Tag kind={rec.provenance} />{rec.description && <span className="dim" style={{ fontSize: 13 }}>{rec.description}</span>}</div>
           </div>
-          <div><div className="kpi-label">Status</div><div style={{ marginTop: 4 }}><Stamp status={rec.status} size="lg" investigate={rec.investigate} /></div><div className="muted" style={{ fontSize: 12, marginTop: 6, maxWidth: 280 }}>{STATUS_MEANING[rec.status]}</div></div>
-          <div><div className="kpi-label">Observed</div><div className="mono">{fmtDateTime(rec.observedAt)}</div><div className="kpi-label" style={{ marginTop: 8 }}>Location</div><div>{station ? `Monitoring station ${station.id.slice(3)} · ${station.name}` : stationName(rec.stationId)}</div></div>
-          <div><div className="kpi-label">Frequency</div><div className="mono">{fmtFreq(rec.centerHz)}</div><div className="kpi-label" style={{ marginTop: 8 }}>Bandwidth</div><div className="mono">{fmtBw(rec.bandwidthHz)}</div></div>
-          <span className="spacer" />
           <div className="col" style={{ gap: 6, alignItems: 'flex-end' }}>
             <div className="row-wrap" style={{ justifyContent: 'flex-end' }}>
               <button className="btn btn-good btn-sm" onClick={() => review(rec.id, 'Confirmed by analyst')}><Icon name="check" size={13} /> Confirm</button>
               <button className="btn btn-sm" onClick={() => review(rec.id, 'Added to library')}>Add to library</button>
-              <button className="btn btn-warn btn-sm" onClick={() => { log('Incident created from signal', rec.id); nav(incident ? `/app/incidents/${incident.id}` : '/app/incidents') }}><Icon name="incidents" size={13} /> {incident ? 'Open incident' : 'Create incident'}</button>
-              <Link className="btn btn-ghost btn-sm" to={`/app/reports?signal=${rec.id}`}><Icon name="reports" size={13} /> Report</Link>
+              <button className="btn btn-sm" onClick={() => { log('Incident created from signal', rec.id); nav(incident ? `/app/incidents/${incident.id}` : '/app/incidents') }}><Icon name="incidents" size={13} /> {incident ? 'Open incident' : 'Create incident'}</button>
+              <Link className="btn btn-sm" to={`/app/reports?signal=${rec.id}`}><Icon name="reports" size={13} /> Report</Link>
             </div>
-            {reviews[rec.id] && <span className="muted" style={{ fontSize: 11.5 }}>{reviews[rec.id].action} · {reviews[rec.id].by} · {fmtAgo(reviews[rec.id].t)}</span>}
+            {reviews[rec.id] && <span className="muted" style={{ fontSize: 12 }}>{reviews[rec.id].action} · {reviews[rec.id].by} · {fmtAgo(reviews[rec.id].t)}</span>}
           </div>
+        </div>
+        <div className="facts">
+          <div><span className="kpi-label">Status</span><Stamp status={rec.status} size="lg" investigate={rec.investigate} /><span className="muted fact-note">{STATUS_MEANING[rec.status]}</span></div>
+          <div><span className="kpi-label">Observed</span><b className="mono">{fmtDateTime(rec.observedAt)}</b></div>
+          <div><span className="kpi-label">Location</span><b>{station ? `Station ${station.id.slice(3)} · ${station.name}` : stationName(rec.stationId)}</b></div>
+          <div><span className="kpi-label">Frequency · bandwidth</span><b className="mono">{fmtFreq(rec.centerHz)} · {fmtBw(rec.bandwidthHz)}</b></div>
         </div>
       </motion.div>
 
@@ -163,7 +161,7 @@ export function SignalDetail() {
           {tab === 'genome' && (
             <div className="grid g-2" style={{ alignItems: 'start' }}>
               <Panel title="Signal genome" sub="Structured fingerprint of what was established about this observation" right={<Tag kind={rec.provenance === 'SIMULATED' ? 'SIMULATED' : 'EXPERIMENTAL'} />}>
-                <div className="center"><GenomeGlyph values={rec.genome} size={360} labels={GENOME_AXES} color={rec.status === 'DECODED' ? '#3ec28f' : '#5fd0f0'} /></div>
+                <div className="center"><GenomeGlyph values={rec.genome} size={360} labels={GENOME_AXES} color={rec.status === 'DECODED' ? 'var(--green)' : 'var(--cyan)'} /></div>
               </Panel>
               <div className="col" style={{ gap: 14 }}>
                 <Panel title="Genome fields" flush>

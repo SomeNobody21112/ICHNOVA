@@ -1,7 +1,11 @@
-// Placeholder identity: the product name is not final. Change it here only.
+// Brand identity: ICHNOVA. Change it here only.
 export const PRODUCT = {
-  name: 'RF Analysis Platform',
-  short: 'RFAP',
+  name: 'ICHNOVA',
+  short: 'ICH',
+  tagline: 'From noise to harmony',
+  concept: ['Noise', 'Discovery', 'Harmony'],
+  motto: 'Hidden signals, brighter tomorrows',
+  updated: '17 September 2026',
   context: 'SIH 2026 · Problem Statement SIH26147',
   sponsor: 'National Technical Research Organisation (NTRO)',
   psTitle: 'Automated model for analysis of .IQ and .wav files along with signal parameter extraction',

@@ -10,6 +10,7 @@ import { StrictMode, type ReactNode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { AppProvider, useApp } from './lib/store'
+import { ThemeProvider } from './lib/theme'
 import Shell from './app/Shell'
 import Landing from './pages/Landing'
 import SignIn from './pages/SignIn'
@@ -35,6 +36,7 @@ function RequireAuth({ children }: { children: ReactNode }) {
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
+    <ThemeProvider>
     <BrowserRouter>
       <AppProvider>
         <Routes>
@@ -61,5 +63,6 @@ createRoot(document.getElementById('root')!).render(
         </Routes>
       </AppProvider>
     </BrowserRouter>
+    </ThemeProvider>
   </StrictMode>,
 )

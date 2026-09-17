@@ -85,8 +85,8 @@ export default function Monitor() {
   }
 
   const labels: FreqLabel[] = useMemo(() => {
-    if (kind === 'band') return (st.census?.channels ?? []).filter((c) => c.stations.length).map((c) => ({ hz: c.khz * 1e3, text: `${c.khz} ${c.stations[0].station}`, tone: '#9ff0cf' }))
-    if (kind === 'timecode') return [{ hz: 0, text: 'carrier', tone: '#5fd0f0' }]
+    if (kind === 'band') return (st.census?.channels ?? []).filter((c) => c.stations.length).map((c) => ({ hz: c.khz * 1e3, text: `${c.khz} ${c.stations[0].station}`, tone: 'var(--green)' }))
+    if (kind === 'timecode') return [{ hz: 0, text: 'carrier', tone: 'var(--cyan)' }]
     return []
   }, [kind, st.census])
 
@@ -130,16 +130,16 @@ export default function Monitor() {
                     <motion.div key={key + m} className={`station${active ? ' on' : ''}`} layout whileHover={{ y: -1 }}>
                       <div className="row" style={{ gap: 8 }}>
                         <span className="flag mono">{FLAG[s.country] ?? '··'}</span>
-                        <b className="grow">{m === 'band' ? 'AIR medium-wave band' : key === 'AIR-MW' ? 'AIR Chennai 720 kHz' : s.name}</b>
+                        <b className="grow proof-name">{m === 'band' ? 'AIR medium-wave band' : key === 'AIR-MW' ? 'AIR Chennai 720 kHz' : s.name}</b>
                         <span className="mono muted" style={{ fontSize: 11 }}>{m === 'band' ? '531–1602 kHz' : freq(s.frequency_khz)}</span>
                       </div>
                       <div className="muted" style={{ fontSize: 11.5, lineHeight: 1.35 }}>{s.operator.split(' — ')[0]} · {m === 'band' ? 'carrier census vs official list' : s.service}</div>
-                      <div className="row" style={{ gap: 6, marginTop: 6 }}>
-                        {rec ? <Stamp status={rec.answer.status} /> : <span className="muted" style={{ fontSize: 11 }}>no recording yet</span>}
-                        <span className="grow" />
+                      <div style={{ marginTop: 6 }}>{rec ? <Stamp status={rec.answer.status} /> : <span className="muted" style={{ fontSize: 12 }}>No recording yet</span>}</div>
+                      <div className="row" style={{ gap: 6, marginTop: 8 }}>
                         {rec && <button className="btn btn-sm" onClick={() => setSource({ kind: 'replay', id: rec.id })}><Icon name="play" size={11} /> Replay</button>}
-                        <button className="btn btn-sm btn-primary" disabled={!engine.online || starting !== null} onClick={() => goLive(key, m)} title={engine.online ? 'Receive now' : 'Start the local engine for live reception'}>
-                          {starting === key + m ? <span className="spinner" /> : <span className="live-dot" />} Live
+                        <span className="grow" />
+                        <button className="btn btn-sm" disabled={!engine.online || starting !== null} onClick={() => goLive(key, m)} title={engine.online ? 'Receive now' : 'Start the local engine for live reception'}>
+                          {starting === key + m ? <span className="spinner" /> : <span className="live-dot" />} Receive live
                         </button>
                       </div>
                     </motion.div>
@@ -190,7 +190,7 @@ export default function Monitor() {
                       <Panel title="Minute dial" sub="Each second lands on its UTC position">
                         <MinuteDial symbols={st.symbols} positions={layout} />
                         <div className="legend" style={{ justifyContent: 'center' }}>
-                          <span><i style={{ background: '#5fd0f0' }} />marker</span><span><i style={{ background: '#e9b949' }} />1</span><span><i style={{ background: '#2a3a48' }} />0</span><span><i style={{ background: '#a393ff' }} />hole</span><span><i style={{ background: 'transparent', border: '1px solid #ef5a5a' }} />erased</span>
+                          <span><i style={{ background: 'var(--cyan)' }} />marker</span><span><i style={{ background: 'var(--amber)' }} />1</span><span><i style={{ background: 'var(--line-3)' }} />0</span><span><i style={{ background: 'var(--violet)' }} />hole</span><span><i style={{ background: 'transparent', border: '1px solid var(--red)' }} />erased</span>
                         </div>
                       </Panel>
                       <div className="col" style={{ gap: 14 }}>

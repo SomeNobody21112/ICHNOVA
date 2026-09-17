@@ -285,8 +285,6 @@ def ita2_text(values):
             shift = 'L'
         else:
             ch = (ITA2_FIGS if shift == 'F' else ITA2_LTRS)[v]
-            if ch == ' ':
-                shift = 'L' if shift == 'F' and False else shift
             if ch not in (None, '\0'):
                 out.append(ch)
     return ''.join(out)

@@ -46,6 +46,9 @@ const ICONS: Record<string, ReactNode> = {
   search: <><circle cx="11" cy="11" r="6.5" {...P} /><path d="M16 16l5 5" {...P} /></>,
   map: <><path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2z" {...P} /><path d="M9 4v14M15 6v14" {...P} /></>,
   flag: <><path d="M5 21V4M5 4h11l-2 4 2 4H5" {...P} /></>,
+  sun: <><circle cx="12" cy="12" r="4" {...P} /><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8" {...P} /></>,
+  moon: <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" {...P} />,
+  arrow: <path d="M5 12h14M13 6l6 6-6 6" {...P} />,
 }
 
 export function Icon({ name, size = 18, className }: { name: string; size?: number; className?: string }) {
@@ -56,16 +59,7 @@ export function Icon({ name, size = 18, className }: { name: string; size?: numb
   )
 }
 
-export function BrandMark({ size = 30 }: { size?: number }) {
-  return (
-    <svg viewBox="0 0 32 32" width={size} height={size} className="brand-mark" aria-hidden="true">
-      <rect width="32" height="32" rx="7" fill="#0f1820" stroke="#1f3242" />
-      <circle cx="16" cy="16" r="10.5" fill="none" stroke="#2b4a63" strokeWidth="1.2" strokeDasharray="2 2.2" />
-      <path d="M5.5 16c2.2 0 2.9-6 5.2-6s2.9 12 5.3 12 3-12 5.3-12 3 6 5.2 6" fill="none" stroke="#5fd0f0" strokeWidth="1.9" strokeLinecap="round" />
-      <circle cx="16" cy="16" r="2" fill="#e9b949" />
-    </svg>
-  )
-}
+export { BrandMark } from './brand'
 
 const TAG_TEXT: Record<Provenance, string> = {
   SIMULATED: 'Simulated', BENCHMARK: 'Benchmark', LIVE: 'Live engine', EXPERIMENTAL: 'Experimental', 'NOT ESTABLISHED': 'Not established',

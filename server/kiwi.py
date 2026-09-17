@@ -35,7 +35,7 @@ class KiwiError(RuntimeError):
 # ---------------------------------------------------------------- websocket (RFC 6455, client side)
 
 class WebSocket:
-    def __init__(self, host, port, path, timeout=10.0):
+    def __init__(self, host, port, path, timeout=10.0, redirects=2):
         self.sock = socket.create_connection((host, port), timeout=timeout)
         key = base64.b64encode(os.urandom(16)).decode()
         req = (f'GET {path} HTTP/1.1\r\nHost: {host}:{port}\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n'
@@ -48,7 +48,18 @@ class WebSocket:
                 raise KiwiError('connection closed during handshake')
             head += chunk
         status, _, rest = head.partition(b'\r\n\r\n')
-        if b' 101 ' not in status.split(b'\r\n')[0]:
+        lines = status.split(b'\r\n')
+        code = lines[0].split(b' ')[1] if len(lines[0].split(b' ')) > 1 else b''
+        if redirects and code in (b'301', b'302', b'307', b'308'):
+            # proxy.kiwisdr.com answers with the receiver's actual address as an HTTP redirect
+            location = next((ln.split(b':', 1)[1].strip().decode() for ln in lines[1:]
+                             if ln.lower().startswith(b'location:')), None)
+            self.sock.close()
+            if location:
+                u = urllib.parse.urlparse(location)
+                self.__init__(u.hostname, u.port or 80, path, timeout, redirects - 1)
+                return
+        if code != b'101':
             raise KiwiError('handshake refused: ' + status.split(b'\r\n')[0].decode(errors='replace'))
         self.buf = rest
         self.lock = threading.Lock()
@@ -131,9 +142,15 @@ def fetch_directory(timeout=20):
 
 
 def rank_receivers(directory, freq_khz, near=None, min_km=250, max_km=2500):
-    """Receivers with a free slot covering freq, GPS-timed first, then by distance (skip-zone aware)."""
+    """Receivers with a free slot covering freq, GPS-timed first, then by distance (skip-zone aware).
+
+    The public directory lists some receivers more than once; each URL is returned once."""
     out = []
+    seen = set()
     for r in directory:
+        if r.get('url') in seen:
+            continue
+        seen.add(r.get('url'))
         try:
             if r.get('offline') != 'no' or r.get('status') != 'active':
                 continue

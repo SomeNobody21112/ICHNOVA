@@ -53,6 +53,16 @@ python server/app.py      # http://127.0.0.1:8765
 
 Upload an .IQ/.wav capture (a benchmark capture, or a real government recording) and follow the evidence chain from raw IQ to decision; open the Live Monitor to receive WWV, DCF77, MSF, JJY, DDH47 or All India Radio live (or replay recorded sessions offline); browse the Experiment Lab for the measured numbers. Monitoring-network views use clearly labelled simulated data. Details, including Google sign-in setup: `frontend/README.md`.
 
+## Stack & documentation
+
+| Layer | What it is |
+|---|---|
+| Engine (`src/`) | Python 3.11 with NumPy + SciPy only — hand-derived estimation theory (Viterbi, cumulants, CFO), no ML framework, no GNU Radio |
+| Web tier (`server/`) | Python stdlib end to end: `http.server` + hand-rolled SSE for live updates, stdlib websocket client for public KiwiSDR receivers |
+| Console (`frontend/`) | **ICHNOVA** operator console: React 19 + TypeScript + Vite 8, d3-geo spectrum maps, framer-motion, IBM Plex |
+
+The complete compiled brief — tech stack, user flows, workflows (data export, field capture, CI) and assessment — is in [`reports/TECH_STACK.md`](reports/TECH_STACK.md).
+
 ## Layout
 
 | Path | Purpose |

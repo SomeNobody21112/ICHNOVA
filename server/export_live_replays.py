@@ -39,7 +39,6 @@ def replay_iq(rec_id):
             return                                          # ~6 rows/s is plenty for a replay
         events.append({'type': type_, 't': round(float(t if t is not None else proc.seconds), 3), **live._clean(payload)})
 
-    st = STATIONS[meta['station_key']]
     events.append({'type': 'status', 't': 0.0, 'phase': 'directory', 'message': 'receiver selected from the public KiwiSDR directory'})
     events.append({'type': 'receiver', 't': 0.0, **live._clean(meta['receiver']), 'rssi_dbm': c.get('rssi_dbm'),
                    'fs_hz': c['fs_hz'], 'tuned_khz': c['tuned_khz'], 'timing': c['timing'], 't0_utc': c['t0_utc']})

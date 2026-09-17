@@ -35,7 +35,7 @@ export default function Review() {
                   <Tag kind={s.provenance} />
                 </div>
                 <div className="row" style={{ gap: 12 }}>
-                  <GenomeGlyph values={s.genome} size={52} color={s.status === 'UNKNOWN' ? '#e9b949' : '#5fd0f0'} />
+                  <GenomeGlyph values={s.genome} size={52} color={s.status === 'UNKNOWN' ? 'var(--amber)' : 'var(--cyan)'} />
                   <div className="col" style={{ gap: 4 }}>
                     <Stamp status={s.status} investigate={s.investigate} />
                     <span className="muted" style={{ fontSize: 12 }}>{stationName(s.stationId)} · {fmtFreq(s.centerHz)} · {fmtAgo(s.observedAt)}</span>

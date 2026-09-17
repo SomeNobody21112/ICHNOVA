@@ -10,7 +10,7 @@ const STAGE_NOTE: Record<string, string> = {
   O0: 'blind', O1: '+ true modulation', O2: '+ true samples/symbol', O3: '+ true carrier offset', O4: '+ true roll-off',
   O5: '+ true timing', O6: '+ true phase', O7: '+ true interleaver',
 }
-const COLORS = ['#5fd0f0', '#a393ff', '#3ec28f']
+const COLORS = ['var(--cyan)', 'var(--violet)', 'var(--green)']
 
 const Src = ({ s }: { s: string }) => <div className="mono muted" style={{ fontSize: 11, marginTop: 10 }}>source: {s}</div>
 
@@ -65,9 +65,9 @@ export default function Lab() {
         <div className="grid g-2" style={{ alignItems: 'start' }}>
           <Panel title="Same decisions, less time" sub="Wall-clock seconds on the development workstation, before and after the vectorised hypothesis search">
             <HBars items={[
-              { label: 'sealed 30 · before', value: b.performance.sealed_s[0], color: '#465666' }, { label: 'sealed 30 · after', value: b.performance.sealed_s[1], color: '#3ec28f' },
-              { label: 'train 100 · before', value: b.performance.train_s[0], color: '#465666' }, { label: 'train 100 · after', value: b.performance.train_s[1], color: '#3ec28f' },
-              { label: 'null set 1350 · before', value: b.performance.nullset_s[0], color: '#465666' }, { label: 'null set 1350 · after', value: b.performance.nullset_s[1], color: '#3ec28f' },
+              { label: 'sealed 30 · before', value: b.performance.sealed_s[0], color: 'var(--faint)' }, { label: 'sealed 30 · after', value: b.performance.sealed_s[1], color: 'var(--green)' },
+              { label: 'train 100 · before', value: b.performance.train_s[0], color: 'var(--faint)' }, { label: 'train 100 · after', value: b.performance.train_s[1], color: 'var(--green)' },
+              { label: 'null set 1350 · before', value: b.performance.nullset_s[0], color: 'var(--faint)' }, { label: 'null set 1350 · after', value: b.performance.nullset_s[1], color: 'var(--green)' },
             ]} fmt={(v) => `${v.toFixed(1)} s`} />
             <p className="dim" style={{ fontSize: 12.5 }}>{(b.performance.nullset_s[0] / b.performance.nullset_s[1]).toFixed(1)}× on the null set, {(b.performance.train_s[0] / b.performance.train_s[1]).toFixed(1)}× on train. {b.performance.note}</p>
             <Src s={b.performance.source} />
@@ -120,7 +120,7 @@ export default function Lab() {
             const l = b.oracle_ladder[ds]
             return (
               <Panel key={ds} title={`${ds} · first stage at which each file passes`} sub="Oracle stages reveal one true parameter at a time">
-                <HBars items={[...Object.entries(l.stages).map(([s, n]) => ({ label: `${s} ${STAGE_NOTE[s]}`, value: n, color: s === 'O0' ? '#3ec28f' : '#5fd0f0' })), { label: 'never', value: l.never, color: '#e9b949' }]} max={l.n} />
+                <HBars items={[...Object.entries(l.stages).map(([s, n]) => ({ label: `${s} ${STAGE_NOTE[s]}`, value: n, color: s === 'O0' ? 'var(--green)' : 'var(--cyan)' })), { label: 'never', value: l.never, color: 'var(--amber)' }]} max={l.n} />
                 {ds === 'train' && <p className="dim" style={{ fontSize: 12.5 }}>{l.o7_first_pass_32bit} of the {l.stages.O7} files needing the true interleaver have 32-bit blocks: too few parity checks to single out one hypothesis.</p>}
                 <Src s={l.source} />
               </Panel>

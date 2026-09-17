@@ -26,8 +26,8 @@ from modem import load_iq, rrc_filter as _rrc_filter
 from analyze import (estimate_symbol_rate, lag1_correlation, estimate_carrier_phase,
                      matched_filter_demod, symbol_snr_m2m4, psk_llrs)
 from scipy.special import bdtr, bdtrc, ndtr
-from blind_id import (CODE_CATALOGUE, interleaver_candidates, deinterleave_index,
-                      syndrome_checks, syndrome_scan, sign_test_log10p, decode_hypothesis)
+from blind_id import (CODE_CATALOGUE, interleaver_candidates, syndrome_scan, sign_test_log10p,
+                      decode_hypothesis)
 
 # ---- Receiver search domain: a front-end specification, independent of any dataset ----
 SPS_RANGE = (2, 20)     # integer samples/symbol → symbol rates fs/20 … fs/2

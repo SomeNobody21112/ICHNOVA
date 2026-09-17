@@ -22,7 +22,7 @@ export const CODE_FULL: Record<string, string> = {
 }
 
 export function fmtFreq(hz: number | null | undefined) {
-  if (hz == null) return 'NOT RECORDED'
+  if (hz == null) return 'Not recorded'
   if (hz >= 1e9) return `${(hz / 1e9).toFixed(4)} GHz`
   if (hz >= 1e6) return `${(hz / 1e6).toFixed(4)} MHz`
   if (hz >= 1e3) return `${(hz / 1e3).toFixed(2)} kHz`
@@ -30,7 +30,7 @@ export function fmtFreq(hz: number | null | undefined) {
 }
 
 export function fmtBw(hz: number | null | undefined) {
-  if (hz == null) return 'NOT RECORDED'
+  if (hz == null) return 'Not recorded'
   return hz >= 1e6 ? `${(hz / 1e6).toFixed(2)} MHz` : `${(hz / 1e3).toFixed(1)} kHz`
 }
 

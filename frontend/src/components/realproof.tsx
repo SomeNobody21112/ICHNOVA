@@ -23,11 +23,11 @@ function headline(e: ReplayIndexEntry) {
 }
 
 /** Cards summarising real transmissions the engine has analysed; each opens its replay in the Live Monitor. */
-export function RealProof({ compact }: { compact?: boolean }) {
+export function RealProof({ compact, limit }: { compact?: boolean; limit?: number }) {
   const [items, setItems] = useState<ReplayIndexEntry[]>([])
   useEffect(() => { fetch('/live/index.json').then((r) => r.json()).then(setItems).catch(() => setItems([])) }, [])
   const order = ['AIR-MW', 'JJY', 'DCF77', 'MSF', 'WWV', 'DDH47', 'WWVB']
-  const sorted = [...items].sort((x, y) => order.indexOf(x.station_key) - order.indexOf(y.station_key) || (x.mode === 'band' ? -1 : 1))
+  const sorted = [...items].sort((x, y) => order.indexOf(x.station_key) - order.indexOf(y.station_key) || (x.mode === 'band' ? -1 : 1)).slice(0, limit ?? items.length)
   return (
     <div className={`proof${compact ? ' compact' : ''}`}>
       {sorted.map((e, i) => {

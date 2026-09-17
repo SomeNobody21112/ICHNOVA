@@ -1,10 +1,10 @@
-import { AnimatePresence, motion } from 'framer-motion'
-import { useEffect, useState } from 'react'
+import { motion } from 'framer-motion'
 import { Link, useNavigate } from 'react-router-dom'
 import { PRODUCT } from '../brand'
-import { Constellation, LiveWaterfall } from '../components/charts'
-import { BrandMark, Icon, Stamp, Tag } from '../components/ui'
+import { BrandMark, Lockup, Wordmark } from '../components/brand'
 import { RealProof } from '../components/realproof'
+import { Icon, Stamp, Tag } from '../components/ui'
+import { UtilityBar } from '../components/utility'
 import { useApp } from '../lib/store'
 import type { Provenance, Status } from '../lib/types'
 
@@ -13,162 +13,177 @@ export const COVERAGE: { req: string; detail: string; status: Provenance | 'ESTA
   { req: 'Waterfall, spectrum, constellation', detail: 'Time–frequency, PSD and symbol constellation for every capture', status: 'ESTABLISHED' },
   { req: 'Symbol rate & carrier offset', detail: 'Blind search over 2–20 samples/symbol; x²/x⁴ carrier lines', status: 'ESTABLISHED' },
   { req: 'Demodulation: PSK', detail: 'BPSK and QPSK, both tested for every candidate', status: 'ESTABLISHED' },
+  { req: 'Demodulation: FSK', detail: 'Blind tone pair, shift, baud, polarity and character framing; verified on a real DWD teleprinter broadcast', status: 'ESTABLISHED' },
   { req: 'FEC: convolutional + Viterbi', detail: 'K=7, K=5, K=3 rate ½ catalogue; exact parity-check test', status: 'ESTABLISHED' },
   { req: 'De-interleaving: block', detail: 'Single block, rows 2–16 × cols 4–24 (≤384 bits)', status: 'ESTABLISHED' },
-  { req: 'Sampling frequency (blind)', detail: 'Currently read from WAV header or operator metadata', status: 'NOT ESTABLISHED' },
-  { req: 'Demodulation: FSK', detail: 'Blind tone pair, shift, baud, polarity and character framing; verified on a real DWD teleprinter broadcast', status: 'ESTABLISHED' },
-  { req: 'Demodulation: QAM', detail: 'Planned', status: 'NOT ESTABLISHED' },
   { req: 'Real-world transmissions', detail: 'NIST, PTB, NPL, NICT time codes and DWD RTTY decoded blind, checked against receiver GPS time; AIR carriers vs official list', status: 'ESTABLISHED' },
+  { req: 'Bit-stream correlation (header / payload)', detail: 'Frame synchronisation on marker patterns and redundancy checks for time codes and CHU packets; general header search planned', status: 'EXPERIMENTAL' },
+  { req: 'Sampling frequency (blind)', detail: 'Currently read from WAV header or operator metadata', status: 'NOT ESTABLISHED' },
+  { req: 'Demodulation: QAM', detail: 'Planned', status: 'NOT ESTABLISHED' },
   { req: 'De-interleaving: convolutional, diagonal, pseudo-random', detail: 'Planned', status: 'NOT ESTABLISHED' },
   { req: 'FEC: RS, concatenated, LDPC', detail: 'Planned', status: 'NOT ESTABLISHED' },
-  { req: 'Bit-stream correlation (header / payload)', detail: 'Frame synchronisation on marker patterns and redundancy checks for time codes and CHU packets; general header search planned', status: 'EXPERIMENTAL' },
 ]
 
-function makeCloud(kind: Status, seed: number) {
-  let s = seed
-  const r = () => { s = (s * 16807) % 2147483647; return s / 2147483647 }
-  const noise = kind === 'DECODED' ? 0.16 : kind === 'SIGNAL_NO_CODE' ? 0.3 : 0.75
-  return Array.from({ length: 420 }, () => {
-    const g = () => (r() + r() + r() - 1.5) * noise
-    return [(r() < 0.5 ? -0.707 : 0.707) + g(), (r() < 0.5 ? -0.707 : 0.707) + g()]
-  })
-}
+const SERVICES = [
+  { icon: 'analysis', title: 'Analyse a capture', text: 'Upload an .IQ or .wav recording; get modulation, symbol rate, code and payload, or a clear refusal.', to: '/app/analysis' },
+  { icon: 'monitor', title: 'Watch live signals', text: 'Receive government time and weather broadcasts and All India Radio as they arrive.', to: '/app/monitor' },
+  { icon: 'review', title: 'Review undecided signals', text: 'Signals the engine could not prove wait here for an analyst decision.', to: '/app/review' },
+  { icon: 'lab', title: 'Check the evidence', text: 'Benchmarks, null tests and real-signal results, each read from result files.', to: '/app/lab' },
+]
 
-function Instrument() {
-  const states: Status[] = ['DECODED', 'SIGNAL_NO_CODE', 'UNKNOWN']
-  const [k, setK] = useState(0)
-  useEffect(() => { const id = setInterval(() => setK((x) => (x + 1) % 3), 3600); return () => clearInterval(id) }, [])
-  const st = states[k]
-  const caption: Record<Status, string> = {
-    DECODED: 'Parity evidence passes after correcting for every hypothesis tested.',
-    SIGNAL_NO_CODE: 'A signal is present. No code could be verified, so none is claimed.',
-    UNKNOWN: 'The evidence supports no interpretation. The platform says so.',
-  }
-  return (
-    <div className="panel" style={{ overflow: 'hidden' }}>
-      <div className="panel-head"><span className="panel-title grow">Evidence instrument</span><Tag kind="SIMULATED">Illustration</Tag></div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 0 }}>
-        <div style={{ borderRight: '1px solid var(--line)' }}>
-          <LiveWaterfall height={300} channels={120} seed={3} events={[
-            { id: 'a', f0: 28, f1: 44, label: 'burst', tone: '#5fd0f0', startRow: 3, rows: 22 },
-            { id: 'b', f0: 70, f1: 78, label: 'burst', tone: '#e9b949', startRow: 30, rows: 14 },
-          ]} />
-        </div>
-        <div className="col" style={{ padding: 14, gap: 10 }}>
-          <AnimatePresence mode="wait">
-            <motion.div key={st} initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.35 }}>
-              <Constellation points={makeCloud(st, 17 + k)} ideal={st === 'UNKNOWN' ? null : 'QPSK'} height={190} />
-              <div style={{ marginTop: 10 }}><Stamp status={st} size="lg" /></div>
-              <p className="dim" style={{ fontSize: 13, margin: '10px 0 0' }}>{caption[st]}</p>
-            </motion.div>
-          </AnimatePresence>
-        </div>
-      </div>
-    </div>
-  )
-}
+const STEPS: [string, string, string][] = [
+  ['Noise', 'Observe & search', 'Carrier, symbol rate, modulation, code and interleaver are treated as hypotheses and searched blind.'],
+  ['Discovery', 'Verify', 'An answer is accepted only if exact statistical tests pass after correcting for every hypothesis tried.'],
+  ['Harmony', 'Decide & act', 'Decoded, detected or unknown: each record carries its evidence into review, incidents and reports.'],
+]
 
 export default function Landing() {
   const { session, setTour } = useApp()
   const nav = useNavigate()
-  const start = () => { if (session) { setTour({ active: true, scene: 0 }); nav('/app/monitor') } else nav('/signin', { state: { tour: true } }) }
-  const flow = [
-    ['Observe', 'Ingest .IQ / .wav captures with station and receiver metadata.'],
-    ['Infer', 'Search symbol rate, carrier offset, modulation, code and interleaver as explicit hypotheses.'],
-    ['Verify', 'Accept only what survives exact parity tests, multiple-testing correction and structural checks.'],
-    ['Correlate', 'Turn each evidence record into a fingerprint; link recurrences across stations.'],
-    ['Act', 'Route unknowns to analysts, open incidents, export auditable reports.'],
-  ]
+  const go = (to: string) => (session ? nav(to) : nav('/signin', { state: { from: to } }))
+  const tour = () => { if (session) { setTour({ active: true, scene: 0 }); nav('/app/monitor?rec=jjy40-japan-2026-09-17') } else nav('/signin', { state: { tour: true } }) }
   return (
     <div className="landing">
-      <nav className="land-nav">
-        <div className="row"><BrandMark size={28} /><span className="brand-name">{PRODUCT.name}</span></div>
+      <UtilityBar />
+      <header className="land-nav">
+        <Link to="/" className="row" style={{ gap: 10, color: 'var(--text)', textDecoration: 'none' }} aria-label={`${PRODUCT.name} home`}>
+          <BrandMark size={34} /><Wordmark height={12} />
+        </Link>
         <span className="spacer" />
-        <a href="#real">Real signals</a><a href="#flow">Workflow</a><a href="#restraint">Restraint</a><a href="#coverage">Problem statement</a>
+        <nav className="row nav-links" style={{ gap: 22 }} aria-label="Sections">
+          <a href="#services">Services</a><a href="#real">Real signals</a><a href="#how">How it works</a><a href="#coverage">Problem statement</a>
+        </nav>
         {session ? <Link className="btn btn-primary" to="/app/command">Open console</Link> : <Link className="btn btn-primary" to="/signin">Sign in</Link>}
-      </nav>
-      <section className="land-hero">
-        <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-          <div className="eyebrow">{PRODUCT.context} · {PRODUCT.sponsor}</div>
-          <h1 className="land-h1">From unknown signals to <em>actionable RF intelligence</em>.</h1>
-          <p className="land-lede">
-            Blind analysis of .IQ and .wav captures in which every inferred parameter carries its evidence: symbol rate,
-            carrier offset, modulation, FEC and interleaving. {PRODUCT.restraint}
-          </p>
-          <div className="row-wrap" style={{ gap: 10 }}>
-            <button className="btn btn-primary btn-lg" onClick={start}><Icon name="play" size={14} /> Six-scene walkthrough</button>
-            <Link className="btn btn-lg" to={session ? '/app/command' : '/signin'}>{session ? 'Open console' : 'Sign in'}</Link>
-          </div>
-          <div style={{ marginTop: 26 }} className="philosophy"><Icon name="shield" size={15} /><s>{PRODUCT.antiPhilosophy}</s></div>
-          <div className="philosophy" style={{ marginTop: 6, color: 'var(--text)' }}><Icon name="check" size={15} /><span>{PRODUCT.philosophy}</span></div>
-        </motion.div>
-        <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.15 }}>
-          <Instrument />
-        </motion.div>
-      </section>
+      </header>
 
-      <section className="land-sec" id="real">
-        <div className="eyebrow">Proven on the air, not only on test sets</div>
-        <h2>Real government transmissions, decoded blind and checked</h2>
-        <p className="dim" style={{ maxWidth: '76ch' }}>
-          Time signals from NIST (USA), PTB (Germany), NPL (UK) and NICT (Japan), weather teleprinter from the German Meteorological Service and
-          All India Radio medium wave, received through public receivers. Decoded times agree with each receiver&apos;s GPS clock to within milliseconds;
-          India&apos;s carriers are matched to Prasar Bharati&apos;s official transmitter list; a weak capture is refused rather than guessed.
-        </p>
-        <div style={{ marginTop: 18 }}><RealProof /></div>
-      </section>
-
-      <section className="land-sec" id="flow">
-        <div className="eyebrow">Workflow</div>
-        <h2>Observe → Infer → Verify → Correlate → Act</h2>
-        <p className="dim" style={{ maxWidth: '70ch' }}>Not upload → AI → answer. Each step leaves a record an analyst, a supervisor or an auditor can open.</p>
-        <div className="flow">
-          {flow.map(([t, d], i) => (
-            <motion.div key={t} className="flow-step" initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.08 }}>
-              <span className="flow-idx">0{i + 1}</span><b>{t.toUpperCase()}</b><p>{d}</p>
-            </motion.div>
-          ))}
-        </div>
-        <div className="row-wrap" style={{ marginTop: 22, gap: 8 }}>
-          {['Blind signal analysis', 'Statistical validation', 'Signal fingerprinting', 'Anomaly review', 'Cross-station correlation', 'Human-in-the-loop intelligence'].map((c) => <span key={c} className="chip" style={{ cursor: 'default' }}>{c}</span>)}
-        </div>
-      </section>
-
-      <section className="land-sec" id="restraint">
-        <div className="grid g-2" style={{ alignItems: 'center', gap: 40 }}>
-          <div>
-            <div className="eyebrow">Scientific restraint</div>
-            <p className="statement" style={{ marginTop: 10 }}>When the evidence isn't enough, it says <span className="amber">UNKNOWN</span>.</p>
-            <p className="dim" style={{ maxWidth: '60ch', marginTop: 16 }}>
-              On 900 benchmark captures that carry no catalogue code (noise, uncoded, out-of-family), the engine asserted a code 0 times.
-              Refusing to manufacture an answer is a result, not a failure.
+      <main id="main">
+        <section className="land-hero">
+          <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+            <div className="eyebrow">{PRODUCT.context} · {PRODUCT.sponsor}</div>
+            <h1 className="land-h1">Hidden signals, <em>made clear</em> — with the evidence to prove it.</h1>
+            <p className="land-lede">
+              {PRODUCT.name} analyses .IQ and .wav recordings without being told what they contain: carrier, symbol rate, modulation,
+              error-correcting code and interleaver. {PRODUCT.restraint}
             </p>
-            <Tag kind="BENCHMARK">Benchmark: synthetic captures</Tag>
+            <div className="row-wrap" style={{ gap: 10 }}>
+              <button className="btn btn-primary btn-lg" onClick={() => go('/app/analysis')}><Icon name="upload" size={15} /> Analyse a capture</button>
+              <button className="btn btn-lg" onClick={() => go('/app/monitor?rec=jjy40-japan-2026-09-17')}><Icon name="monitor" size={15} /> Watch a real signal</button>
+            </div>
+            <button className="btn btn-ghost" style={{ marginTop: 10, paddingLeft: 0 }} onClick={tour}><Icon name="play" size={12} /> Take the 2-minute guided tour</button>
+          </motion.div>
+          <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.12 }}>
+            <div className="hero-card">
+              <Lockup width={380} animate />
+              <div className="concept">
+                {PRODUCT.concept.map((c, i) => (
+                  <motion.div key={c} className="concept-step" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.2 + i * 0.25 }}>
+                    <b>{c}</b><span>{['raw recording', 'tested hypotheses', 'accountable decision'][i]}</span>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        </section>
+
+        <section className="land-sec" style={{ paddingTop: 0 }} aria-label="At a glance">
+          <div className="stats">
+            <div className="stat"><b>5</b><span>real government transmissions decoded blind</span><small><Tag kind="LIVE">Real signals</Tag></small></div>
+            <div className="stat"><b>2–23 ms</b><span>agreement with receiver GPS time</span><small>NICT, NPL, PTB, NIST</small></div>
+            <div className="stat"><b>0 / 900</b><span>false accepts on non-code captures</span><small><Tag kind="BENCHMARK">Benchmark</Tag></small></div>
+            <div className="stat"><b>3.8×</b><span>faster search, identical decisions</span><small>1,480 files re-checked</small></div>
           </div>
-          <div className="grid g-3">
-            {([['DECODED', 'Evidence passed'], ['SIGNAL_NO_CODE', 'Signal detected · code unverified'], ['UNKNOWN', 'Insufficient evidence']] as [Status, string][]).map(([s, d], i) => (
-              <motion.div key={s} className="card" initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.1 }} style={{ minHeight: 150 }}>
-                <Stamp status={s} /><p className="dim" style={{ marginTop: 14 }}>{d}</p>
+        </section>
+
+        <section className="land-sec" id="services">
+          <div className="eyebrow">Services</div>
+          <h2>What you can do</h2>
+          <div className="tasks" style={{ marginTop: 18 }}>
+            {SERVICES.map((s) => (
+              <button key={s.title} className="task" style={{ textAlign: 'left', cursor: 'pointer', font: 'inherit' }} onClick={() => go(s.to)}>
+                <span className="task-icon"><Icon name={s.icon} /></span>
+                <span><b>{s.title}</b><span>{s.text}</span></span>
+                <span className="go"><Icon name="arrow" size={16} /></span>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section className="land-sec alt" id="real">
+          <div className="inner">
+            <div className="eyebrow">Proven on the air</div>
+            <h2>Real transmissions, decoded blind and checked</h2>
+            <p className="dim" style={{ maxWidth: '72ch', margin: '0 0 18px' }}>
+              Time signals from NIST, PTB, NPL and NICT, a German Meteorological Service teleprinter and All India Radio medium wave, received
+              through public receivers. Each answer is compared with something the engine did not use: the receiver&apos;s GPS clock, the message itself,
+              or Prasar Bharati&apos;s official transmitter list.
+            </p>
+            <RealProof limit={4} />
+            <div style={{ marginTop: 14 }}><button className="btn" onClick={() => go('/app/lab')}>See all results in the Evidence lab <Icon name="arrow" size={14} /></button></div>
+          </div>
+        </section>
+
+        <section className="land-sec" id="how">
+          <div className="eyebrow">How it works</div>
+          <h2>From noise to harmony, in three steps</h2>
+          <div className="flow three">
+            {STEPS.map(([k, t, d], i) => (
+              <motion.div key={t} className="flow-step" initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.08 }}>
+                <span className="flow-idx">{k.toUpperCase()}</span><b>{t}</b><p>{d}</p>
               </motion.div>
             ))}
           </div>
-        </div>
-      </section>
+          <div className="row-wrap" style={{ gap: 12, marginTop: 20 }}>
+            {([['DECODED', 'Evidence passed'], ['SIGNAL_NO_CODE', 'Signal present, code not proven'], ['UNKNOWN', 'Not enough evidence']] as [Status, string][]).map(([s, d]) => (
+              <span key={s} className="row" style={{ gap: 8 }}><Stamp status={s} /><span className="dim" style={{ fontSize: 13 }}>{d}</span></span>
+            ))}
+          </div>
+        </section>
 
-      <section className="land-sec" id="coverage">
-        <div className="eyebrow">Problem statement SIH26147 · {PRODUCT.sponsor}</div>
-        <h2>{PRODUCT.psTitle}</h2>
-        <p className="dim" style={{ maxWidth: '72ch' }}>What the prototype establishes today, and what it does not claim.</p>
-        <div className="panel" style={{ marginTop: 18 }}>
-          {COVERAGE.map((c) => (
-            <div key={c.req} className="cov-row">
-              <span style={{ fontWeight: 500 }}>{c.req}</span><span className="dim" style={{ fontSize: 13 }}>{c.detail}</span>
-              {c.status === 'ESTABLISHED' ? <span className="tag tag-LIVE" style={{ justifySelf: 'end' }}>Established</span> : <span style={{ justifySelf: 'end' }}><Tag kind={c.status} /></span>}
+        <section className="land-sec" id="coverage" style={{ paddingTop: 0 }}>
+          <div className="eyebrow">Problem statement SIH26147 · {PRODUCT.sponsor}</div>
+          <h2>{PRODUCT.psTitle}</h2>
+          <details className="more">
+            <summary>What the prototype does, and does not, claim ({COVERAGE.filter((c) => c.status === 'ESTABLISHED').length} of {COVERAGE.length} requirements established)</summary>
+            <div className="panel" style={{ marginTop: 12 }}>
+              {COVERAGE.map((c) => (
+                <div key={c.req} className="cov-row">
+                  <span style={{ fontWeight: 500 }}>{c.req}</span><span className="dim" style={{ fontSize: 13 }}>{c.detail}</span>
+                  {c.status === 'ESTABLISHED' ? <span className="tag tag-LIVE" style={{ justifySelf: 'end' }}>Established</span> : <span style={{ justifySelf: 'end' }}><Tag kind={c.status} /></span>}
+                </div>
+              ))}
             </div>
-          ))}
+          </details>
+        </section>
+      </main>
+
+      <footer className="site-foot">
+        <div className="cols">
+          <div className="col" style={{ gap: 10 }}>
+            <div className="row" style={{ gap: 10 }}><BrandMark size={30} /><Wordmark height={11} /></div>
+            <span>{PRODUCT.tagline}</span>
+            <span className="muted" style={{ fontSize: 12 }}>{PRODUCT.disclaimer}</span>
+          </div>
+          <div><h4>Use the platform</h4><ul>
+            <li><a onClick={() => go('/app/analysis')} href="#services">Analyse a capture</a></li>
+            <li><a onClick={() => go('/app/monitor')} href="#services">Live signals</a></li>
+            <li><a onClick={() => go('/app/review')} href="#services">Review queue</a></li>
+            <li><a onClick={tour} href="#how">Guided tour</a></li>
+          </ul></div>
+          <div><h4>Evidence</h4><ul>
+            <li><a onClick={() => go('/app/lab')} href="#real">Evidence lab</a></li>
+            <li><a href="https://github.com/SomeNobody21112/SIH26147/blob/baseline-hardening/reports/REAL_SIGNAL_VALIDATION.md" target="_blank" rel="noreferrer">Real-signal validation report</a></li>
+            <li><a href="https://github.com/SomeNobody21112/SIH26147/blob/baseline-hardening/reports/RESEARCH_LANDSCAPE.md" target="_blank" rel="noreferrer">Research landscape</a></li>
+            <li><a href="https://github.com/SomeNobody21112/SIH26147" target="_blank" rel="noreferrer">Source code</a></li>
+          </ul></div>
+          <div><h4>Data sources</h4><ul>
+            <li><a href="https://prasarbharati.gov.in/" target="_blank" rel="noreferrer">Prasar Bharati transmitter list</a></li>
+            <li><a href="http://kiwisdr.com/public/" target="_blank" rel="noreferrer">Public KiwiSDR receivers</a></li>
+            <li><a href="https://www.nist.gov/pml/time-and-frequency-division/time-distribution/radio-station-wwv" target="_blank" rel="noreferrer">NIST, PTB, NPL, NICT, DWD formats</a></li>
+            <li><span>Map: DataMeet India (CC BY 4.0)</span></li>
+          </ul></div>
         </div>
-      </section>
-      <footer className="land-foot">{PRODUCT.disclaimer} Map boundaries: DataMeet India, Survey of India depiction (CC BY 4.0).</footer>
+        <div className="base"><span>Last updated: {PRODUCT.updated}</span><span>Best viewed in current Chrome, Edge, Firefox or Safari</span><span>{PRODUCT.context}</span></div>
+      </footer>
     </div>
   )
 }

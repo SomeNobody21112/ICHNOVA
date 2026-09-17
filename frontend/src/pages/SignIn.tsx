@@ -3,10 +3,13 @@ import { motion } from 'framer-motion'
 import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { PRODUCT } from '../brand'
-import { LiveWaterfall } from '../components/charts'
-import { BrandMark, Icon, Tag } from '../components/ui'
+import { Link } from 'react-router-dom'
+import { BrandMark, Lockup, Wordmark } from '../components/brand'
+import { Icon, Tag } from '../components/ui'
+import { UtilityBar } from '../components/utility'
 import { STATIONS } from '../lib/sim'
 import { useApp } from '../lib/store'
+import { useTheme } from '../lib/theme'
 import type { Level, Session } from '../lib/types'
 
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined
@@ -22,6 +25,7 @@ function decodeJwt(token: string): { name?: string; email?: string; picture?: st
 
 export default function SignIn() {
   const { signIn, setTour } = useApp()
+  const { theme } = useTheme()
   const nav = useNavigate()
   const loc = useLocation() as { state?: { from?: string; tour?: boolean } }
   const [role, setRole] = useState<Level>('FIELD')
@@ -36,34 +40,34 @@ export default function SignIn() {
   }
 
   return (
+    <>
+    <UtilityBar />
     <div className="signin">
       <div className="signin-art">
-        <div className="row"><BrandMark size={34} /><div><div className="brand-name" style={{ fontSize: 16 }}>{PRODUCT.name}</div><div className="brand-sub">{PRODUCT.context}</div></div></div>
-        <div style={{ margin: 'auto 0', maxWidth: 620 }}>
-          <div className="eyebrow">Evidence before interpretation</div>
-          <h1 className="land-h1" style={{ fontSize: 'clamp(30px, 3.4vw, 52px)' }}>Every parameter the platform infers comes with the evidence behind it.</h1>
-          <p className="dim" style={{ fontSize: 15 }}>{PRODUCT.restraint}</p>
-          <div className="panel" style={{ marginTop: 26, overflow: 'hidden' }}>
-            <LiveWaterfall height={200} channels={140} seed={9} events={[
-              { id: '1', f0: 20, f1: 36, label: 'DECODED', tone: '#3ec28f', startRow: 5, rows: 20 },
-              { id: '2', f0: 60, f1: 68, label: 'UNKNOWN', tone: '#e9b949', startRow: 41, rows: 12 },
-              { id: '3', f0: 98, f1: 118, label: 'SIGNAL · NO CODE', tone: '#5fd0f0', startRow: 22, rows: 16 },
-            ]} />
-          </div>
+        <Link to="/" className="row" style={{ gap: 10, color: 'var(--text)', textDecoration: 'none' }} aria-label={`${PRODUCT.name} home`}>
+          <BrandMark size={32} /><Wordmark height={11} />
+        </Link>
+        <div style={{ margin: 'auto 0', maxWidth: 560 }}>
+          <Lockup width={340} animate />
+          <h1 className="land-h1" style={{ fontSize: 'clamp(26px, 2.6vw, 38px)', marginTop: 34 }}>Every signal decision, with the evidence behind it.</h1>
+          <ul className="why-list" style={{ marginTop: 18 }}>
+            <li><span className="ok"><Icon name="check" size={16} /></span><span>Blind analysis of .IQ and .wav recordings: modulation, symbol rate, code and interleaver.</span></li>
+            <li><span className="ok"><Icon name="check" size={16} /></span><span>Verified on real government transmissions against receiver GPS time.</span></li>
+            <li><span className="ok"><Icon name="check" size={16} /></span><span>{PRODUCT.restraint}</span></li>
+          </ul>
         </div>
-        <div className="muted" style={{ fontSize: 11.5 }}>{PRODUCT.disclaimer}</div>
+        <div className="muted" style={{ fontSize: 12 }}>{PRODUCT.disclaimer}</div>
       </div>
       <div className="signin-form">
         <motion.div className="signin-card" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
           <div>
-            <div className="eyebrow">Secure access</div>
-            <h2 className="page-title" style={{ fontSize: 26, marginTop: 4 }}>Sign in to the console</h2>
-            <p className="muted" style={{ margin: '4px 0 0' }}>Choose your operational level; it sets the default view. You can switch at any time.</p>
+            <h2 className="page-title" style={{ fontSize: 26 }}>Sign in</h2>
+            <p className="dim" style={{ margin: '4px 0 0' }}>Choose your role and station. They set your default view and can be changed later.</p>
           </div>
           <div className="form-grid">
-            <div className="field"><label htmlFor="role">Operational level</label>
+            <div className="field"><label htmlFor="role">Role</label>
               <select id="role" className="select" value={role} onChange={(e) => setRole(e.target.value as Level)}>
-                <option value="FIELD">Field / monitoring station</option><option value="REGIONAL">Regional / zonal</option><option value="NATIONAL">National / policy</option>
+                <option value="FIELD">Field station</option><option value="REGIONAL">Regional / zonal</option><option value="NATIONAL">National / policy</option>
               </select></div>
             <div className="field"><label htmlFor="station">Station</label>
               <select id="station" className="select" value={station} onChange={(e) => setStation(e.target.value)}>
@@ -74,7 +78,7 @@ export default function SignIn() {
           {CLIENT_ID ? (
             <GoogleOAuthProvider clientId={CLIENT_ID}>
               <div className="center" style={{ minHeight: 44 }}>
-                <GoogleLogin theme="filled_black" size="large" width="400" text="signin_with" shape="rectangular"
+                <GoogleLogin theme={theme === 'dark' ? 'filled_black' : 'outline'} size="large" width="400" text="signin_with" shape="rectangular"
                   onSuccess={(cred) => {
                     const p = decodeJwt(cred.credential ?? '')
                     if (!p.email) { setError('Google did not return an identity token.'); return }
@@ -112,5 +116,6 @@ export default function SignIn() {
         </motion.div>
       </div>
     </div>
+    </>
   )
 }

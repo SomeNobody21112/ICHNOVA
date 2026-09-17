@@ -10,7 +10,7 @@ import type { Band } from '../lib/types'
 type View = 'spectrum' | 'waterfall' | 'occupancy' | 'bands' | 'anomalies' | 'history'
 type Range = '1h' | '6h' | '24h' | '7d' | '30d'
 const RANGE_H: Record<Range, number> = { '1h': 1, '6h': 6, '24h': 24, '7d': 168, '30d': 720 }
-const TONE = { DECODED: '#3ec28f', SIGNAL_NO_CODE: '#5fd0f0', UNKNOWN: '#e9b949' }
+const TONE = { DECODED: 'var(--green)', SIGNAL_NO_CODE: 'var(--cyan)', UNKNOWN: 'var(--amber)' }
 
 export default function Spectrum() {
   const { signals, world, session } = useApp()
@@ -31,7 +31,7 @@ export default function Spectrum() {
   const events: WaterfallEvent[] = bandSignals.slice(0, 8).map((s, i) => {
     const pos = s.centerHz ? (Math.log(s.centerHz) - Math.log(b.lo)) / (Math.log(b.hi) - Math.log(b.lo)) : 0.5
     const c = Math.max(4, Math.min(150, Math.round(pos * 160)))
-    return { id: s.id, f0: c, f1: c + 5, label: s.id.slice(-6), tone: overlay === s.id ? '#ffffff' : TONE[s.status], startRow: 5 + i * 19, rows: 12 + i * 3 }
+    return { id: s.id, f0: c, f1: c + 5, label: s.id.slice(-6), tone: overlay === s.id ? 'var(--text)' : TONE[s.status], startRow: 5 + i * 19, rows: 12 + i * 3 }
   })
   const psd = Array.from({ length: 200 }, (_, k) => {
     const x = Math.sin(k * 3.7 + si) * 999
@@ -56,7 +56,7 @@ export default function Spectrum() {
       {view === 'spectrum' && (
         <div className="grid" style={{ gridTemplateColumns: 'minmax(0, 1fr) 320px' }}>
           <Panel title={`Spectrum · ${b.label}`} right={<Tag kind="SIMULATED" />}>
-            <LinePlot series={[{ x: psd.map((_, k) => k), y: psd, color: '#5fd0f0', fill: true }]} height={320} yLabel="dBm" xLabel="frequency (log)" />
+            <LinePlot series={[{ x: psd.map((_, k) => k), y: psd, color: 'var(--cyan)', fill: true }]} height={320} yLabel="dBm" xLabel="frequency (log)" />
           </Panel>
           <Panel title="Detected in band" flush>
             <div className="list">{bandSignals.slice(0, 10).map((s) => (
@@ -87,7 +87,7 @@ export default function Spectrum() {
             }} />
           </div>
           <div className="row mono muted" style={{ fontSize: 10.5, justifyContent: 'space-between', paddingLeft: 92, marginTop: 4 }}><span>−{range}</span><span>time →</span><span>now</span></div>
-          <div className="legend" style={{ marginTop: 10 }}><span><i style={{ background: '#122a38' }} />idle</span><span><i style={{ background: '#1e6e8c' }} />moderate</span><span><i style={{ background: '#e9b949' }} />high</span><span><i style={{ background: '#f08c4a' }} />saturated</span></div>
+          <div className="legend" style={{ marginTop: 10 }}><span><i style={{ background: 'var(--occ-1)' }} />idle</span><span><i style={{ background: 'var(--occ-2)' }} />moderate</span><span><i style={{ background: 'var(--amber)' }} />high</span><span><i style={{ background: 'var(--orange)' }} />saturated</span></div>
         </Panel>
       )}
 
@@ -133,9 +133,9 @@ export default function Spectrum() {
         <Panel title={`Occupancy history · ${stationName(station)} · 30 days`} right={<Tag kind="SIMULATED" />}>
           <LinePlot height={300} yMin={0} yMax={1} yLabel="occupancy" xLabel="days ago → today" series={BANDS.map((_, k) => ({
             x: Array.from({ length: 30 }, (_, d) => d), y: Array.from({ length: 30 }, (_, d) => Array.from({ length: 8 }, (_, h) => occupancy(si, k, d * 24 + h * 3)).reduce((a, v) => a + v, 0) / 8),
-            color: ['#5fd0f0', '#a393ff', '#3ec28f'][k],
+            color: ['var(--cyan)', 'var(--violet)', 'var(--green)'][k],
           }))} />
-          <div className="legend">{BANDS.map((bb, k) => <span key={bb.id}><i style={{ background: ['#5fd0f0', '#a393ff', '#3ec28f'][k] }} />{bb.label}</span>)}</div>
+          <div className="legend">{BANDS.map((bb, k) => <span key={bb.id}><i style={{ background: ['var(--cyan)', 'var(--violet)', 'var(--green)'][k] }} />{bb.label}</span>)}</div>
           <div className="muted" style={{ fontSize: 12, marginTop: 8 }}>{signals.filter((s) => s.stationId === station && Date.now() - s.observedAt < 30 * DAY).length} signal records at this station in the window.</div>
         </Panel>
       )}

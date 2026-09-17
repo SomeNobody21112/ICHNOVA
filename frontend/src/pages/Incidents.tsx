@@ -68,7 +68,7 @@ export function IncidentDetail() {
         <div className="col" style={{ gap: 14 }}>
           <Panel title="Observation timeline" sub="Each mark is one observation; click to open the signal record">
             <TimelineStrip lanes={lanes} from={inc.firstSeen - 3600e3} to={inc.lastSeen + 3600e3}
-              events={inc.events.map((e) => ({ t: e.t, lane: e.stationId, id: e.signalId, tone: '#e9b949' }))} onPick={(sid) => nav(`/app/signals/${sid}`)} />
+              events={inc.events.map((e) => ({ t: e.t, lane: e.stationId, id: e.signalId, tone: 'var(--amber)' }))} onPick={(sid) => nav(`/app/signals/${sid}`)} />
           </Panel>
           <Panel title="Related signals" flush>
             <div className="list">{related.map((s) => (
