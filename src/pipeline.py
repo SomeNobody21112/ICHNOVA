@@ -27,8 +27,8 @@ from modem import load_iq, rrc_filter as _rrc_filter
 from analyze import (estimate_symbol_rate, lag1_correlation, estimate_carrier_phase,
                      matched_filter_demod, symbol_snr_m2m4, psk_llrs)
 from scipy.special import bdtr, bdtrc, ndtr
-from blind_id import (CODE_CATALOGUE, interleaver_candidates, syndrome_scan, sign_test_log10p,
-                      decode_hypothesis)
+from blind_id import CODE_CATALOGUE, syndrome_scan, sign_test_log10p, decode_hypothesis, as_spec
+import interleavers
 
 # ---- Receiver search domain: a front-end specification, independent of any dataset ----
 SPS_RANGE = (2, 20)     # integer samples/symbol → symbol rates fs/20 … fs/2
@@ -44,6 +44,7 @@ ACCEPT_SEARCH = 20      # significant hypotheses examined by the structural chec
 BL_DELTA_SYMBOLS = 1.7  # 99th pct shortfall of correct hypotheses' coverage vs transmission span
 PM_FLOOR = 0.926        # 99th pct of top-1 soft path metric on calibration null files
 MODULATIONS = ('BPSK', 'QPSK')
+INTERLEAVER_TYPES = ('block',)   # burst interleaver types searched (interleavers.TYPES)
 
 
 FS_SOURCES = ('declared', 'wav_header', 'inferred', 'relative_only', 'unavailable')
@@ -108,7 +109,7 @@ def analyze_iq(iq, fs=None, _oracle=None, _top_k=5, _keep_bits=False, _all_hypot
     beta = float(o.get('beta', RX_BETA))
 
     fronts, rejected_serial = [], 0
-    hyp_parts = []
+    hyp_parts, spec_ids = [], {}
     for cfo in cfo_list:
         iq_c = iq * np.exp(-2j * np.pi * cfo * n)
         for s in sps_list:
@@ -144,20 +145,24 @@ def analyze_iq(iq, fs=None, _oracle=None, _top_k=5, _keep_bits=False, _all_hypot
                     fronts.append({'cfo': cfo, 'sps': s, 'modulation': mod, 'phase': phase,
                                    'rotation': rot, 'llrs': llrs,
                                    'symbol_snr_db': float(10 * np.log10(S / N + 1e-30)), **span})
-                    dims_list = ([tuple(o['interleaver'])] if 'interleaver' in o
-                                 else interleaver_candidates(len(llrs)))
+                    spec_list = ([as_spec(o['interleaver'])] if 'interleaver' in o
+                                 else interleavers.candidates(len(llrs), INTERLEAVER_TYPES))
                     if 'exclude_interleaver' in o:
-                        dims_list = [d for d in dims_list if d != tuple(o['exclude_interleaver'])]
+                        spec_list = [s for s in spec_list if s != as_spec(o['exclude_interleaver'])]
                     # All interleaver x code hypotheses of this front end in one vectorised pass
                     # (blind_id.syndrome_scan; identical check signs to the per-pair loop).
-                    scan = syndrome_scan(th, dims_list)
+                    scan = syndrome_scan(th, spec_list)
                     scan['front'] = np.full(len(scan['n']), fi)
+                    # Global spec ids, so one interleaver is the same key on every front end.
+                    scan['spec'] = np.array([spec_ids.setdefault(scan['specs'][i], len(spec_ids))
+                                             for i in scan['spec']], dtype=np.int64)
                     hyp_parts.append(scan)
                     timers['syndrome_search'] += time.perf_counter() - t
 
     t = time.perf_counter()
     hyp = {k: (np.concatenate([p[k] for p in hyp_parts]) if hyp_parts else np.zeros(0, dtype=int))
-           for k in ('front', 'code', 'rows', 'cols', 'n', 'pos', 'sum', 'sq')}
+           for k in ('front', 'code', 'spec', 'n', 'pos', 'sum', 'sq')}
+    specs = sorted(spec_ids, key=spec_ids.get)
     M = len(hyp['n'])
     top, best_log10p, runner_margin, rejected = [], 0.0, None, []
     log10_threshold = float(np.log10(ALPHA / max(M, 1)))
@@ -169,13 +174,14 @@ def analyze_iq(iq, fs=None, _oracle=None, _top_k=5, _keep_bits=False, _all_hypot
             return described[k]
         fr = fronts[int(hyp['front'][k])]
         code = CODE_CATALOGUE[int(hyp['code'][k])]
-        dims = (int(hyp['rows'][k]), int(hyp['cols'][k]))
+        spec = specs[int(hyp['spec'][k])]
         t0 = time.perf_counter()
-        dec = _decode_both_polarities(fr['llrs'], code, dims)
+        dec = _decode_both_polarities(fr['llrs'], code, spec)
         timers['viterbi'] += time.perf_counter() - t0
-        n_steps = dims[0] * dims[1] // 2
+        n_steps = interleavers.n_coded(spec, len(fr['llrs'])) // 2
         d = {
-            'code': code['name'], 'interleaver': list(dims), 'sps': fr['sps'],
+            'code': code['name'], 'interleaver': _interleaver_field(spec),
+            'interleaver_spec': interleavers.describe(spec), 'sps': fr['sps'],
             'cfo': fr['cfo'], 'modulation': fr['modulation'],
             'rotation': fr['rotation'] + dec['flip'], 'phase': fr['phase'],
             'symbol_snr_db': fr['symbol_snr_db'],
@@ -216,9 +222,9 @@ def analyze_iq(iq, fs=None, _oracle=None, _top_k=5, _keep_bits=False, _all_hypot
             rejected.append({key: d[key] for key in ('code', 'interleaver', 'modulation', 'sps',
                                                      'log10_p', 'structural_rejection')})
         ref = order[0] if accepted_k is None else accepted_k
-        ref_key = (hyp['code'][ref], hyp['rows'][ref], hyp['cols'][ref])
+        ref_key = (hyp['code'][ref], hyp['spec'][ref])
         for k in order:
-            if (hyp['code'][k], hyp['rows'][k], hyp['cols'][k]) != ref_key:
+            if (hyp['code'][k], hyp['spec'][k]) != ref_key:
                 runner_margin = float(log10p[k] - log10p[ref])
                 break
     timers['scoring'] += time.perf_counter() - t
@@ -229,7 +235,8 @@ def analyze_iq(iq, fs=None, _oracle=None, _top_k=5, _keep_bits=False, _all_hypot
     signal_front = _signal_front(cfo_cands, sps_table, o)
     result = {
         'status': 'UNKNOWN', 'payload_bits': np.array([], dtype=np.uint8), 'code': None,
-        'interleaver': None, 'modulation': None, 'sps': None, 'symbol_rate_est': None,
+        'interleaver': None, 'interleaver_spec': None, 'modulation': None, 'sps': None,
+        'symbol_rate_est': None,
         'symbol_rate_norm': None, 'fs_hz': float(fs) if fs is not None else None, 'fs_source': fs_source,
         'cfo': None, 'beta': beta, 'phase': None, 'rotation': None,
     }
@@ -242,18 +249,19 @@ def analyze_iq(iq, fs=None, _oracle=None, _top_k=5, _keep_bits=False, _all_hypot
         # path metric over front-ends and both polarities breaks the tie. Without that
         # assumption the ambiguity needs frame synchronisation.
         b = describe(accepted_k)
-        acc_key = (hyp['code'][accepted_k], hyp['rows'][accepted_k], hyp['cols'][accepted_k])
+        acc_key = (hyp['code'][accepted_k], hyp['spec'][accepted_k])
         for k in order:
             if log10p[k] > log10_threshold:
                 break
-            if k == accepted_k or (hyp['code'][k], hyp['rows'][k], hyp['cols'][k]) != acc_key:
+            if k == accepted_k or (hyp['code'][k], hyp['spec'][k]) != acc_key:
                 continue
             d = describe(k)
             if d['structural_rejection'] is None and d['path_metric'] > b['path_metric']:
                 b = d
         accepted_desc = {key: val for key, val in b.items() if key != '_decoded_bits'}
         result.update(status='DECODED', payload_bits=b['_decoded_bits'], code=b['code'],
-                      interleaver=b['interleaver'], modulation=b['modulation'], sps=b['sps'],
+                      interleaver=b['interleaver'], interleaver_spec=b['interleaver_spec'],
+                      modulation=b['modulation'], sps=b['sps'],
                       symbol_rate_est=_rate_hz(fs, b['sps']), symbol_rate_norm=1.0 / b['sps'],
                       cfo=b['cfo'], phase=b['phase'],
                       rotation=b['rotation'])
@@ -283,7 +291,10 @@ def analyze_iq(iq, fs=None, _oracle=None, _top_k=5, _keep_bits=False, _all_hypot
     if _all_hypotheses and M:
         result['diagnostics']['all_hypotheses'] = {
             'code': [CODE_CATALOGUE[c]['name'] for c in hyp['code'].tolist()],
-            'rows': hyp['rows'].tolist(), 'cols': hyp['cols'].tolist(),
+            # rows/cols: block and diagonal dimensions (0 for other types); interleaver: display label
+            'rows': [int(specs[i][1]) if specs[i][0] in ('block', 'diag') else 0 for i in hyp['spec'].tolist()],
+            'cols': [int(specs[i][2]) if specs[i][0] in ('block', 'diag') else 0 for i in hyp['spec'].tolist()],
+            'interleaver': [_interleaver_label(specs[i]) for i in hyp['spec'].tolist()],
             'sps': [fronts[f]['sps'] for f in hyp['front'].tolist()],
             'modulation': [fronts[f]['modulation'] for f in hyp['front'].tolist()],
             'cfo': [fronts[f]['cfo'] for f in hyp['front'].tolist()],
@@ -353,10 +364,27 @@ def _front_end_evidence(y):
             'bpsk_contradiction_log10p': float(np.log10(max(contradiction, 1e-300)))}
 
 
-def _decode_both_polarities(llrs, code, dims):
+def _interleaver_field(spec):
+    """Legacy `interleaver` result field: [rows, cols] for block interleavers, None for other types
+    (their parameters are in `interleaver_spec`)."""
+    return [int(spec[1]), int(spec[2])] if spec[0] == 'block' else None
+
+
+def _interleaver_label(spec):
+    d = interleavers.describe(spec)
+    if spec[0] == 'block':
+        return f"{d['rows']}×{d['cols']}"
+    if spec[0] == 'diag':
+        return f"diag {d['rows']}×{d['cols']}"
+    if spec[0] == 'conv':
+        return f"conv B{d['branches']} D{d['delay_unit']}"
+    return f"QPP K{d['K']}"
+
+
+def _decode_both_polarities(llrs, code, spec):
     """Viterbi (zero start state) on the LLRs and on their complement; keep the better path."""
-    a = decode_hypothesis(llrs, code, dims)
-    b = decode_hypothesis(-np.asarray(llrs), code, dims)
+    a = decode_hypothesis(llrs, code, spec)
+    b = decode_hypothesis(-np.asarray(llrs), code, spec)
     best = b if b['path_metric'] > a['path_metric'] else a
     return dict(best, flip=np.pi if best is b else 0.0)
 

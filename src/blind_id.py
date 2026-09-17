@@ -16,9 +16,13 @@ Wrong-interleaver hypotheses on truly coded data are not guaranteed to follow th
 their behaviour is measured empirically (eval/nullset.py).
 """
 
+from functools import lru_cache
+
 import numpy as np
 from scipy.special import bdtrc
-from fec import conv_encode, viterbi_decode, block_interleave, block_deinterleave
+from fec import conv_encode, viterbi_decode
+import interleavers
+from interleavers import INTERLEAVER_ROWS, INTERLEAVER_COLS
 
 
 # Generator convention (fec.conv_encode): bit j of g taps the input delayed by j samples
@@ -29,11 +33,6 @@ CODE_CATALOGUE = [
     {'name': 'conv_k5_r12_23_35', 'generators': [0o23, 0o35], 'K': 5},
     {'name': 'conv_k3_r12_7_5', 'generators': [0o7, 0o5], 'K': 3},
 ]
-
-# Receiver search domain for single-block interleavers (a receiver spec, max 384 bits).
-INTERLEAVER_ROWS = (2, 16)
-INTERLEAVER_COLS = (4, 24)
-
 
 def interleaver_candidates(n_llrs):
     """Block interleavers r×c within the search domain with 0.5·n ≤ r·c ≤ n.
@@ -46,15 +45,15 @@ def interleaver_candidates(n_llrs):
             if 0.5 * n_llrs <= r * c <= n_llrs]
 
 
-_DEINTERLEAVE_INDEX = {}
-
-
 def deinterleave_index(rows, cols):
-    """Index array idx such that stream[idx] is the deinterleaved coded sequence."""
-    key = (rows, cols)
-    if key not in _DEINTERLEAVE_INDEX:
-        _DEINTERLEAVE_INDEX[key] = block_deinterleave(np.arange(rows * cols), rows, cols)
-    return _DEINTERLEAVE_INDEX[key]
+    """Index array idx such that stream[idx] is the deinterleaved coded sequence (block r×c)."""
+    return interleavers.deinterleave_index(('block', rows, cols))
+
+
+def as_spec(interleaver):
+    """Interleaver spec tuple (interleavers.py); a bare (rows, cols) pair means a block interleaver."""
+    t = tuple(interleaver)
+    return t if isinstance(t[0], str) else ('block', int(t[0]), int(t[1]))
 
 
 def syndrome_checks(th, code):
@@ -77,43 +76,50 @@ def syndrome_checks(th, code):
     return prod
 
 
-_SCAN_INDEX = {}
+@lru_cache(maxsize=64)
+def _scan_index(specs, n_obs):
+    """Stacked deinterleave indices for a tuple of specs; padding (-1) points at a neutral 1.0."""
+    rows = [interleavers.deinterleave_index(s, n_obs) for s in specs]
+    idx = np.full((len(specs), max(len(r) for r in rows)), -1, dtype=np.int64)
+    for i, r in enumerate(rows):
+        idx[i, :len(r)] = r
+    idx.setflags(write=False)
+    return idx, np.array([len(r) // 2 for r in rows])
 
 
-def _scan_index(dims):
-    """Stacked deinterleave indices for a tuple of (rows, cols); padding points at a neutral 1.0."""
-    if dims not in _SCAN_INDEX:
-        L = max(r * c for r, c in dims)
-        idx = np.full((len(dims), L), -1, dtype=np.int64)
-        for i, (r, c) in enumerate(dims):
-            idx[i, :r * c] = deinterleave_index(r, c)
-        _SCAN_INDEX[dims] = (idx, np.array([r * c // 2 for r, c in dims]))
-    return _SCAN_INDEX[dims]
+def _fits(spec, n_obs):
+    idx = interleavers.deinterleave_index(spec, n_obs)
+    return len(idx) > 0 and int(idx.max()) < n_obs
 
 
-def syndrome_scan(th, dims_list, codes=CODE_CATALOGUE):
+def syndrome_scan(th, specs, codes=CODE_CATALOGUE):
     """syndrome_checks() for every (interleaver, code) pair at once.
 
-    All candidate deinterleavings of one front end are gathered into one padded matrix, and each
-    code's parity products use the same factor order as syndrome_checks(), so every check sign (and
-    therefore every sign-test p-value) is identical to the per-pair loop. Returns a dict of arrays
-    rows, cols, code, n, pos, sum, sq in (dims, code) order, skipping pairs without checks."""
-    dims = tuple((r, c) for r, c in dims_list if r * c <= len(th))
-    empty = {k: np.zeros(0, dtype=float if k in ('sum', 'sq') else np.int64) for k in ('rows', 'cols', 'code', 'n', 'pos', 'sum', 'sq')}
-    if not dims:
+    `specs` are interleaver specs (interleavers.py) or bare (rows, cols) block pairs. All candidate
+    deinterleavings of one front end are gathered into one padded matrix, and each code's parity
+    products use the same factor order as syndrome_checks(), so every check sign (and therefore every
+    sign-test p-value) is identical to the per-pair loop. Returns arrays spec (index into the returned
+    'specs' tuple), code, n, pos, sum, sq in (spec, code) order, skipping pairs without checks and
+    specs that do not fit in th."""
+    n_obs = len(th)
+    specs = tuple(s for s in map(as_spec, specs) if _fits(s, n_obs))
+    keys = ('spec', 'code', 'n', 'pos', 'sum', 'sq')
+    empty = {k: np.zeros(0, dtype=float if k in ('sum', 'sq') else np.int64) for k in keys}
+    empty['specs'] = specs
+    if not specs:
         return empty
-    idx, T = _scan_index(dims)
+    idx, T = _scan_index(specs, n_obs)
     D = np.append(th, 1.0)[idx]
     Tmax = idx.shape[1] // 2
     c1, c2 = D[:, 0:2 * Tmax:2], D[:, 1:2 * Tmax:2]
-    cols = {k: [] for k in empty}
+    cols = {k: [] for k in keys}
     for ci, code in enumerate(codes):
         g1, g2 = code['generators']
         K = code['K']
         n_max = Tmax - K + 1
         if n_max <= 0:
             continue
-        prod = np.ones((len(dims), n_max))
+        prod = np.ones((len(specs), n_max))
         for j in range(K):
             if (g2 >> j) & 1:
                 prod *= c1[:, K - 1 - j:K - 1 - j + n_max]
@@ -125,15 +131,16 @@ def syndrome_scan(th, dims_list, codes=CODE_CATALOGUE):
         cols['pos'].append(np.count_nonzero(masked > 0, axis=1))
         cols['sum'].append(masked.sum(axis=1))
         cols['sq'].append(np.einsum('ij,ij->i', masked, masked))
-        cols['code'].append(np.full(len(dims), ci))
-        cols['rows'].append(np.array([d[0] for d in dims]))
-        cols['cols'].append(np.array([d[1] for d in dims]))
+        cols['code'].append(np.full(len(specs), ci))
+        cols['spec'].append(np.arange(len(specs)))
     if not cols['n']:
         return empty
-    # Stack as [code, dims] then reorder to (dims, code) - the order of the loop this replaces.
+    # Stack as [code, spec] then reorder to (spec, code) - the order of the loop this replaces.
     out = {k: np.stack(v, axis=1).reshape(-1) for k, v in cols.items()}
     keep = out['n'] > 0
-    return {k: v[keep] for k, v in out.items()}
+    out = {k: v[keep] for k, v in out.items()}
+    out['specs'] = specs
+    return out
 
 
 def sign_test_log10p(n_positive, n_checks):
@@ -143,31 +150,26 @@ def sign_test_log10p(n_positive, n_checks):
     return np.log10(np.where(n_positive > 0, np.maximum(p, 1e-300), 1.0))
 
 
-def decode_hypothesis(llrs, code, dims):
+def decode_hypothesis(llrs, code, interleaver):
     """Viterbi-decode one hypothesis and compute the comparison scores for it.
 
+    `interleaver` is a spec (interleavers.py) or a bare (rows, cols) block pair.
     Returns decoded bits plus: covered bits, hard re-encode consistency, soft path metric
-    Σ L·(1-2c)/Σ|L|, and soft disagreement D = Σ_mismatch |L| (nats, for MDL)."""
-    rows, cols = dims
-    n = rows * cols
-    stream = np.asarray(llrs[:n], dtype=float)
-    deint = stream[deinterleave_index(rows, cols)]
-    T = n // 2
-    decoded = viterbi_decode(deint[:2 * T], code['generators'], code['K'], terminated=False)
+    Σ L·(1-2c)/Σ|L|, and soft disagreement D = Σ_mismatch |L| (nats, for MDL). Covered bits are
+    scored in stream order, so the sums add the same terms in the same order for every spec type."""
+    stream = np.asarray(llrs, dtype=float)
+    idx = interleavers.deinterleave_index(as_spec(interleaver), len(stream))
+    T = len(idx) // 2
+    decoded = viterbi_decode(stream[idx[:2 * T]], code['generators'], code['K'], terminated=False)
     reenc = conv_encode(decoded, code['generators'], code['K'])[:2 * T]
-    full = np.zeros(n, dtype=np.uint8)
-    full[:2 * T] = reenc
-    reint = block_interleave(full, rows, cols)
-    covered = np.zeros(n, dtype=np.uint8)
-    covered[:2 * T] = 1
-    covered = block_interleave(covered, rows, cols).astype(bool)
-    L = stream[covered]
-    c = reint[covered]
+    order = np.argsort(idx[:2 * T], kind='stable')
+    L = stream[idx[:2 * T][order]]
+    c = reenc[order]
     mismatch = (L < 0).astype(np.uint8) != c
     abs_sum = float(np.sum(np.abs(L))) + 1e-12
     return {
         'decoded_bits': decoded,
-        'covered_bits': int(covered.sum()),
+        'covered_bits': 2 * T,
         'consistency': float(1.0 - mismatch.mean()) if len(L) else 0.0,
         'path_metric': float(np.sum(L * (1 - 2.0 * c)) / abs_sum),
         'soft_disagreement_nats': float(np.sum(np.abs(L[mismatch]))),

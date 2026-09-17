@@ -86,6 +86,32 @@ def test_interleavers_round_trip_and_qpp_table():
     assert np.array_equal(s[il.deinterleave_index(('conv', 4, 3), len(s))], c)
 
 
+def test_spec_scan_matches_per_pair_loop_and_decodes_every_type():
+    import blind_id as bi
+    from fec import conv_encode
+    rng = np.random.default_rng(4)
+    n_obs = 300
+    th = np.tanh(rng.standard_normal(n_obs))
+    specs = il.candidates(n_obs)
+    assert {s[0] for s in specs} == set(il.TYPES)
+    scan = bi.syndrome_scan(th, specs)
+    k = 0
+    for spec in scan['specs']:                           # (spec, code) order, same signs as the loop
+        for code in bi.CODE_CATALOGUE:
+            chk = bi.syndrome_checks(th[il.deinterleave_index(spec, n_obs)], code)
+            if len(chk):
+                assert scan['n'][k] == len(chk) and scan['pos'][k] == int((chk > 0).sum())
+                k += 1
+    assert k == len(scan['n'])
+    K7 = bi.CODE_CATALOGUE[0]
+    for spec in [('block', 8, 15), ('diag', 8, 15), ('qpp', 120, 103, 90), ('conv', 3, 2)]:
+        info = rng.integers(0, 2, 60).astype(np.uint8)
+        coded = conv_encode(info, K7['generators'], 7)[:120]
+        llrs = 1.0 - 2.0 * il.interleave(coded, spec)
+        d = bi.decode_hypothesis(llrs, K7, spec)
+        assert d['consistency'] == 1.0 and np.array_equal(d['decoded_bits'], info[:len(d['decoded_bits'])]), spec
+
+
 def test_8psk_16qam_demapping_and_modulation_gates():
     import constellations as cs, modem
     rng = np.random.default_rng(2)

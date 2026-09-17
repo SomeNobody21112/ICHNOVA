@@ -20,11 +20,14 @@ from functools import lru_cache
 
 import numpy as np
 
-from blind_id import INTERLEAVER_ROWS, INTERLEAVER_COLS, deinterleave_index as block_deinterleave_index
+from fec import block_deinterleave
 
 REF = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'references', 'lte_qpp_table.json')
 CONV_BRANCHES = (2, 3, 4, 6, 8, 12)
 CONV_DELAYS = (1, 2, 3, 4, 6, 8)
+# Block and diagonal domain (a receiver spec, max 384 bits); blind_id re-exports these.
+INTERLEAVER_ROWS = (2, 16)
+INTERLEAVER_COLS = (4, 24)
 QPP_MAX_K = 384
 MIN_CODED = 32                      # a hypothesis must explain at least this many coded bits
 TYPES = ('block', 'diag', 'conv', 'qpp')
@@ -39,7 +42,7 @@ def qpp_table():
 def _index(spec, n_obs):
     kind = spec[0]
     if kind == 'block':
-        idx = block_deinterleave_index(spec[1], spec[2])
+        idx = block_deinterleave(np.arange(spec[1] * spec[2]), spec[1], spec[2])
     elif kind == 'diag':
         r, c = spec[1], spec[2]
         idx = np.empty(r * c, dtype=np.int64)
