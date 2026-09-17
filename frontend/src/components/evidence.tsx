@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion'
 import { useCallback, useMemo, useState, type ReactNode } from 'react'
-import { CODE_FULL, CODE_SHORT, fmtDateTime, fmtInt, fmtP, fmtRate, pct } from '../lib/format'
+import { CODE_FULL, CODE_SHORT, fmtDateTime, fmtFs, fmtInt, fmtP, fmtSymRate, pct } from '../lib/format'
 import type { AuditEvent, EvidencePack, Hyp, Provenance } from '../lib/types'
 import { Constellation, HBars, Landscape, LinePlot, Spectrogram } from './charts'
 import { Drawer, Icon, Meter, Panel, Tag } from './ui'
@@ -71,7 +71,7 @@ export function TopicDetail({ pack, topic }: { pack: EvidencePack; topic: Topic 
           <dt>Raw spectral estimate</dt><dd>{d.raw_sps_estimate.toFixed(2)} sps</dd>
           <dt>Candidates tested</dt><dd>{d.sps_candidates.join(', ')}</dd>
           <dt>Front-ends searched / rejected (serial dependence)</dt><dd>{d.n_front_ends} / {d.front_ends_rejected_serial_dependence}</dd>
-          <dt>Established</dt><dd>{acc ? `${acc.sps} sps · ${fmtRate(pack.capture.fs_hz / acc.sps)}` : 'NOT ESTABLISHED'}</dd>
+          <dt>Established</dt><dd>{acc ? `${acc.sps} sps · ${fmtSymRate(acc.sps, pack.capture.fs_hz)}` : 'NOT ESTABLISHED'}</dd>
         </dl>
       </div>
     )
@@ -211,7 +211,8 @@ export function Characteristics({ pack }: { pack: EvidencePack }) {
   const rows: { label: string; value: string; topic: Topic; established: boolean }[] = [
     { label: 'Signal presence', value: pack.diagnostics.detection_log10_p <= LOG_ALPHA(pack) ? 'Detected' : 'Not established', topic: 'detection', established: pack.diagnostics.detection_log10_p <= LOG_ALPHA(pack) },
     { label: 'Modulation', value: r.modulation ?? (best ? `${best.modulation} (candidate)` : '—'), topic: 'modulation', established: !!r.modulation },
-    { label: 'Symbol rate', value: r.sps ? `${r.sps} sps · ${fmtRate(r.symbol_rate_est)}` : best ? `${best.sps} sps (candidate)` : '—', topic: 'sps', established: !!r.sps },
+    { label: 'Sample rate', value: fmtFs(pack.capture), topic: 'sps', established: pack.capture.fs_hz != null },
+    { label: 'Symbol rate', value: r.sps ? `${r.sps} sps · ${fmtSymRate(r.sps, pack.capture.fs_hz)}` : best ? `${best.sps} sps (candidate)` : '—', topic: 'sps', established: !!r.sps },
     { label: 'CFO', value: r.cfo != null ? `${r.cfo >= 0 ? '+' : ''}${r.cfo.toFixed(5)} cyc/sample` : '—', topic: 'cfo', established: r.cfo != null },
     { label: 'FEC', value: r.code ? CODE_FULL[r.code] ?? r.code : 'Not established', topic: 'fec', established: !!r.code },
     { label: 'Interleaver', value: r.interleaver ? `Block ${r.interleaver[0]}×${r.interleaver[1]} · ${r.interleaver[0] * r.interleaver[1]} bits` : 'Not established', topic: 'interleaver', established: !!r.interleaver },
@@ -296,7 +297,7 @@ export function EvidenceChain({ pack }: { pack: EvidencePack }) {
     return c
   }, [d.all_hypotheses])
   const nodes: { id: NodeId; icon: string; title: string; sum: string; tone: string }[] = [
-    { id: 'raw', icon: 'raw', title: 'Raw IQ', sum: `${fmtInt(pack.capture.samples)} samples · ${(pack.capture.fs_hz / 1e6).toFixed(3)} Msps · ${(pack.capture.format ?? 'iq').toUpperCase()}`, tone: 'info' },
+    { id: 'raw', icon: 'raw', title: 'Raw IQ', sum: `${fmtInt(pack.capture.samples)} samples · ${fmtFs(pack.capture)} · ${(pack.capture.format ?? 'iq').toUpperCase()}`, tone: 'info' },
     { id: 'detect', icon: 'detect', title: 'Signal detected', sum: detected ? `Spectral line p ${fmtP(d.detection_log10_p)}` : 'Presence not established', tone: detected ? 'ok' : 'warn' },
     { id: 'structure', icon: 'structure', title: 'Symbol structure', sum: `${d.sps_candidates.length} rate · ${d.cfo_candidates.length} CFO · 2 modulation candidates`, tone: 'info' },
     { id: 'fec', icon: 'fec', title: 'FEC hypotheses', sum: `${fmtInt(a.n_hypotheses)} tested · K7 ${fmtInt(codeCounts.K7)} · K5 ${fmtInt(codeCounts.K5)} · K3 ${fmtInt(codeCounts.K3)}`, tone: 'info' },
@@ -445,7 +446,7 @@ export function ViewsPanel({ pack }: { pack: EvidencePack }) {
     <div className="grid g-2">
       <div><div className="panel-title" style={{ marginBottom: 6 }}>Waterfall (time–frequency)</div><Spectrogram db={v.spectrogram.db} f={v.spectrogram.f_hz} t={v.spectrogram.t_s} height={200} /></div>
       <div><div className="panel-title" style={{ marginBottom: 6 }}>Constellation {r.status === 'DECODED' ? '(accepted front-end)' : '(best candidate front-end)'}</div><Constellation points={v.constellation} ideal={ideal} height={214} /></div>
-      <div><div className="panel-title" style={{ marginBottom: 6 }}>Power spectral density</div><LinePlot series={[{ x: v.psd.f_hz.map((f) => f / 1e3), y: v.psd.db, color: 'var(--cyan)', fill: true }]} yLabel="dB" xLabel="kHz" height={170} /></div>
+      <div><div className="panel-title" style={{ marginBottom: 6 }}>Power spectral density</div><LinePlot series={[{ x: v.units === 'normalised' ? v.psd.f_hz : v.psd.f_hz.map((f) => f / 1e3), y: v.psd.db, color: 'var(--cyan)', fill: true }]} yLabel="dB" xLabel={v.units === 'normalised' ? 'cycles/sample' : 'kHz'} height={170} /></div>
       <div><div className="panel-title" style={{ marginBottom: 6 }}>IQ samples</div><LinePlot series={[{ x: v.timeseries.i.map((_, i) => i), y: v.timeseries.i, color: 'var(--cyan)', width: 1 }, { x: v.timeseries.q.map((_, i) => i), y: v.timeseries.q, color: 'var(--violet)', width: 1 }]} xLabel="sample" height={170} /></div>
       {r.payload_len > 0 && (
         <div style={{ gridColumn: '1 / -1' }}>
@@ -510,7 +511,8 @@ export function DataQuality({ pack, stationClock }: { pack: EvidencePack; statio
   const present = metaFields.filter((k) => (c as Record<string, unknown>)[k] != null && (c as Record<string, unknown>)[k] !== '').length
   const snr = (pack.accept.accepted_hypothesis ?? pack.diagnostics.top_hypotheses[0])?.symbol_snr_db
   const rows: { k: string; v: string; tag: Provenance; tone?: string }[] = [
-    { k: 'Capture length', v: `${fmtInt(c.samples)} samples · ${(c.duration_s * 1e3).toFixed(2)} ms`, tag: provOf(pack) },
+    { k: 'Capture length', v: `${fmtInt(c.samples)} samples${c.duration_s != null ? ` · ${(c.duration_s * 1e3).toFixed(2)} ms` : ''}`, tag: provOf(pack) },
+    { k: 'Sample rate', v: fmtFs(c), tag: c.fs_hz == null ? 'NOT ESTABLISHED' : provOf(pack) },
     { k: 'Signal quality (symbol SNR, M2M4)', v: snr != null ? `${snr.toFixed(1)} dB · ${snr > 10 ? 'GOOD' : snr > 5 ? 'FAIR' : 'POOR'}` : '—', tag: provOf(pack) },
     { k: 'Metadata completeness', v: `${Math.round((present / metaFields.length) * 100)}% (${present}/${metaFields.length} fields)`, tag: provOf(pack) },
     { k: 'Duplicate captures', v: 'NOT ESTABLISHED', tag: 'NOT ESTABLISHED' },

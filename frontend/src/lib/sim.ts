@@ -216,7 +216,7 @@ export function simPack(s: SignalRecord): EvidencePack {
   return {
     id: s.id, analysed_at: new Date(s.observedAt).toISOString(),
     source: { kind: 'SIMULATED', note: 'Simulated record for demonstration. Values are not measurements.' },
-    capture: { samples: 4096, fs_hz: 1e6, duration_s: 0.004096, format: 'iq', station: s.stationId },
+    capture: { samples: 4096, fs_hz: 1e6, fs_source: 'declared', duration_s: 0.004096, format: 'iq', station: s.stationId },
     engine: { version: '0.3.0', commit: 'simulated', alpha: 0.01, accept_search: 20, bl_delta_symbols: 1.7, pm_floor: 0.926,
       sps_range: [2, 20], min_symbols: 16, cfo_max: 0.0125, rx_beta: 0.3, modulations: ['BPSK', 'QPSK'], codes: CODES,
       interleaver_domain: 'single block, rows 2-16, cols 4-24 (<=384 bits)' },

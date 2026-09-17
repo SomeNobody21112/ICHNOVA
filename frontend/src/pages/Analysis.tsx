@@ -41,7 +41,7 @@ export default function Analysis() {
   const [file, setFile] = useState<File | null>(null)
   const [sample, setSample] = useState<Sample | null>(null)
   const [over, setOver] = useState(false)
-  const [meta, setMeta] = useState({ station: session?.stationId ?? 'MS-07', antenna: 'Discone, vertical', captured: new Date(Date.now() - 5 * 60e3).toISOString().slice(0, 16), centerMHz: '145.8250', bwKHz: '25', fs: '1000000', notes: '' })
+  const [meta, setMeta] = useState({ station: session?.stationId ?? 'MS-07', antenna: 'Discone, vertical', captured: new Date(Date.now() - 5 * 60e3).toISOString().slice(0, 16), centerMHz: '145.8250', bwKHz: '25', fs: '', notes: '' })
   const [running, setRunning] = useState(false)
   const [progress, setProgress] = useState(-1)
   const [pack, setPack] = useState<EvidencePack | null>(null)
@@ -103,7 +103,7 @@ export default function Analysis() {
       const fmt = name.toLowerCase().endsWith('.wav') ? 'wav' : 'iq'
       if (engine.online) {
         const body = file ? await file.arrayBuffer() : await (await fetch(`/samples/${sample!.name}`)).arrayBuffer()
-        const q = new URLSearchParams({ format: fmt, fs: meta.fs, name, station: meta.station, antenna: meta.antenna, captured_at: meta.captured, notes: meta.notes,
+        const q = new URLSearchParams({ format: fmt, ...(meta.fs.trim() ? { fs: meta.fs.trim() } : {}), name, station: meta.station, antenna: meta.antenna, captured_at: meta.captured, notes: meta.notes,
           center_freq_hz: String(Number(meta.centerMHz) * 1e6), bandwidth_hz: String(Number(meta.bwKHz) * 1e3) })
         const res = await fetch(`/api/analyze?${q}`, { method: 'POST', body })
         const j = await res.json()
@@ -176,7 +176,7 @@ export default function Analysis() {
             {sampleTab === 'bench' && <div className="col" style={{ gap: 6 }}>
               {samples.map((s) => (
                 <button key={s.name} className={`chip${sample?.name === s.name ? ' on' : ''}`} style={{ height: 'auto', padding: '7px 10px', borderRadius: 6, flexDirection: 'column', alignItems: 'flex-start', gap: 2, textAlign: 'left' }}
-                  onClick={() => { setSample(s); setReal(null); setFile(null); if (s.format === 'wav') setMeta({ ...meta, fs: String(s.fs_hz) }) }}>
+                  onClick={() => { setSample(s); setReal(null); setFile(null); setMeta({ ...meta, fs: String(s.fs_hz) }) }}>
                   <span className="mono" style={{ whiteSpace: 'normal' }}>{s.name}</span><span className="muted" style={{ fontSize: 11.5, whiteSpace: 'normal' }}>{s.description}</span>
                 </button>
               ))}
@@ -198,7 +198,7 @@ export default function Analysis() {
               <div className="field"><label>Capture time (IST)</label><input className="input" type="datetime-local" value={meta.captured} onChange={(e) => setMeta({ ...meta, captured: e.target.value })} /></div>
               <div className="field"><label>Centre frequency (MHz)</label><input className="input mono" value={meta.centerMHz} onChange={(e) => setMeta({ ...meta, centerMHz: e.target.value })} /></div>
               <div className="field"><label>Bandwidth (kHz)</label><input className="input mono" value={meta.bwKHz} onChange={(e) => setMeta({ ...meta, bwKHz: e.target.value })} /></div>
-              <div className="field full"><label>Sampling rate (Hz) {(file?.name ?? sample?.name ?? '').endsWith('.wav') ? '· read from WAV header' : '· operator supplied for .iq'}</label><input className="input mono" value={meta.fs} onChange={(e) => setMeta({ ...meta, fs: e.target.value })} /></div>
+              <div className="field full"><label>Sampling rate (Hz) {(file?.name ?? sample?.name ?? '').endsWith('.wav') ? '· read from the WAV header unless you enter a value' : '· a raw .iq file has no header: leave blank if unknown'}</label><input className="input mono" placeholder="Unknown — the engine works in samples per symbol" value={meta.fs} onChange={(e) => setMeta({ ...meta, fs: e.target.value })} /></div>
               <div className="field full"><label>Operator notes</label><textarea className="textarea" value={meta.notes} onChange={(e) => setMeta({ ...meta, notes: e.target.value })} placeholder="Observed intermittently on the evening watch…" /></div>
             </div>
             <button className="btn btn-primary btn-lg" style={{ width: '100%', justifyContent: 'center', marginTop: 12 }} disabled={(!file && !sample && !real) || running} onClick={() => (real ? runReal(real) : run())}>

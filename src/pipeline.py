@@ -13,7 +13,8 @@ raw IQ
   → DECODED (Viterbi on the accepted hypothesis) | SIGNAL_NO_CODE | UNKNOWN
 
 Result keys: status, payload_bits, code, interleaver, modulation, sps, symbol_rate_est,
-cfo, beta, phase, rotation, accept{log10_p, log10_threshold, n_hypotheses, alpha},
+symbol_rate_norm, fs_hz, fs_source, cfo, beta, phase, rotation,
+accept{log10_p, log10_threshold, n_hypotheses, alpha},
 diagnostics{cfo_candidates, detection_log10_p, raw_sps_estimate, sps_table,
 sps_candidates, modulation_stats, top_hypotheses, runner_up_margin_log10, timers_s}, runtime.
 """
@@ -45,9 +46,12 @@ PM_FLOOR = 0.926        # 99th pct of top-1 soft path metric on calibration null
 MODULATIONS = ('BPSK', 'QPSK')
 
 
-def analyze_file(filename, fs=1e6, verbose=False):
-    """Blind analysis of an interleaved-float32 .iq file."""
-    return analyze_iq(load_iq(filename), fs=fs)
+FS_SOURCES = ('declared', 'wav_header', 'inferred', 'relative_only', 'unavailable')
+
+
+def analyze_file(filename, fs=None, verbose=False, fs_source=None):
+    """Blind analysis of an interleaved-float32 .iq file (a raw .iq file carries no sample rate)."""
+    return analyze_iq(load_iq(filename), fs=fs, fs_source=fs_source)
 
 
 @functools.lru_cache(maxsize=256)
@@ -59,14 +63,25 @@ def rrc_filter(beta, sps):
     return h
 
 
-def analyze_iq(iq, fs=1e6, _oracle=None, _top_k=5, _keep_bits=False, _all_hypotheses=False):
+def analyze_iq(iq, fs=None, _oracle=None, _top_k=5, _keep_bits=False, _all_hypotheses=False,
+               fs_source=None):
     """Blind analysis of complex baseband samples.
+
+    `fs` is the absolute sample rate in Hz, or None when it is not known. Every decision is made
+    in normalised units (samples per symbol, cycles per sample), so a missing sample rate never
+    changes the verdict; it only means no absolute rate (Hz) is reported. `fs_source` records
+    where fs came from (FS_SOURCES); it defaults to 'declared' when fs is given, else 'unavailable'.
 
     `_oracle` is evaluation-only (eval/ladder.py): ground-truth values that replace the
     corresponding estimates (keys: modulation, sps, cfo, beta, timing_offset, phase,
     interleaver, exclude_interleaver). Normal inference never passes it; acceptance is
     never oracled. `_top_k` / `_keep_bits` only widen the logged hypothesis list (eval)."""
     o = _oracle or {}
+    if fs is not None and not (np.isfinite(fs) and fs > 0):
+        raise ValueError(f'sample rate must be a positive number of Hz, got {fs!r}')
+    fs_source = fs_source or ('declared' if fs is not None else 'unavailable')
+    if fs_source not in FS_SOURCES:
+        raise ValueError(f'fs_source must be one of {FS_SOURCES}')
     timers = dict.fromkeys(['cfo', 'sps', 'matched_filter', 'syndrome_search',
                             'viterbi', 'scoring'], 0.0)
     t_start = time.perf_counter()
@@ -83,8 +98,10 @@ def analyze_iq(iq, fs=1e6, _oracle=None, _top_k=5, _keep_bits=False, _all_hypoth
 
     t = time.perf_counter()
     sps_table = _sps_table(iq)
-    raw_rate, _ = estimate_symbol_rate(iq, fs, SPS_RANGE)
-    raw_sps = fs / raw_rate
+    # Always in normalised units: welch's frequency grid in Hz rounds differently at the band edges
+    # (e.g. the Nyquist bin), which made the candidate set depend on the declared rate.
+    raw_rate, _ = estimate_symbol_rate(iq, 1.0, SPS_RANGE)
+    raw_sps = 1.0 / raw_rate
     sps_list = [int(o['sps'])] if 'sps' in o else _sps_candidates(sps_table, raw_sps)
     timers['sps'] += time.perf_counter() - t
     mods = [o['modulation']] if 'modulation' in o else list(MODULATIONS)
@@ -213,6 +230,7 @@ def analyze_iq(iq, fs=1e6, _oracle=None, _top_k=5, _keep_bits=False, _all_hypoth
     result = {
         'status': 'UNKNOWN', 'payload_bits': np.array([], dtype=np.uint8), 'code': None,
         'interleaver': None, 'modulation': None, 'sps': None, 'symbol_rate_est': None,
+        'symbol_rate_norm': None, 'fs_hz': float(fs) if fs is not None else None, 'fs_source': fs_source,
         'cfo': None, 'beta': beta, 'phase': None, 'rotation': None,
     }
     accepted_desc = None
@@ -236,10 +254,12 @@ def analyze_iq(iq, fs=1e6, _oracle=None, _top_k=5, _keep_bits=False, _all_hypoth
         accepted_desc = {key: val for key, val in b.items() if key != '_decoded_bits'}
         result.update(status='DECODED', payload_bits=b['_decoded_bits'], code=b['code'],
                       interleaver=b['interleaver'], modulation=b['modulation'], sps=b['sps'],
-                      symbol_rate_est=fs / b['sps'], cfo=b['cfo'], phase=b['phase'],
+                      symbol_rate_est=_rate_hz(fs, b['sps']), symbol_rate_norm=1.0 / b['sps'],
+                      cfo=b['cfo'], phase=b['phase'],
                       rotation=b['rotation'])
     elif detection_log10p <= np.log10(ALPHA) and signal_front:
-        result.update(status='SIGNAL_NO_CODE', symbol_rate_est=fs / signal_front['sps'],
+        result.update(status='SIGNAL_NO_CODE', symbol_rate_est=_rate_hz(fs, signal_front['sps']),
+                      symbol_rate_norm=1.0 / signal_front['sps'],
                       **signal_front)
         result['payload_bits'] = _hard_bits(iq, signal_front, beta)
     for h in top:
@@ -271,6 +291,11 @@ def analyze_iq(iq, fs=1e6, _oracle=None, _top_k=5, _keep_bits=False, _all_hypoth
             'log10_p': [float(v) for v in log10p]}
     result['runtime'] = time.perf_counter() - t_start
     return result
+
+
+def _rate_hz(fs, sps):
+    """Symbol rate in Hz, or None when the absolute sample rate is not established."""
+    return None if fs is None else float(fs) / sps
 
 
 def _structural_rejection(d):

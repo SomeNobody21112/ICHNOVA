@@ -1,7 +1,7 @@
 import { useSearchParams } from 'react-router-dom'
 import { provOf } from '../components/evidence'
 import { Icon, Loading, Panel, Seg, Tag } from '../components/ui'
-import { CODE_FULL, fmtDateTime, fmtFreq, fmtInt, fmtP, STATUS_LABEL, STATUS_MEANING } from '../lib/format'
+import { CODE_FULL, fmtDateTime, fmtFreq, fmtFs, fmtInt, fmtP, STATUS_LABEL, STATUS_MEANING } from '../lib/format'
 import { stationName, useApp, usePack } from '../lib/store'
 import { PRODUCT } from '../brand'
 
@@ -38,7 +38,7 @@ function SignalReport({ id }: { id: string }) {
         <h2>1. Capture</h2>
         <table><tbody>
           <tr><th>Station</th><td>{stationName(rec.stationId)}</td><th>Centre frequency</th><td>{fmtFreq(rec.centerHz)}</td></tr>
-          <tr><th>Samples</th><td>{fmtInt(pack.capture.samples)}</td><th>Sample rate</th><td>{fmtInt(pack.capture.fs_hz)} Hz</td></tr>
+          <tr><th>Samples</th><td>{fmtInt(pack.capture.samples)}</td><th>Sample rate</th><td>{fmtFs(pack.capture)}</td></tr>
           <tr><th>Source</th><td>{pack.source.kind}{pack.source.file ? ` · ${pack.source.file}` : ''}</td><th>Analysed</th><td>{pack.analysed_at}</td></tr>
         </tbody></table>
         <h2>2. Established characteristics</h2>

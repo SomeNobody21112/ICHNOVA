@@ -3,7 +3,7 @@
     python server/app.py [--port 8765]
 
 GET  /api/health                         engine version, commit, search-domain constants, live sessions
-POST /api/analyze?format=iq|wav&fs=HZ&name=...[&t0_unix=&timing=gps|arrival]
+POST /api/analyze?format=iq|wav[&fs=HZ]&name=...  (no fs for .iq → fs_source 'unavailable', never a default)[&t0_unix=&timing=gps|arrival]
                                          → evidence pack (server/evidence.py); narrowband captures also get
                                            the real-signal receivers (src/realsig.py) under pack.real
 GET  /api/live/stations                  live-receivable government transmitters (server/stations.py)
@@ -42,6 +42,19 @@ from stations import STATIONS                                         # noqa: E4
 DIST = os.path.join(ROOT, 'frontend', 'dist')
 MAX_UPLOAD = 64 * 1024 * 1024
 
+
+
+def _parse_fs(value):
+    """Operator-declared sample rate from the query string: None when absent or blank."""
+    if value is None or str(value).strip() == '':
+        return None
+    try:
+        fs = float(value)
+    except ValueError:
+        raise ValueError(f'fs must be a number of Hz, got {value!r}')
+    if not (np.isfinite(fs) and fs > 0):
+        raise ValueError(f'fs must be a positive number of Hz, got {value!r}')
+    return fs
 
 class Handler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
@@ -160,20 +173,31 @@ class Handler(SimpleHTTPRequestHandler):
         body = self.rfile.read(length)
         fmt = q.get('format', 'iq').lower()
         try:
+            try:
+                declared = _parse_fs(q.get('fs'))
+            except ValueError as e:
+                return self._json(400, {'error': str(e)})
+            fs_note = None
             if fmt == 'wav':
                 with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as f:
                     f.write(body)
                 try:
-                    iq, fs = load_wav(f.name)
+                    iq, header_fs = load_wav(f.name)
                 finally:
                     os.unlink(f.name)
-                fs = float(q.get('fs', fs))
+                fs, fs_source = float(header_fs), 'wav_header'
+                if declared is not None and abs(declared - header_fs) > 1e-6 * header_fs:
+                    # An operator value that contradicts the file header is used, and the conflict is kept.
+                    fs, fs_source = declared, 'declared'
+                    fs_note = f'Operator-declared {declared:g} Hz overrides WAV header {header_fs} Hz'
             else:
                 if len(body) % 8:
                     return self._json(400, {'error': '.iq must be interleaved float32 I/Q (byte count divisible by 8)'})
                 raw = np.frombuffer(body, dtype=np.float32)
                 iq = raw[0::2].astype(float) + 1j * raw[1::2].astype(float)
-                fs = float(q.get('fs', 1e6))
+                # A raw .iq file has no header: without a declared rate the absolute rate is unknown.
+                fs = declared
+                fs_source = 'declared' if declared is not None else 'unavailable'
             if len(iq) < 64:
                 return self._json(400, {'error': 'capture too short (need at least 64 samples)'})
             meta = {k: q[k] for k in ('name', 'station', 'center_freq_hz', 'bandwidth_hz', 'antenna',
@@ -181,8 +205,9 @@ class Handler(SimpleHTTPRequestHandler):
             meta['format'] = fmt
             pack = build_pack(iq, fs, f'CAP-{uuid.uuid4().hex[:8].upper()}',
                               {'kind': 'UPLOAD', 'file': q.get('name', 'upload'),
-                               'note': 'Operator upload analysed by the local engine.'}, meta)
-            if fs <= 200e3:
+                               'note': 'Operator upload analysed by the local engine.'}, meta,
+                              fs_source=fs_source, fs_note=fs_note)
+            if fs is not None and fs <= 200e3:
                 # Narrowband real-world capture: also run the real-signal receivers (time codes, FSK, AM).
                 t0 = float(q['t0_unix']) if 't0_unix' in q else None
                 real, _ = realsig.analyze_capture(iq, fs, t0, q.get('timing'), float(q.get('offset_hz', 0.0)))

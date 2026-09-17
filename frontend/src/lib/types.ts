@@ -53,12 +53,16 @@ export interface AllHypotheses {
   log10_p: number[]
 }
 
+/** Where the absolute sample rate came from (Constitution v2.5 §10). 'unavailable' means no rate in Hz is established. */
+export type FsSource = 'declared' | 'wav_header' | 'inferred' | 'relative_only' | 'unavailable'
+
 export interface EvidencePack {
   id: string
   analysed_at: string
   source: { kind: 'BENCHMARK' | 'UPLOAD' | 'SIMULATED'; file?: string; note?: string; dataset?: string }
   capture: {
-    samples: number; fs_hz: number; duration_s: number; format?: string; name?: string; station?: string
+    samples: number; fs_hz: number | null; duration_s: number | null; fs_source?: FsSource; fs_note?: string | null
+    format?: string; name?: string; station?: string
     center_freq_hz?: string | number; bandwidth_hz?: string | number; antenna?: string; captured_at?: string; notes?: string
   }
   engine: {
@@ -68,7 +72,7 @@ export interface EvidencePack {
   }
   result: {
     status: Status; code: string | null; interleaver: number[] | null; modulation: string | null; sps: number | null
-    symbol_rate_est: number | null; cfo: number | null; beta: number; phase: number | null; rotation: number | null
+    symbol_rate_est: number | null; symbol_rate_norm?: number | null; cfo: number | null; beta: number; phase: number | null; rotation: number | null
     runtime: number; payload_bits: number[]; payload_len: number
   }
   accept: {
@@ -91,6 +95,7 @@ export interface EvidencePack {
     all_hypotheses?: AllHypotheses
   }
   views: {
+    units?: 'hz' | 'normalised'
     spectrogram: { f_hz: number[]; t_s: number[]; db: number[][] }
     psd: { f_hz: number[]; db: number[] }
     constellation: number[][]

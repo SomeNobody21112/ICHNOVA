@@ -45,7 +45,10 @@ def engine_info():
 
 
 def _views(iq, fs, result):
+    """Display views. With an unknown sample rate (fs None) frequency and time axes are normalised
+    (cycles/sample, samples) and `units` says so."""
     n = len(iq)
+    fs = 1.0 if fs is None else fs
     nper = int(min(128, max(16, 2 ** int(np.log2(max(n // 24, 16))))))
     f, t, S = spectrogram(iq, fs=fs, nperseg=nper, noverlap=nper // 2, return_onesided=False,
                           window='hann', mode='psd')
@@ -78,6 +81,7 @@ def _views(iq, fs, result):
         const = [[round(float(v.real), 4), round(float(v.imag), 4)] for v in y[:800]]
     k = min(n, 600)
     return {
+        'units': 'hz' if fs != 1.0 else 'normalised',
         'spectrogram': {'f_hz': [round(float(v), 1) for v in f], 't_s': [round(float(v), 6) for v in t],
                         'db': [[round(float(v), 1) for v in row] for row in db]},
         'psd': {'f_hz': [round(float(v), 1) for v in fw[order]],
@@ -88,12 +92,16 @@ def _views(iq, fs, result):
     }
 
 
-def build_pack(iq, fs, pack_id, source, capture_meta=None, truth=None):
+FS_NOT_ESTABLISHED = 'Absolute sample rate not established'
+
+
+def build_pack(iq, fs, pack_id, source, capture_meta=None, truth=None, fs_source=None, fs_note=None):
+    """fs: absolute sample rate in Hz or None; fs_source: pipeline.FS_SOURCES."""
     iq = np.asarray(iq, dtype=complex)
-    r = analyze_iq(iq, fs=fs, _top_k=20, _all_hypotheses=True)
+    r = analyze_iq(iq, fs=fs, _top_k=20, _all_hypotheses=True, fs_source=fs_source)
     payload = np.asarray(r['payload_bits']).astype(int).tolist()
     result = {k: r[k] for k in ('status', 'code', 'interleaver', 'modulation', 'sps', 'symbol_rate_est',
-                                'cfo', 'beta', 'phase', 'rotation', 'runtime')}
+                                'symbol_rate_norm', 'cfo', 'beta', 'phase', 'rotation', 'runtime')}
     result['payload_bits'] = payload[:512]
     result['payload_len'] = len(payload)
     allh = r['diagnostics'].get('all_hypotheses')
@@ -105,7 +113,11 @@ def build_pack(iq, fs, pack_id, source, capture_meta=None, truth=None):
         'id': pack_id,
         'analysed_at': datetime.datetime.now(datetime.timezone.utc).isoformat(timespec='seconds'),
         'source': source,
-        'capture': {'samples': int(len(iq)), 'fs_hz': float(fs), 'duration_s': float(len(iq) / fs),
+        'capture': {'samples': int(len(iq)),
+                    'fs_hz': float(fs) if fs is not None else None,
+                    'fs_source': r['fs_source'],
+                    'fs_note': fs_note or (None if fs is not None else FS_NOT_ESTABLISHED),
+                    'duration_s': float(len(iq) / fs) if fs is not None else None,
                     **(capture_meta or {})},
         'engine': engine_info(),
         'result': result,

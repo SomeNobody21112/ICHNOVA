@@ -71,7 +71,7 @@ def run_benchmark(data_dir='data/sealed', n_files=30, verbose=True):
             with open(iq_path + '.gt.json') as f:
                 gt = json.load(f)
 
-            r = analyze_file(iq_path)
+            r = analyze_file(iq_path, fs=gt.get('fs'), fs_source='declared' if gt.get('fs') else None)
             ber = complement_tolerant_ber(r['payload_bits'], gt['original_bits'])
             decoded = r['status'] == 'DECODED'
             outcome = ('PASS' if decoded and ber < 0.01 else

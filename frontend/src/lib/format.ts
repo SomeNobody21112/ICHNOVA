@@ -34,6 +34,26 @@ export function fmtBw(hz: number | null | undefined) {
   return hz >= 1e6 ? `${(hz / 1e6).toFixed(2)} MHz` : `${(hz / 1e3).toFixed(1)} kHz`
 }
 
+export const FS_SOURCE_LABEL: Record<string, string> = {
+  declared: 'declared by operator or source',
+  wav_header: 'read from WAV header',
+  inferred: 'inferred from the signal',
+  relative_only: 'relative only',
+  unavailable: 'not established',
+}
+
+/** Sample rate with its provenance; never shows a number the engine was not given. */
+export function fmtFs(c: { fs_hz: number | null; fs_source?: string }) {
+  if (c.fs_hz == null) return 'Absolute sample rate not established'
+  const v = c.fs_hz >= 1e6 ? `${(c.fs_hz / 1e6).toFixed(3)} Msps` : `${(c.fs_hz / 1e3).toFixed(3)} ksps`
+  return c.fs_source ? `${v} · ${FS_SOURCE_LABEL[c.fs_source] ?? c.fs_source}` : v
+}
+
+/** Symbol rate in Hz when the sample rate is known, otherwise in symbols per sample. */
+export function fmtSymRate(sps: number, fsHz: number | null) {
+  return fsHz == null ? `${(1 / sps).toFixed(4)} sym/sample (Hz not established)` : fmtRate(fsHz / sps)
+}
+
 export function fmtRate(hz: number | null | undefined) {
   if (hz == null) return '—'
   return hz >= 1e6 ? `${(hz / 1e6).toFixed(3)} Msym/s` : `${(hz / 1e3).toFixed(2)} ksym/s`
