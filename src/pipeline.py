@@ -28,9 +28,11 @@ from analyze import (estimate_symbol_rate, lag1_correlation, estimate_carrier_ph
                      matched_filter_demod, symbol_snr_m2m4, psk_llrs)
 from scipy.special import bdtr, bdtrc, ndtr
 from blind_id import CODE_CATALOGUE, syndrome_scan, sign_test_log10p, decode_hypothesis, as_spec
+import rs
 import interleavers
 import stream
 import framing
+import blockcode
 
 # ---- Receiver search domain: a front-end specification, independent of any dataset ----
 SPS_RANGE = (2, 20)     # integer samples/symbol → symbol rates fs/20 … fs/2
@@ -98,7 +100,8 @@ def analyze_iq(iq, fs=None, _oracle=None, _top_k=5, _keep_bits=False, _all_hypot
     if fs_source not in FS_SOURCES:
         raise ValueError(f'fs_source must be one of {FS_SOURCES}')
     timers = dict.fromkeys(['cfo', 'sps', 'matched_filter', 'syndrome_search',
-                            'viterbi', 'scoring', 'stream_search', 'frame_search'], 0.0)
+                            'viterbi', 'scoring', 'stream_search', 'frame_search',
+                            'block_code_search'], 0.0)
     t_start = time.perf_counter()
     iq = np.asarray(iq, dtype=complex)
     if 'timing_offset' in o:   # undo the generator's fractional delay exp(-j2πfτ)
@@ -266,8 +269,13 @@ def analyze_iq(iq, fs=None, _oracle=None, _top_k=5, _keep_bits=False, _all_hypot
         b2.update({k: f2_decode[k] for k in ('covered_bits', 'path_metric', 'consistency',
                                              'polarity_flipped')})
         f2_bits = f2_decode['decoded_bits']
-    f3 = _frame_family(fronts, f2_bits)
+    f3_streams = _frame_streams(fronts, f2_bits)
+    f3 = _frame_family(f3_streams)
     timers['frame_search'] += time.perf_counter() - t
+
+    t = time.perf_counter()
+    f4 = _block_code_family(f3_streams, f3, fronts)
+    timers['block_code_search'] += time.perf_counter() - t
 
     signal_front = _signal_front(cfo_cands, sps_table, o)
     result = {
@@ -302,6 +310,22 @@ def analyze_iq(iq, fs=None, _oracle=None, _top_k=5, _keep_bits=False, _all_hypot
                       symbol_rate_est=_rate_hz(fs, b['sps']), symbol_rate_norm=1.0 / b['sps'],
                       cfo=b['cfo'], phase=b['phase'],
                       rotation=b['rotation'])
+    elif f4['accepted']:
+        # DECODED through an outer block code (13.1 note 6): F4 alone (LDPC on a stream), or
+        # F3+F4, or F2+F3+F4. The chain with the most accepted layers is the one reported.
+        a4 = f4['accepted_hypothesis']
+        fi = f3_streams[a4['stream']]['front']
+        fr = fronts[fi] if fi is not None else None
+        result.update(status='DECODED', payload_bits=f4['payload_bits'], code=a4['code'])
+        if fr is not None:
+            result.update(modulation=fr['modulation'], sps=fr['sps'], cfo=fr['cfo'],
+                          phase=fr['phase'], rotation=fr['rotation'],
+                          symbol_rate_est=_rate_hz(fs, fr['sps']), symbol_rate_norm=1.0 / fr['sps'])
+        elif f2['accepted']:
+            fr2 = fronts[int(f2['accepted_hypothesis']['front'])]
+            result.update(modulation=fr2['modulation'], sps=fr2['sps'], cfo=fr2['cfo'],
+                          phase=fr2['phase'], rotation=fr2['rotation'],
+                          symbol_rate_est=_rate_hz(fs, fr2['sps']), symbol_rate_norm=1.0 / fr2['sps'])
     elif f2['accepted']:
         b = f2['accepted_hypothesis']
         fr = fronts[int(b['front'])]
@@ -348,10 +372,18 @@ def analyze_iq(iq, fs=None, _oracle=None, _top_k=5, _keep_bits=False, _all_hypot
                                       'tested_hypotheses': f3['tested_hypotheses'],
                                       'log10_threshold': f3['log10_threshold'],
                                       'best_log10_p': f3['best_log10_p'],
-                                      'accepted': f3['accepted']}],
+                                      'accepted': f3['accepted']},
+                                     {'name': 'F4_block_code',
+                                      'weight': FAMILY_WEIGHTS['F4_block_code'],
+                                      'tested_hypotheses': f4['tested_hypotheses'],
+                                      'log10_threshold': f4['log10_threshold'],
+                                      'best_log10_p': f4['best_log10_p'],
+                                      'accepted': f4['accepted']}],
                         'interleaver_types': list(INTERLEAVER_TYPES)}
     result['stream_code'] = {k: v for k, v in f2.items() if k != 'rows'}
     result['frame'] = {k: v for k, v in f3.items() if k != 'accepted_bits'}
+    result['block_code'] = {k: v for k, v in f4.items() if k != 'payload_bits'}
+    result['structure'] = _structure(result, f2, f3, f4)
     result['diagnostics'] = {
         'cfo_candidates': cfo_cands, 'detection_log10_p': float(detection_log10p),
         'raw_sps_estimate': float(raw_sps), 'sps_table': sps_table,
@@ -432,14 +464,104 @@ def _frame_streams(fronts, f2_bits):
     return streams
 
 
-def _frame_family(fronts, f2_bits):
+def _block_code_family(streams, f3, fronts):
+    """Family F4: CCSDS Reed-Solomon behind an accepted catalogue marker, and TC LDPC (128,64) by
+    codeword offset on every stream the frame family tested (blockcode.py).
+
+    M4 counts every RS (E, I, Q, randomizer) hypothesis the frame period admits plus every LDPC
+    (offset, randomizer) hypothesis on every stream, and the bar is ALPHA * w(F4) / M4. An RS
+    hypothesis with a degenerate codeword is refused however small its p-value, because constant fill
+    and idle carriers are codewords (13.1 note 5)."""
+    rs_rows, ldpc_rows = [], []
+    frame = f3['accepted_hypothesis']
+    if frame is not None and frame['kind'] == 'catalogue_marker':
+        for row in blockcode.rs_scan(streams[frame['stream']]['bits'], frame):
+            rs_rows.append({**row, 'family': 'rs', 'stream': frame['stream']})
+    for si, st in enumerate(streams):
+        for row in blockcode.ldpc_scan(st['bits']):
+            ldpc_rows.append({**row, 'family': 'ldpc', 'stream': si})
+    rows = rs_rows + ldpc_rows
+    M4 = len(rows)
+    bar = float(np.log10(ALPHA * FAMILY_WEIGHTS['F4_block_code'] / max(M4, 1)))
+    rows.sort(key=blockcode.rank)
+    acc, rejected, payload = None, [], np.array([], dtype=np.uint8)
+    for r in rows:
+        if r['log10_p'] > bar:
+            break
+        if r.get('degenerate'):
+            rejected.append({'code': r['code'], 'log10_p': r['log10_p'],
+                             'structural_rejection': 'degenerate codeword: fewer than four distinct '
+                                                     'symbols (constant fill or idle carrier)'})
+            continue
+        acc = r
+        break
+    if acc is not None:
+        if acc['family'] == 'rs':
+            payload = rs.symbols_to_bits(np.concatenate(acc['_info'])) if acc['_info'] else payload
+        else:
+            st = streams[acc['stream']]
+            fi = st['front']
+            # Every row of H has even weight, so a complemented codeword is a codeword: the LDPC
+            # statistic cannot resolve a 180° phase flip. An accepted catalogue marker on the same
+            # stream does resolve it (its polarity is part of the hypothesis); without one the payload
+            # is reported with polarity_resolved = False and may be the complement of the truth.
+            anchored = frame is not None and frame['stream'] == acc['stream']
+            polarity = frame['polarity'] if anchored else None
+            bits = 1 - st['bits'] if polarity == 'inverted' else st['bits']
+            llrs = fronts[fi]['llrs'] if fi is not None else None
+            if polarity == 'inverted' and llrs is not None:
+                llrs = -np.asarray(llrs)
+            dec = blockcode.ldpc_decode(bits, llrs, acc['offset'], acc['randomizer'])
+            acc = {**acc, 'polarity': polarity or 'unresolved', 'polarity_resolved': anchored}
+            acc = {**acc, 'decode': {k: v for k, v in dec.items()
+                                     if k not in ('info_bits', 'converged_codewords')},
+                   'converged_codewords': dec['converged_codewords']}
+            payload = dec['info_bits']
+    return {'tested_hypotheses': M4, 'log10_threshold': bar,
+            'best_log10_p': rows[0]['log10_p'] if rows else 0.0,
+            'accepted': acc is not None,
+            'accepted_hypothesis': {k: v for k, v in acc.items() if k != '_info'} if acc else None,
+            'significant_but_rejected': rejected,
+            'rs_hypotheses': len(rs_rows), 'ldpc_hypotheses': len(ldpc_rows),
+            'top': [{k: v for k, v in r.items() if k != '_info'} for r in rows[:5]],
+            'payload_bits': payload}
+
+
+def _structure(result, f2, f3, f4):
+    """The layered structure claimed for this capture, one entry per accepted layer."""
+    layers = []
+    if result['code'] and result['interleaver_spec']:
+        layers.append({'layer': 'burst_code', 'code': result['code'],
+                       'interleaver': result['interleaver_spec']})
+    if f2['accepted']:
+        a = f2['accepted_hypothesis']
+        layers.append({'layer': 'stream_code', 'code': stream.CODE_NAME,
+                       'g2_inverted': a['g2_inverted'], 'pair_offset': a['offset'],
+                       'check_agreement': a['agreement']})
+    if f3['accepted']:
+        a = f3['accepted_hypothesis']
+        layers.append({'layer': 'frame', 'kind': a['kind'], 'marker': a['marker'],
+                       'period_bits': a['period_bits'], 'offset_bits': a['offset_bits'],
+                       'polarity': a['polarity'], 'n_frames': a['n_frames'], 'map': f3['map']})
+    if f4['accepted']:
+        a = f4['accepted_hypothesis']
+        layers.append({'layer': 'block_code', 'code': a['code'], 'randomizer': a['randomizer'],
+                       **({'E': a['E'], 'I': a['I'], 'Q': a['Q'], 'n_codewords': a['n_codewords'],
+                           'n_decoded': a['n_decoded'], 'symbol_errors': a['symbol_errors']}
+                          if a['family'] == 'rs' else
+                          {'offset': a['offset'], 'n_codewords': a['n_codewords'],
+                           'satisfied_checks': a['satisfied_checks'],
+                           'total_checks': a['total_checks']})})
+    return {'modulation': result['modulation'], 'sps': result['sps'], 'layers': layers}
+
+
+def _frame_family(streams):
     """Family F3: catalogue markers and blind constant fields over the declared frame domain.
 
     M3 sums framing.family_domain(n) over every stream tested, so the bar covers the whole declared
     domain (period x offset x marker/width x polarity), not only the hypotheses that were evaluated.
     Candidates are walked in p-value order and the first that also passes framing.structural_rejection
     is accepted."""
-    streams = _frame_streams(fronts, f2_bits)
     M3 = sum(framing.family_domain(len(st['bits'])) for st in streams)
     bar = float(np.log10(ALPHA * FAMILY_WEIGHTS['F3_frame'] / max(M3, 1)))
     cands = []

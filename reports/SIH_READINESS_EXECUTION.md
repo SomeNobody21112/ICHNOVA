@@ -284,3 +284,59 @@ whose columns add up and which states how many frames a per-column proof would n
 concatenated stream is DECODED via F2 with the frame found in the Viterbi output; noise and an idle
 carrier are refused; the serial gate keeps the coherent front end of a framed stream; M₃ equals the
 declared domain of the streams tested. Full suite: **59 passed**.
+
+## Phase 10 (step 4) — F4 block-code family: CCSDS Reed-Solomon and TC LDPC (128,64)
+
+**Added — `src/blockcode.py`**
+- **Reed-Solomon behind an accepted catalogue marker.** The measured frame period fixes the
+  codeblock: 8·(255·I − Q) = P − marker bits, so a 2,072-bit frame admits E = 16, I = 1, Q = 0.
+  Hypotheses are (E, I, Q) × randomizer ∈ {none, TM 131071, TM 255}, derandomized from the first bit
+  after the marker and restarted each frame. The statistic is the exact tail
+  P(≥ D decodes of C codewords) with the per-codeword probability V(n′,E)/256^{2E}; a decoder success
+  is never by itself the evidence, and a degenerate codeword (fewer than four distinct symbols)
+  is refused however small the p-value.
+- **TC LDPC (128,64)** by codeword offset ∈ [0,128) × randomizer ∈ {none, TC BTG preset per
+  codeword}. The 64 rows of H are linearly independent, so the satisfied checks of F complete
+  codewords are exactly Binomial(64F, ½). One pass computes each row's parity at every bit position;
+  derandomizing flips a row's parity by a constant, so the randomized hypotheses come free from the
+  same pass. Min-sum decoding runs only after acceptance.
+- `pipeline._block_code_family` counts every RS and LDPC hypothesis in M₄ (bar α·0.20/M₄) and
+  `pipeline._structure` now reports the accepted chain layer by layer (burst code / stream code /
+  frame with its map / block code with its parameters).
+- Verdict: an accepted F4 gives **DECODED**, above F2 alone, because it is the longer chain
+  (§13.1 note 6). F1 still takes precedence, which keeps bench-v1 behaviour untouched.
+
+**Defect 4 — LDPC polarity is unresolvable, and a segment-flipping front end exploited it.** Every
+row of H has even weight 8, so the complement of a codeword is a codeword and the sign test is
+polarity-invariant. An off-carrier front end whose polarity flips between segments therefore passed
+with 1,457/1,536 satisfied checks and produced a payload that was correct in some segments and
+complemented in others. Two fixes: `blockcode.rank` orders F4 hypotheses by (p-value, then agreement
+fraction), so the coherent front end (1,536/1,536) wins, exactly as `stream.rank` does for F2; and the
+accepted LDPC hypothesis now carries `polarity` / `polarity_resolved`, set from an accepted catalogue
+marker on the same stream when there is one and reported as **unresolved** when there is not — a
+CLTU start sequence appears once, so the periodic marker test cannot anchor it. Also fixed:
+`ldpc_decode` returns the information bits of every codeword with a `converged_codewords` mask, so
+the payload stays aligned with the transmission instead of silently dropping unconverged blocks.
+
+**Measured (end-to-end, engine blind)**
+
+| Signal | Result |
+|---|---|
+| RS(255,223) E=16 I=1 + TM 131071 randomizer + ASM (P = 2,072) + inner K7, BPSK at 8 dB | **DECODED** `ccsds_rs_255_223`; E, I, Q and randomizer all identified; 4/4 codewords, 0 symbol errors; payload BER **0.0**; layers stream_code → frame → block_code |
+| TC LDPC CLTU: 64-bit start sequence + 24 BTG-randomized codewords, BPSK at 9 dB | **DECODED** `ccsds_tc_ldpc_128_64` at offset 64 (immediately after the start sequence), randomizer identified, 1,536/1,536 checks, 24/24 codewords converged, payload BER **0.0** (complement-tolerant; polarity reported unresolved) |
+| ASM frames with random data | SIGNAL_NO_CODE, F3 accepted, F4 refused |
+| ASM frames with constant fill | not DECODED; RS refused as degenerate |
+| Noise, idle carrier | UNKNOWN / SIGNAL_NO_CODE, no F4 accept |
+
+| Gate | Value |
+|---|---|
+| Tests | **63 passed** |
+| bench-v1 sealed / train | 30/30, 0 FA / 63/100, 0 FA (unchanged) |
+| Null set | 0/900 false accepts, 0/450 wrong decodes, K7/K5/K3 61/36/31, noise → SIGNAL_NO_CODE 21/500 (all unchanged: the null-set captures are ≤ 384 bits, so F4 has fewer than two codewords and is inert) |
+| Null-set runtime | 37 s → 40 s |
+| Runtime on the 66 k-sample CCSDS capture | 3.3 s, of which frame search 2.4 s and block-code search 0.3 s |
+
+**Tests** — `tests/test_families.py` grows to 12: RS profiles follow the frame period (including
+virtual fill and a rejection of non-byte-aligned periods); the full CCSDS chain decodes with every
+parameter identified; the CLTU decodes and reports unresolved polarity; a framed stream with random
+data and one with constant fill are both refused, the latter on the degenerate-codeword rule.

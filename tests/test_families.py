@@ -126,6 +126,82 @@ def test_serial_gate_keeps_the_coherent_front_end_of_a_framed_stream():
     assert pipeline.SERIAL_AGREEMENT_MAX == 0.60
 
 
+def _ccsds_frames(n_frames, rng, E=16, I=1, Q=0, randomizer='tm_131071'):
+    """ASM + randomized RS codeblock per frame (CCSDS 131.0-B-5 order); also returns the payload."""
+    import framing, rs
+    asm = framing.MARKERS['ASM_1ACFFC1D']
+    out, infos = [], []
+    for _ in range(n_frames):
+        info = rng.randint(0, 256, rs.code(E).k * I - Q).astype(np.int64)
+        bits = rs.symbols_to_bits(rs.encode_codeblock(info, E, I, Q))
+        if randomizer:
+            bits = bits ^ framing.pn_sequence(randomizer, len(bits))
+        out.append(np.concatenate([asm, bits]))
+        infos.append(info)
+    return np.concatenate(out).astype(np.uint8), np.concatenate(infos)
+
+
+def test_rs_profiles_follow_the_frame_period():
+    import blockcode
+    assert (16, 1, 0) in blockcode.rs_profiles(2072 - 32)        # ASM + RS(255,223), I = 1
+    assert (16, 4, 0) in blockcode.rs_profiles(8192 - 32)        # depth 4
+    assert blockcode.rs_profiles(1001) == []                     # not a whole number of symbols
+    assert blockcode.rs_profiles(8 * 255 * 9) == []               # longer than the deepest codeblock
+    # A short codeblock is virtual fill, which is in the catalogue: 125 symbols is I = 1, Q = 130.
+    assert (16, 1, 130) in blockcode.rs_profiles(1000)
+
+
+def test_f4_decodes_the_full_ccsds_chain():
+    """RS + randomizer + ASM + inner K7: all four layers of the concatenated catalogue chain."""
+    import rs
+    rng = np.random.RandomState(31)
+    frames, info = _ccsds_frames(4, rng)
+    r = pipeline.analyze_iq(_bpsk(conv_encode(frames, stream.CODE['generators'], 7), rng, snr_db=8.0))
+    a4 = r['block_code']['accepted_hypothesis']
+    assert r['status'] == 'DECODED' and r['code'] == 'ccsds_rs_255_223'
+    assert (a4['E'], a4['I'], a4['Q'], a4['randomizer']) == (16, 1, 0, 'tm_131071')
+    assert a4['n_decoded'] == a4['n_codewords'] == 4 and not a4['degenerate']
+    assert a4['log10_p'] <= r['block_code']['log10_threshold']
+    assert _ber(r['payload_bits'], rs.symbols_to_bits(info)) < 0.01
+    assert [layer['layer'] for layer in r['structure']['layers']] == ['stream_code', 'frame', 'block_code']
+    assert r['frame']['accepted_hypothesis']['period_bits'] == 2072
+
+
+def test_f4_decodes_a_tc_ldpc_cltu_and_reports_unresolved_polarity():
+    import framing, ldpc
+    rng = np.random.RandomState(32)
+    info = rng.randint(0, 2, (24, 64)).astype(np.uint8)
+    pn = framing.pn_sequence('tc_btg', ldpc.N)
+    cltu = np.concatenate([framing.MARKERS['ASM_034776C7272895B0']]
+                          + [c ^ pn for c in ldpc.encode(info)]).astype(np.uint8)
+    r = pipeline.analyze_iq(_bpsk(cltu, rng, snr_db=9.0))
+    a4 = r['block_code']['accepted_hypothesis']
+    assert r['status'] == 'DECODED' and r['code'] == 'ccsds_tc_ldpc_128_64'
+    assert a4['offset'] == 64 and a4['randomizer'] == 'tc_btg'      # right after the start sequence
+    assert a4['satisfied_checks'] == a4['total_checks']
+    # H has only even-weight rows, so a complemented codeword is a codeword: without a periodic
+    # marker to anchor it the polarity cannot be resolved, and the engine must say so.
+    assert a4['polarity'] == 'unresolved' and a4['polarity_resolved'] is False
+    assert _ber(r['payload_bits'], info.reshape(-1)) < 0.01         # complement-tolerant
+
+
+def test_f4_refuses_a_frame_with_no_code_and_a_degenerate_codeblock():
+    import framing
+    rng = np.random.RandomState(33)
+    asm = framing.MARKERS['ASM_1ACFFC1D']
+    random_frames = np.concatenate([np.concatenate([asm, rng.randint(0, 2, 2040).astype(np.uint8)])
+                                    for _ in range(6)]).astype(np.uint8)
+    r = pipeline.analyze_iq(_bpsk(random_frames, rng, snr_db=9.0))
+    assert r['status'] == 'SIGNAL_NO_CODE' and r['frame']['accepted'] and not r['block_code']['accepted']
+    # Constant fill decodes as a Reed-Solomon codeword, so an RS claim on it must be refused on the
+    # degenerate-codeword rule (§13.1 note 5), never accepted on decoder success.
+    fill = np.concatenate([np.concatenate([asm, np.zeros(2040, np.uint8)]) for _ in range(6)]).astype(np.uint8)
+    r2 = pipeline.analyze_iq(_bpsk(fill, rng, snr_db=12.0))
+    assert r2['status'] != 'DECODED'
+    for row in r2['block_code']['top']:
+        assert not (row['log10_p'] <= r2['block_code']['log10_threshold'] and not row.get('degenerate')), row
+
+
 def test_family_bars_are_the_pre_registered_weights():
     """The weights are pre-registered (§13.1) and the bars must follow α·w/M, not a tuned constant."""
     assert pipeline.FAMILY_WEIGHTS == {'F1_burst_code': 0.50, 'F2_stream_code': 0.10,
