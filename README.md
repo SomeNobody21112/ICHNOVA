@@ -4,6 +4,8 @@ Takes a raw IQ capture and, without being told any signal parameters, searches c
 
 Outcomes: **DECODED** (code accepted, Viterbi payload) · **SIGNAL_NO_CODE** (PSK signal detected, no code accepted) · **UNKNOWN** (no evidence).
 
+**Real transmissions.** The same evidence-first rules run on real, over-the-air government signals received through public KiwiSDR receivers: NIST WWV/WWVB, PTB DCF77, NPL MSF and NICT JJY time codes (decoded blind; decoded minute matches each receiver's GPS clock to within 2–23 ms), the German Weather Service's DDH47 teleprinter (blind 50 Bd / 85 Hz ITA2 decode of its own callsign and frequency) and All India Radio medium-wave carriers matched to Prasar Bharati's official transmitter list. A weak WWVB capture is detected but its time refused. See `reports/REAL_SIGNAL_VALIDATION.md`.
+
 ## Quick start
 
 ```bash
@@ -11,9 +13,9 @@ pip install -r requirements.txt pytest
 python src/generate.py sealed        # bench-v1 sealed: 30 files -> data/sealed (seed0=99000)
 python src/generate.py train         # bench-v1 train: 100 files -> data/train (seed0=1000)
 
-python -m pytest -q tests/test_core.py   # 9 tests
-python sealed_test.py                    # 30/30, 0 false accepts, ~20 s
-python sealed_test.py data/train 100     # 63/100, 0 false accepts, ~40 s
+python -m pytest -q tests                # 30 tests: engine + real-signal receivers (recordings/real)
+python sealed_test.py                    # 30/30, 0 false accepts, ~1.5 s
+python sealed_test.py data/train 100     # 63/100, 0 false accepts, ~4.5 s
 ```
 
 A file passes if the status is DECODED and payload BER < 0.01 (tolerant of bit complements). DECODED with BER ≥ 0.01 is counted as a false accept. Results go to `results/<dataset>_results.json`, with full per-file diagnostics in `results/<dataset>_diagnostics.jsonl`.
@@ -29,7 +31,18 @@ python eval/nullset.py generate && python eval/nullset.py run && python eval/nul
 python eval/nullset.py compare                         # scoring-method comparison
 ```
 
-Latest results and limitations: `reports/BASELINE_HARDENING_REPORT.md`.
+Latest results and limitations: `reports/BASELINE_HARDENING_REPORT.md`, `reports/STRUCTURAL_ACCEPTANCE_REPORT.md`, `reports/PERFORMANCE_REPORT.md` (3–4× faster, decision-identical on 1,480 files).
+
+## Real signals
+
+```bash
+python server/kiwi.py --freq-khz 40 --seconds 185 --near 37.37,140.85 --out jjy.npz   # capture from the nearest public receiver
+python server/make_recording.py jjy.npz --id my-jjy --station JJY --out-rate 1500      # -> recordings/real/my-jjy.wav + .json
+python -m pytest -q tests/test_realsig.py                                             # decodes the committed recordings
+python server/export_live_replays.py                                                  # replay timelines for the Live Monitor
+```
+
+`recordings/real/` holds IQ `.wav` recordings of WWV, WWVB, DCF77, MSF, JJY, DDH47 and All India Radio with GPS start times; any of them can be uploaded in the console's Analysis page. With the server running, the Live Monitor receives these stations live. Method, results and limitations: `reports/REAL_SIGNAL_VALIDATION.md`; related products and literature: `reports/RESEARCH_LANDSCAPE.md`.
 
 ## Operator console
 
@@ -38,7 +51,7 @@ cd frontend && npm install && npm run build && cd ..
 python server/app.py      # http://127.0.0.1:8765
 ```
 
-Upload an .IQ/.wav capture (or pick a benchmark capture) and follow the evidence chain from raw IQ to decision; browse the Experiment Lab for the measured numbers. Monitoring-network views use clearly labelled simulated data. Details, including Google sign-in setup: `frontend/README.md`.
+Upload an .IQ/.wav capture (a benchmark capture, or a real government recording) and follow the evidence chain from raw IQ to decision; open the Live Monitor to receive WWV, DCF77, MSF, JJY, DDH47 or All India Radio live (or replay recorded sessions offline); browse the Experiment Lab for the measured numbers. Monitoring-network views use clearly labelled simulated data. Details, including Google sign-in setup: `frontend/README.md`.
 
 ## Layout
 
@@ -50,6 +63,11 @@ Upload an .IQ/.wav capture (or pick a benchmark capture) and follow the evidence
 | `src/fec.py` | Conv encoder, vectorized soft Viterbi, block interleaver |
 | `src/modem.py` | Modulation, RRC, channel model, IQ/WAV I/O |
 | `src/generate.py` | Deterministic bench-v1 generator |
+| `src/timecodes.py` | Blind time-code receiver: WWV, WWVB, DCF77, MSF, JJY (epoch, symbols, ML frame decode, digit reliability) |
+| `src/fsk.py` | Blind FSK: tone pair, shift, baud, framing, ITA2/ASCII; CHU packets |
+| `src/broadcast.py`, `src/realsig.py` | AM characterisation; one entry point running every real-signal receiver |
+| `server/kiwi.py`, `server/live.py`, `server/stations.py` | Public-receiver IQ/waterfall clients, live sessions (SSE), station catalogue with official references |
+| `recordings/` | Real-signal recordings (IQ .wav + GPS sidecar) and official reference data (AIR transmitter list) |
 | `server/` | Local analysis API (`app.py`), evidence packs, frontend data export |
 | `frontend/` | Operator console (React + Vite) |
 | `eval/` | SNR utility, oracle ladder, null set / calibration / scoring comparison |

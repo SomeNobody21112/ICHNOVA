@@ -117,7 +117,8 @@ def export_benchmark():
     for label, sealed, train in (
             ('baseline_4c8188b', 'reports/data/baseline_4c8188b_sealed_results.json', 'reports/data/baseline_4c8188b_train_results.json'),
             ('hardened_0f71803', 'reports/data/v1_sealed_results.json', 'reports/data/v1_train_results.json'),
-            ('structural_current', 'reports/data/v1_sealed_results_structural.json', 'reports/data/v1_train_results_structural.json')):
+            ('structural_0f71803+', 'reports/data/v1_sealed_results_structural.json', 'reports/data/v1_train_results_structural.json'),
+            ('vectorised_current', 'reports/data/v2_sealed_results_vectorised.json', 'reports/data/v2_train_results_vectorised.json')):
         entry = {}
         for ds, p in (('sealed', sealed), ('train', train)):
             j = _read(p)
@@ -181,9 +182,21 @@ def export_benchmark():
     runtime = {'stage_share': {k: round(v / total, 4) for k, v in stages.items()},
                'source': 'results/train_diagnostics.jsonl'}
 
+    null_rt = _read('reports/data/v2_nullset_runtime.json')
+    performance = {
+        'sealed_s': [bench['structural_0f71803+']['sealed']['runtime_s'], bench['vectorised_current']['sealed']['runtime_s']],
+        'train_s': [bench['structural_0f71803+']['train']['runtime_s'], bench['vectorised_current']['train']['runtime_s']],
+        'nullset_s': [null_rt['before_total_runtime_s'], null_rt['total_runtime_s']],
+        'decision_differences': null_rt['decision_differences'], 'note': null_rt['note'],
+        'changes': ['syndrome search: all interleaver x code hypotheses of a front end in one matrix pass (same factor order, identical check signs)',
+                    'stacked deinterleave indices cached per candidate set',
+                    'hypothesis table built from arrays instead of per-hypothesis list appends',
+                    'root-raised-cosine taps cached (read-only) instead of recomputed per front end'],
+        'source': 'reports/data/v2_*_results_vectorised.json, reports/data/v2_nullset_runtime.json'}
+    real = json.load(open(os.path.join(PUB, 'live', 'index.json'), encoding='utf-8')) if os.path.exists(os.path.join(PUB, 'live', 'index.json')) else []
     out = {'generated_from_commit': os.popen(f'git -C "{ROOT}" rev-parse --short HEAD').read().strip(),
            'bench_v1': bench, 'oracle_ladder': ladder, 'nullset': nullset, 'acceptance': acceptance,
-           'scoring': scoring, 'runtime': runtime,
+           'scoring': scoring, 'runtime': runtime, 'performance': performance, 'real_signals': real,
            'research_issue': 'Wrong-interleaver hypotheses can still pass on 0.9% of wrong-structure runs '
                              '(2/225, held-out split); low-SNR recall is limited (K7 3/34 at 3 dB Es/N0).'}
     json.dump(out, open(os.path.join(PUB, 'benchmark.json'), 'w'), indent=1, default=to_json_default)

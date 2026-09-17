@@ -1,5 +1,16 @@
 # SIH26147 — Session Progress Report
 
+## Session 5 — Real transmissions, live monitor, performance
+
+- **Real signals, blind.** New receivers `src/timecodes.py` (WWV/WWVB/DCF77/MSF/JJY: epoch from the signal, least-squares symbol fits, ML frame decode with parity constraints, joint multi-frame scoring, per-digit 100:1 reliability), `src/fsk.py` (tone pair, shift, baud incl. 1.5-stop half-bit grid, framing test, ITA2/ASCII, CHU packets), `src/broadcast.py` (AM, one-sided passband detection). Public KiwiSDR client (`server/kiwi.py`, stdlib websocket, GPS block timestamps, waterfall stream).
+- **Results** (`reports/REAL_SIGNAL_VALIDATION.md`): JJY 0/120 errors p=10^-32 (+1.9 ms vs GPS), DCF77 0/88 p=10^-14.7 (+4.7 ms), MSF 11/120 p=10^-15 (+3.6 ms), WWV 3/109 p=10^-23 (+23 ms), WWVB detected but time refused (ML frame was wrong; digit test caught it), DWD DDH47 50 Bd 85 Hz ITA2 text naming itself, AIR MW 5/5 carriers matched to Prasar Bharati's list.
+- **Live Monitor** rebuilt on real data: SSE sessions (`server/live.py`), same processor produces offline replays; minute dial, digit-by-digit decoded time, GPS verification, teleprinter, AIR census, blind catalogue table.
+- **Performance** (`reports/PERFORMANCE_REPORT.md`): vectorised syndrome search; sealed 5.6→1.5 s, train 16.9→4.4 s, null set 735→241 s with 0 decision differences on 1,480 files.
+- **Research** (`reports/RESEARCH_LANDSCAPE.md`): commercial tools, open source and literature with sources; Experiment Lab tabs Real transmissions / Performance / Landscape.
+- Tests 9 → 30 (21 real-signal, incl. regression on committed recordings); CI runs all.
+
+---
+
 ## Session 4 — Structural acceptance
 
 See `reports/STRUCTURAL_ACCEPTANCE_REPORT.md`. Wrong-structure null exposed 17% wrong accepts under the syndrome-only rule; modulation-consistency + block-length + soft path-metric checks cut them to 0.9% (held-out split) with no recall loss. Full null set: 0/900 false accepts, 0/450 wrong decodes. bench-v1 unchanged (30/30, 63/100).

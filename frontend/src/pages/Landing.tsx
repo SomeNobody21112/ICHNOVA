@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { PRODUCT } from '../brand'
 import { Constellation, LiveWaterfall } from '../components/charts'
 import { BrandMark, Icon, Stamp, Tag } from '../components/ui'
+import { RealProof } from '../components/realproof'
 import { useApp } from '../lib/store'
 import type { Provenance, Status } from '../lib/types'
 
@@ -15,10 +16,12 @@ export const COVERAGE: { req: string; detail: string; status: Provenance | 'ESTA
   { req: 'FEC: convolutional + Viterbi', detail: 'K=7, K=5, K=3 rate ½ catalogue; exact parity-check test', status: 'ESTABLISHED' },
   { req: 'De-interleaving: block', detail: 'Single block, rows 2–16 × cols 4–24 (≤384 bits)', status: 'ESTABLISHED' },
   { req: 'Sampling frequency (blind)', detail: 'Currently read from WAV header or operator metadata', status: 'NOT ESTABLISHED' },
-  { req: 'Demodulation: FSK, QAM', detail: 'Planned', status: 'NOT ESTABLISHED' },
+  { req: 'Demodulation: FSK', detail: 'Blind tone pair, shift, baud, polarity and character framing; verified on a real DWD teleprinter broadcast', status: 'ESTABLISHED' },
+  { req: 'Demodulation: QAM', detail: 'Planned', status: 'NOT ESTABLISHED' },
+  { req: 'Real-world transmissions', detail: 'NIST, PTB, NPL, NICT time codes and DWD RTTY decoded blind, checked against receiver GPS time; AIR carriers vs official list', status: 'ESTABLISHED' },
   { req: 'De-interleaving: convolutional, diagonal, pseudo-random', detail: 'Planned', status: 'NOT ESTABLISHED' },
   { req: 'FEC: RS, concatenated, LDPC', detail: 'Planned', status: 'NOT ESTABLISHED' },
-  { req: 'Bit-stream correlation (header / payload)', detail: 'Planned; decoded payload is exported today', status: 'NOT ESTABLISHED' },
+  { req: 'Bit-stream correlation (header / payload)', detail: 'Frame synchronisation on marker patterns and redundancy checks for time codes and CHU packets; general header search planned', status: 'EXPERIMENTAL' },
 ]
 
 function makeCloud(kind: Status, seed: number) {
@@ -81,7 +84,7 @@ export default function Landing() {
       <nav className="land-nav">
         <div className="row"><BrandMark size={28} /><span className="brand-name">{PRODUCT.name}</span></div>
         <span className="spacer" />
-        <a href="#flow">Workflow</a><a href="#restraint">Restraint</a><a href="#coverage">Problem statement</a>
+        <a href="#real">Real signals</a><a href="#flow">Workflow</a><a href="#restraint">Restraint</a><a href="#coverage">Problem statement</a>
         {session ? <Link className="btn btn-primary" to="/app/command">Open console</Link> : <Link className="btn btn-primary" to="/signin">Sign in</Link>}
       </nav>
       <section className="land-hero">
@@ -102,6 +105,17 @@ export default function Landing() {
         <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.15 }}>
           <Instrument />
         </motion.div>
+      </section>
+
+      <section className="land-sec" id="real">
+        <div className="eyebrow">Proven on the air, not only on test sets</div>
+        <h2>Real government transmissions, decoded blind and checked</h2>
+        <p className="dim" style={{ maxWidth: '76ch' }}>
+          Time signals from NIST (USA), PTB (Germany), NPL (UK) and NICT (Japan), weather teleprinter from the German Meteorological Service and
+          All India Radio medium wave, received through public receivers. Decoded times agree with each receiver&apos;s GPS clock to within milliseconds;
+          India&apos;s carriers are matched to Prasar Bharati&apos;s official transmitter list; a weak capture is refused rather than guessed.
+        </p>
+        <div style={{ marginTop: 18 }}><RealProof /></div>
       </section>
 
       <section className="land-sec" id="flow">

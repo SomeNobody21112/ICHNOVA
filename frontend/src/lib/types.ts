@@ -1,3 +1,5 @@
+import type { Answer, ReplayIndexEntry, Runs } from './live'
+
 export type Status = 'DECODED' | 'SIGNAL_NO_CODE' | 'UNKNOWN'
 export type Provenance = 'SIMULATED' | 'BENCHMARK' | 'LIVE' | 'EXPERIMENTAL' | 'NOT ESTABLISHED'
 export type Zone = 'NORTH' | 'WEST' | 'CENTRAL' | 'EAST' | 'NORTHEAST' | 'SOUTH'
@@ -95,6 +97,12 @@ export interface EvidencePack {
     timeseries: { i: number[]; q: number[] }
   }
   benchmark_truth?: Record<string, unknown>
+  real?: RealAnalysis
+}
+
+export interface RealAnalysis {
+  samples: number; fs_hz: number; duration_s: number; timing: string | null; t0_unix: number | null
+  runs: Runs; timers_s: Record<string, number>; answer: Answer
 }
 
 export interface Station {
@@ -189,4 +197,6 @@ export interface BenchmarkData {
   scoring: { method: string; auc: number; tpr_at_zero_fp: number; identification: number; null_range: string }[]
   runtime: { stage_share: Record<string, number>; source: string }
   research_issue: string
+  performance?: { sealed_s: number[]; train_s: number[]; nullset_s: number[]; decision_differences: number; note: string; changes: string[]; source: string }
+  real_signals?: ReplayIndexEntry[]
 }

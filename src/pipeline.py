@@ -20,12 +20,14 @@ sps_candidates, modulation_stats, top_hypotheses, runner_up_margin_log10, timers
 
 import time
 import numpy as np
-from modem import load_iq, rrc_filter
+import functools
+
+from modem import load_iq, rrc_filter as _rrc_filter
 from analyze import (estimate_symbol_rate, lag1_correlation, estimate_carrier_phase,
                      matched_filter_demod, symbol_snr_m2m4, psk_llrs)
 from scipy.special import bdtr, bdtrc, ndtr
 from blind_id import (CODE_CATALOGUE, interleaver_candidates, deinterleave_index,
-                      syndrome_checks, sign_test_log10p, decode_hypothesis)
+                      syndrome_checks, syndrome_scan, sign_test_log10p, decode_hypothesis)
 
 # ---- Receiver search domain: a front-end specification, independent of any dataset ----
 SPS_RANGE = (2, 20)     # integer samples/symbol → symbol rates fs/20 … fs/2
@@ -46,6 +48,15 @@ MODULATIONS = ('BPSK', 'QPSK')
 def analyze_file(filename, fs=1e6, verbose=False):
     """Blind analysis of an interleaved-float32 .iq file."""
     return analyze_iq(load_iq(filename), fs=fs)
+
+
+@functools.lru_cache(maxsize=256)
+def rrc_filter(beta, sps):
+    """modem.rrc_filter is a per-tap Python loop; the receiver asks for the same few filters thousands
+    of times. Cached copy is read-only so no caller can alter a shared filter."""
+    h = _rrc_filter(beta, sps)
+    h.setflags(write=False)
+    return h
 
 
 def analyze_iq(iq, fs=1e6, _oracle=None, _top_k=5, _keep_bits=False, _all_hypotheses=False):
@@ -80,7 +91,7 @@ def analyze_iq(iq, fs=1e6, _oracle=None, _top_k=5, _keep_bits=False, _all_hypoth
     beta = float(o.get('beta', RX_BETA))
 
     fronts, rejected_serial = [], 0
-    hyp = {k: [] for k in ('front', 'code', 'rows', 'cols', 'n', 'pos', 'sum', 'sq')}
+    hyp_parts = []
     for cfo in cfo_list:
         iq_c = iq * np.exp(-2j * np.pi * cfo * n)
         for s in sps_list:
@@ -120,23 +131,16 @@ def analyze_iq(iq, fs=1e6, _oracle=None, _top_k=5, _keep_bits=False, _all_hypoth
                                  else interleaver_candidates(len(llrs)))
                     if 'exclude_interleaver' in o:
                         dims_list = [d for d in dims_list if d != tuple(o['exclude_interleaver'])]
-                    for rows, cols in dims_list:
-                        if rows * cols > len(llrs):
-                            continue
-                        d = th[:rows * cols][deinterleave_index(rows, cols)]
-                        for ci, code in enumerate(CODE_CATALOGUE):
-                            chk = syndrome_checks(d, code)
-                            if len(chk) == 0:
-                                continue
-                            for key, val in (('front', fi), ('code', ci), ('rows', rows),
-                                             ('cols', cols), ('n', len(chk)),
-                                             ('pos', int(np.count_nonzero(chk > 0))),
-                                             ('sum', float(chk.sum())),
-                                             ('sq', float(np.dot(chk, chk)))):
-                                hyp[key].append(val)
+                    # All interleaver x code hypotheses of this front end in one vectorised pass
+                    # (blind_id.syndrome_scan; identical check signs to the per-pair loop).
+                    scan = syndrome_scan(th, dims_list)
+                    scan['front'] = np.full(len(scan['n']), fi)
+                    hyp_parts.append(scan)
                     timers['syndrome_search'] += time.perf_counter() - t
 
     t = time.perf_counter()
+    hyp = {k: (np.concatenate([p[k] for p in hyp_parts]) if hyp_parts else np.zeros(0, dtype=int))
+           for k in ('front', 'code', 'rows', 'cols', 'n', 'pos', 'sum', 'sq')}
     M = len(hyp['n'])
     top, best_log10p, runner_margin, rejected = [], 0.0, None, []
     log10_threshold = float(np.log10(ALPHA / max(M, 1)))
@@ -146,9 +150,9 @@ def analyze_iq(iq, fs=1e6, _oracle=None, _top_k=5, _keep_bits=False, _all_hypoth
         """Decode hypothesis k and collect every score the UI and acceptance rules use."""
         if k in described:
             return described[k]
-        fr = fronts[hyp['front'][k]]
-        code = CODE_CATALOGUE[hyp['code'][k]]
-        dims = (hyp['rows'][k], hyp['cols'][k])
+        fr = fronts[int(hyp['front'][k])]
+        code = CODE_CATALOGUE[int(hyp['code'][k])]
+        dims = (int(hyp['rows'][k]), int(hyp['cols'][k]))
         t0 = time.perf_counter()
         dec = _decode_both_polarities(fr['llrs'], code, dims)
         timers['viterbi'] += time.perf_counter() - t0
@@ -179,8 +183,8 @@ def analyze_iq(iq, fs=1e6, _oracle=None, _top_k=5, _keep_bits=False, _all_hypoth
 
     accepted_k = None
     if M:
-        log10p = sign_test_log10p(np.array(hyp['pos']), np.array(hyp['n']))
-        z = np.array(hyp['sum']) / np.sqrt(np.maximum(np.array(hyp['sq']), 1e-300))
+        log10p = sign_test_log10p(hyp['pos'], hyp['n'])
+        z = hyp['sum'] / np.sqrt(np.maximum(hyp['sq'], 1e-300))
         order = np.lexsort((-z, log10p))
         best_log10p = float(log10p[order[0]])
         # Acceptance: walk significant hypotheses in p-value order; the first that also passes
@@ -258,12 +262,12 @@ def analyze_iq(iq, fs=1e6, _oracle=None, _top_k=5, _keep_bits=False, _all_hypoth
     }
     if _all_hypotheses and M:
         result['diagnostics']['all_hypotheses'] = {
-            'code': [CODE_CATALOGUE[c]['name'] for c in hyp['code']],
-            'rows': hyp['rows'], 'cols': hyp['cols'],
-            'sps': [fronts[f]['sps'] for f in hyp['front']],
-            'modulation': [fronts[f]['modulation'] for f in hyp['front']],
-            'cfo': [fronts[f]['cfo'] for f in hyp['front']],
-            'n_checks': hyp['n'], 'n_positive': hyp['pos'],
+            'code': [CODE_CATALOGUE[c]['name'] for c in hyp['code'].tolist()],
+            'rows': hyp['rows'].tolist(), 'cols': hyp['cols'].tolist(),
+            'sps': [fronts[f]['sps'] for f in hyp['front'].tolist()],
+            'modulation': [fronts[f]['modulation'] for f in hyp['front'].tolist()],
+            'cfo': [fronts[f]['cfo'] for f in hyp['front'].tolist()],
+            'n_checks': hyp['n'].tolist(), 'n_positive': hyp['pos'].tolist(),
             'log10_p': [float(v) for v in log10p]}
     result['runtime'] = time.perf_counter() - t_start
     return result

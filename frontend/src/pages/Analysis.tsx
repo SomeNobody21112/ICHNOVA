@@ -2,11 +2,13 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Characteristics, WhyPanel } from '../components/evidence'
+import { AmPanel, BlindCatalogue, Teletype } from '../components/liveviz'
+import type { ReplayDoc, ReplayIndexEntry, ResultEv } from '../lib/live'
 import { Icon, Panel, Stamp, Tag } from '../components/ui'
 import { CODE_SHORT, fmtInt, fmtP, STATUS_MEANING } from '../lib/format'
 import { STATIONS } from '../lib/sim'
 import { useApp } from '../lib/store'
-import type { EvidencePack } from '../lib/types'
+import type { EvidencePack, RealAnalysis } from '../lib/types'
 
 interface Sample { name: string; format: string; fs_hz: number; bytes: number; description: string; evidence_id: string }
 
@@ -47,11 +49,48 @@ export default function Analysis() {
   const [error, setError] = useState<string | null>(null)
   const [recordId, setRecordId] = useState<string | null>(null)
   const [showTech, setShowTech] = useState(false)
+  const [realList, setRealList] = useState<ReplayIndexEntry[]>([])
+  const [real, setReal] = useState<ReplayIndexEntry | null>(null)
+  const [realResult, setRealResult] = useState<RealAnalysis | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => { fetch('/samples/samples.json').then((r) => r.json()).then(setSamples).catch(() => setSamples([])) }, [])
+  useEffect(() => { fetch('/live/index.json').then((r) => r.json()).then((x: ReplayIndexEntry[]) => setRealList(x.filter((e) => e.mode === 'iq'))).catch(() => setRealList([])) }, [])
   const st = STATIONS.find((s) => s.id === meta.station)
-  const step = pack ? (recordId ? 6 : 5) : running ? 2 + Math.min(3, Math.floor(progress / 2)) : file || sample ? 1 : 0
+  const step = pack || realResult ? (recordId ? 6 : 5) : running ? 2 + Math.min(3, Math.floor(progress / 2)) : file || sample || real ? 1 : 0
+
+  const runReal = async (entry: ReplayIndexEntry) => {
+    setError(null); setPack(null); setRealResult(null); setRecordId(null); setShowTech(false); setReplay(false)
+    setRunning(true); setProgress(0)
+    const tick = setInterval(() => setProgress((p) => Math.min(p + 1, STAGES.length - 1)), 420)
+    try {
+      if (engine.online) {
+        const meta = await (await fetch(`/api/recordings/${entry.id}.json`)).json()
+        const body = await (await fetch(`/api/recordings/${entry.id}.wav`)).arrayBuffer()
+        const c = meta.capture
+        const q = new URLSearchParams({ format: 'wav', fs: String(c.fs_hz), name: `${entry.id}.wav`, t0_unix: String(c.t0_unix), timing: c.timing,
+          center_freq_hz: String(c.tuned_khz * 1e3), notes: `Real recording: ${entry.station} via ${entry.receiver ?? 'KiwiSDR'}` })
+        const res = await fetch(`/api/analyze?${q}`, { method: 'POST', body })
+        const j = await res.json()
+        if (!res.ok) throw new Error(j.error ?? `HTTP ${res.status}`)
+        setPack(j as EvidencePack)
+        setRealResult((j as EvidencePack).real ?? null)
+      } else {
+        const doc = (await (await fetch(`/live/${entry.id}.json`)).json()) as ReplayDoc
+        const r = doc.events.find((e): e is ResultEv => e.type === 'result')
+        if (!r || !r.runs) throw new Error('recorded result missing')
+        setRealResult({ samples: 0, fs_hz: 0, duration_s: entry.duration_s ?? 0, timing: null, t0_unix: null, runs: r.runs, timers_s: {}, answer: r.answer })
+        setReplay(true)
+      }
+      setProgress(STAGES.length)
+      log(engine.online ? 'Real recording analysed by local engine' : 'Recorded real-signal result replayed', entry.id, entry.station)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      clearInterval(tick)
+      setRunning(false)
+    }
+  }
 
   const run = async () => {
     setError(null); setPack(null); setRecordId(null); setShowTech(false); setReplay(false)
@@ -132,8 +171,17 @@ export default function Analysis() {
             <div className="col" style={{ gap: 6 }}>
               {samples.map((s) => (
                 <button key={s.name} className={`chip${sample?.name === s.name ? ' on' : ''}`} style={{ height: 'auto', padding: '7px 10px', borderRadius: 6, justifyContent: 'flex-start', textAlign: 'left' }}
-                  onClick={() => { setSample(s); setFile(null); if (s.format === 'wav') setMeta({ ...meta, fs: String(s.fs_hz) }) }}>
+                  onClick={() => { setSample(s); setReal(null); setFile(null); if (s.format === 'wav') setMeta({ ...meta, fs: String(s.fs_hz) }) }}>
                   <span className="mono" style={{ minWidth: 150 }}>{s.name}</span><span className="muted" style={{ fontSize: 11.5, whiteSpace: 'normal' }}>{s.description}</span>
+                </button>
+              ))}
+            </div>
+            <div className="divider" style={{ margin: '14px 0 10px' }}>or a real government transmission (recorded .wav, GPS-timed)</div>
+            <div className="col" style={{ gap: 6 }}>
+              {realList.map((e) => (
+                <button key={e.id} className={`chip${real?.id === e.id ? ' on' : ''}`} style={{ height: 'auto', padding: '7px 10px', borderRadius: 6, justifyContent: 'flex-start', textAlign: 'left' }}
+                  onClick={() => { setReal(e); setSample(null); setFile(null) }}>
+                  <span className="mono" style={{ minWidth: 150 }}>{e.station}</span><span className="muted" style={{ fontSize: 11.5, whiteSpace: 'normal' }}>{e.operator.split(' — ')[0]} · {e.frequency_khz >= 1000 ? `${e.frequency_khz / 1000} MHz` : `${e.frequency_khz} kHz`} · {e.receiver}</span>
                 </button>
               ))}
             </div>
@@ -149,7 +197,7 @@ export default function Analysis() {
               <div className="field full"><label>Sampling rate (Hz) {(file?.name ?? sample?.name ?? '').endsWith('.wav') ? '· read from WAV header' : '· operator supplied for .iq'}</label><input className="input mono" value={meta.fs} onChange={(e) => setMeta({ ...meta, fs: e.target.value })} /></div>
               <div className="field full"><label>Operator notes</label><textarea className="textarea" value={meta.notes} onChange={(e) => setMeta({ ...meta, notes: e.target.value })} placeholder="Observed intermittently on the evening watch…" /></div>
             </div>
-            <button className="btn btn-primary btn-lg" style={{ width: '100%', justifyContent: 'center', marginTop: 12 }} disabled={(!file && !sample) || running} onClick={run}>
+            <button className="btn btn-primary btn-lg" style={{ width: '100%', justifyContent: 'center', marginTop: 12 }} disabled={(!file && !sample && !real) || running} onClick={() => (real ? runReal(real) : run())}>
               {running ? <><span className="spinner" /> Analysing…</> : <><Icon name="analysis" size={15} /> Analyse signal</>}
             </button>
           </Panel>
@@ -176,7 +224,27 @@ export default function Analysis() {
           </Panel>
 
           <AnimatePresence>
-            {pack && (
+            {realResult && (
+              <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+                <Panel title="4 · Real-signal receivers" sub="Time codes, start-stop FSK and AM characterisation, run blind over the whole recording"
+                  right={replay ? <Tag kind="LIVE">Recorded result</Tag> : <Tag kind="LIVE">Engine result</Tag>}>
+                  <div className="row-wrap" style={{ gap: 20, alignItems: 'center' }}>
+                    <motion.div initial={{ scale: 1.25, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 260, damping: 18 }}>
+                      <Stamp status={realResult.answer.status} size="xl" />
+                    </motion.div>
+                    <div className="grow" style={{ minWidth: 240 }}>
+                      <div className="result-summary" style={{ maxHeight: 90 }}>{realResult.answer.summary}</div>
+                      {realResult.answer.verification && <div className="mono" style={{ fontSize: 12, marginTop: 6, color: 'var(--green)' }}>arrival − decoded = {realResult.answer.verification.arrival_minus_decoded_ms.toFixed(1)} ms by the receiver&apos;s {realResult.answer.verification.timing === 'gps' ? 'GPS' : 'network'} clock</div>}
+                    </div>
+                  </div>
+                  <div style={{ marginTop: 14 }}><BlindCatalogue runs={realResult.runs} /></div>
+                  {realResult.runs.fsk?.status === 'DECODED' && realResult.runs.fsk.text && <div style={{ marginTop: 14 }}><Teletype text={realResult.runs.fsk.text} cps={400} /></div>}
+                  {realResult.answer.receiver === 'am' && realResult.runs.am && <div style={{ marginTop: 14 }}><AmPanel am={realResult.runs.am} /></div>}
+                  {real && <div className="row-wrap" style={{ marginTop: 14 }}><button className="btn" onClick={() => nav(`/app/monitor?rec=${real.id}`)}><Icon name="monitor" size={14} /> Watch it arrive second by second</button></div>}
+                </Panel>
+              </motion.div>
+            )}
+            {pack && !realResult && (
               <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
                 <Panel title="4 · Decision" right={<span className="mono muted" style={{ fontSize: 11.5 }}>{pack.id} · {pack.result.runtime.toFixed(2)} s</span>}>
                   <div className="row-wrap" style={{ gap: 20, alignItems: 'center' }}>

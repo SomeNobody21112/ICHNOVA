@@ -3,28 +3,83 @@ import { useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { HBars, Sparkline } from '../components/charts'
 import IndiaMap, { type MapStation } from '../components/IndiaMap'
-import { Icon, Panel, Stamp, Tabs, Tag } from '../components/ui'
+import { CountUp, Icon, Panel, Stamp, Tabs, Tag } from '../components/ui'
+import { geoMercator, geoPath } from 'd3-geo'
+import type { FeatureCollection } from 'geojson'
+import { feature } from 'topojson-client'
+import type { GeometryCollection, Topology } from 'topojson-specification'
+import outlineTopo from '../assets/india-outline.topo.json'
 import { fmtAgo, fmtFreq } from '../lib/format'
 import { BANDS, DAY, occupancy, STATIONS, ZONES } from '../lib/sim'
 import { stationName, useApp } from '../lib/store'
 import type { Level } from '../lib/types'
 
-function ScaleUp({ counts }: { counts: number[] }) {
-  const steps = ['evidence record', 'signal records (30 d)', 'records at one station', 'monitoring stations', 'regional zones', 'national picture']
+const OUTLINE_PATH = (() => {
+  const t = outlineTopo as unknown as Topology
+  const fc = feature(t, t.objects[Object.keys(t.objects)[0]] as GeometryCollection) as unknown as FeatureCollection
+  return geoPath(geoMercator().fitExtent([[6, 4], [74, 76]], fc))(fc) ?? ''
+})()
+
+/** Small drawings for each stage of the zoom-out, all on the same 80x80 grid so the row stays aligned. */
+function ScaleArt({ level }: { level: number }) {
+  const dots = (n: number, r: number, seed: number) => Array.from({ length: n }, (_, i) => {
+    const a = (i * 137.5 + seed) * (Math.PI / 180)
+    const d = r * Math.sqrt((i + 0.5) / n)
+    return [40 + d * Math.cos(a), 40 + d * Math.sin(a)] as const
+  })
+  const masts = [[22, 30], [52, 20], [60, 52], [30, 60], [40, 40]] as const
   return (
-    <Panel title="From one decoded signal to national intelligence" right={<Tag kind="SIMULATED" />}>
-      <div className="row-wrap" style={{ gap: 0, alignItems: 'stretch' }}>
-        {steps.map((s, i) => (
-          <motion.div key={s} className="row" style={{ gap: 0 }} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.25 * i }}>
-            {i > 0 && <motion.div style={{ height: 2, background: 'linear-gradient(90deg, var(--line-3), var(--cyan))', width: 34 }} initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ delay: 0.25 * i - 0.1 }} />}
-            <div className="card" style={{ minWidth: 150, textAlign: 'center', padding: '12px 14px' }}>
-              <div className="kpi-value" style={{ fontSize: 26, color: i === steps.length - 1 ? 'var(--cyan)' : undefined }}>{counts[i]}</div>
-              <div className="muted" style={{ fontSize: 12 }}>{s}</div>
-            </div>
+    <svg viewBox="0 0 80 80" className="scale-svg" aria-hidden>
+      <circle cx="40" cy="40" r="37" className="scale-ring" />
+      {level === 0 && <>
+        <motion.circle cx="40" cy="40" r="6" fill="#3ec28f" initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', delay: 0.2 }} />
+        <motion.circle cx="40" cy="40" r="6" fill="none" stroke="#3ec28f" strokeWidth="1.5" animate={{ r: [6, 22], opacity: [0.9, 0] }} transition={{ repeat: Infinity, duration: 2.2 }} />
+      </>}
+      {level === 1 && dots(34, 26, 11).map(([x, y], i) => <motion.circle key={i} cx={x} cy={y} r="2.4" fill={i % 7 === 0 ? '#e9b949' : i % 3 === 0 ? '#5fd0f0' : '#3ec28f'} initial={{ opacity: 0 }} animate={{ opacity: 0.9 }} transition={{ delay: 0.3 + i * 0.02 }} />)}
+      {level === 2 && <>
+        <path d="M40 24 L32 60 M40 24 L48 60 M35 46 H45" stroke="#a4b4c3" strokeWidth="2" fill="none" />
+        {[10, 18, 26].map((r, i) => <motion.path key={r} d={`M${40 - r * 0.7} ${24 - r * 0.7} A ${r} ${r} 0 0 1 ${40 + r * 0.7} ${24 - r * 0.7}`} stroke="#5fd0f0" strokeWidth="1.6" fill="none" animate={{ opacity: [0.2, 1, 0.2] }} transition={{ repeat: Infinity, duration: 1.8, delay: i * 0.3 }} />)}
+      </>}
+      {level === 3 && <>
+        {masts.map(([x, y], i) => masts.slice(i + 1).map(([x2, y2], j) => <motion.line key={`${i}-${j}`} x1={x} y1={y} x2={x2} y2={y2} stroke="#1e6e8c" strokeWidth="1" initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ delay: 0.4 + (i + j) * 0.08, duration: 0.6 }} />))}
+        {masts.map(([x, y], i) => <circle key={i} cx={x} cy={y} r="3.6" fill={i === 4 ? '#e9b949' : '#5fd0f0'} />)}
+      </>}
+      {level === 4 && [[26, 28], [54, 28], [40, 54]].map(([cx, cy], k) => (
+        <g key={k}>
+          <circle cx={cx} cy={cy} r="15" fill="rgba(95,208,240,0.08)" stroke="#2a86a8" strokeDasharray="3 3" />
+          {dots(6, 9, k * 40).map(([x, y], i) => <circle key={i} cx={x - 40 + cx} cy={y - 40 + cy} r="1.8" fill="#5fd0f0" />)}
+        </g>
+      ))}
+      {level === 5 && <>
+        <motion.path d={OUTLINE_PATH} fill="rgba(95,208,240,0.14)" stroke="#5fd0f0" strokeWidth="1.2" initial={{ pathLength: 0, opacity: 0 }} animate={{ pathLength: 1, opacity: 1 }} transition={{ duration: 1.6, delay: 0.4 }} />
+        {[[30, 32], [44, 48], [36, 58], [52, 36], [26, 44]].map(([x, y], i) => <motion.circle key={i} cx={x} cy={y} r="2" fill="#e9b949" animate={{ opacity: [0.3, 1, 0.3] }} transition={{ repeat: Infinity, duration: 2, delay: i * 0.3 }} />)}
+      </>}
+    </svg>
+  )
+}
+
+function ScaleUp({ counts, stationLabel }: { counts: number[]; stationLabel: string }) {
+  const steps = [
+    ['Evidence record', 'one capture, one accountable decision'],
+    ['Signal records', 'every observation in the last 30 days'],
+    ['One station', stationLabel],
+    ['Monitoring stations', 'sharing fingerprints, not waveforms'],
+    ['Regional zones', 'patterns that recur across stations'],
+    ['National picture', 'what the spectrum of the country is doing'],
+  ]
+  return (
+    <Panel title="From one decoded signal to national intelligence" sub="Each level aggregates the one before it; above the first stage nothing is a raw waveform" right={<Tag kind="SIMULATED" />}>
+      <div className="scale">
+        {steps.map(([label, note], i) => (
+          <motion.div key={label} className={`scale-step${i === steps.length - 1 ? ' last' : ''}`} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 * i, duration: 0.45 }}>
+            <div className="scale-art"><ScaleArt level={i} /></div>
+            <div className="scale-num"><CountUp value={counts[i]} /></div>
+            <div className="scale-label">{label}</div>
+            <div className="scale-note">{note}</div>
+            {i < steps.length - 1 && <motion.span className="scale-link" initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ delay: 0.12 * i + 0.3, duration: 0.5 }} />}
           </motion.div>
         ))}
       </div>
-      <p className="dim" style={{ margin: '12px 0 0' }}>Each evidence record becomes a fingerprint. Fingerprints recur across captures and stations; recurrence across zones becomes a pattern an analyst can act on.</p>
     </Panel>
   )
 }
@@ -63,7 +118,7 @@ export default function Intelligence() {
         <Tag kind="SIMULATED">Simulated monitoring data</Tag>
       </div>
       <Tabs<Level> value={level} onChange={setLevel} tabs={[{ id: 'FIELD', label: 'Level 1 · Field' }, { id: 'REGIONAL', label: 'Level 2 · Regional' }, { id: 'NATIONAL', label: 'Level 3 · National' }]} />
-      {params.get('view') === 'scale' && <div style={{ marginBottom: 14 }}><ScaleUp counts={counts} /></div>}
+      {params.get('view') === 'scale' && <div style={{ marginBottom: 14 }}><ScaleUp counts={counts} stationLabel={stationName(myStation)} /></div>}
 
       {level === 'NATIONAL' && (
         <div className="col" style={{ gap: 14 }}>

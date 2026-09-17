@@ -1,0 +1,54 @@
+{
+ "id": "wwv-10mhz-montana-2026-09-17",
+ "station_key": "WWV",
+ "station": {
+  "name": "WWV",
+  "operator": "NIST \u2014 U.S. Department of Commerce",
+  "country": "United States",
+  "frequency_khz": 10000.0,
+  "service": "Standard time and frequency (HF)",
+  "site": {
+   "name": "Fort Collins, Colorado",
+   "lat": 40.6781,
+   "lon": -105.0471
+  },
+  "references": [
+   {
+    "title": "NIST Radio Station WWV",
+    "url": "https://www.nist.gov/pml/time-and-frequency-division/time-distribution/radio-station-wwv"
+   },
+   {
+    "title": "WWV/WWVH digital time code",
+    "url": "https://www.nist.gov/pml/time-and-frequency-division/time-distribution/radio-station-wwv/wwv-and-wwvh-digital-time-code"
+   }
+  ]
+ },
+ "receiver": {
+  "url": "http://22033.proxy.kiwisdr.com",
+  "name": "W0AY:  kiwiSDR @1  0.1-30 MHz",
+  "location": "W. Montana, USA",
+  "gps": [
+   46.593829,
+   -114.027866
+  ],
+  "distance_km": 976,
+  "gps_timed": true,
+  "software": "KiwiSDR v1.902"
+ },
+ "capture": {
+  "t0_unix": 1789613876.141364,
+  "t0_utc": "2026-09-17T02:57:56.141+00:00",
+  "timing": "gps",
+  "gps_stamp_spread_s": 0.05975604057312012,
+  "tuned_khz": 10001.0,
+  "receiver_fs_hz": 11998.875052,
+  "baseband_shift_hz": -1000.0,
+  "decimation": 4,
+  "fs_hz": 2999.718763,
+  "wav_header_fs_hz": 3000,
+  "duration_s": 125.025,
+  "rssi_dbm": -77.4,
+  "adc_overflow_blocks": 0
+ },
+ "note": ""
+}

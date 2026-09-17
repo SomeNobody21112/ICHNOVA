@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Donut, Heatmap, Sparkline } from '../components/charts'
 import IndiaMap, { type MapStation } from '../components/IndiaMap'
 import { Icon, Kpi, Panel, Philosophy, Stamp, Tag } from '../components/ui'
+import { RealProof } from '../components/realproof'
 import { fmtAgo, fmtFreq } from '../lib/format'
 import { BANDS, DAY, occupancy, STATIONS, ZONES } from '../lib/sim'
 import { stationName, useApp } from '../lib/store'
@@ -66,6 +67,11 @@ export default function Command() {
         <Kpi label="Anomalies" value={anomalies.length} accent="orange" note="require review" />
         <Kpi label="Under investigation" value={investigating.length} note={`${incidents.length} open incidents`} />
       </div>
+
+      <Panel title="Real-world validation" sub="Government transmissions the engine has received blind; open any card to watch the evidence arrive" style={{ marginBottom: 14 }}
+        right={<><Tag kind="LIVE">Real signals</Tag><Link to="/app/monitor" className="btn btn-sm">Live Monitor</Link></>}>
+        <RealProof compact />
+      </Panel>
 
       <div className="grid" style={{ gridTemplateColumns: 'minmax(0, 1.35fr) minmax(320px, 0.65fr)', marginBottom: 14 }}>
         <Panel title={level === 'FIELD' ? 'Station network' : 'National signal activity'} sub="Click a zone to filter the whole dashboard; click a station to open its signals."

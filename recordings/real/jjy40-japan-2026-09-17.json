@@ -1,0 +1,50 @@
+{
+ "id": "jjy40-japan-2026-09-17",
+ "station_key": "JJY",
+ "station": {
+  "name": "JJY (40 kHz)",
+  "operator": "NICT \u2014 National Institute of Information and Communications Technology (Japan)",
+  "country": "Japan",
+  "frequency_khz": 40.0,
+  "service": "Japan Standard Time (LF 40 kHz)",
+  "site": {
+   "name": "Mt. Otakadoya, Fukushima",
+   "lat": 37.3725,
+   "lon": 140.8489
+  },
+  "references": [
+   {
+    "title": "NICT: JJY transmission format",
+    "url": "https://jjy.nict.go.jp/jjy/trans/index-e.html"
+   }
+  ]
+ },
+ "receiver": {
+  "url": "http://jp1odj.proxy.kiwisdr.com",
+  "name": "0-30 MHz SDR, JP1ODJ, Saitama JAPAN",
+  "location": "Okegawa Saitama JAPAN",
+  "gps": [
+   36.00835,
+   139.54402
+  ],
+  "distance_km": 191,
+  "gps_timed": true,
+  "software": "KiwiSDR v1.710"
+ },
+ "capture": {
+  "t0_unix": 1789614982.756864,
+  "t0_utc": "2026-09-17T03:16:22.756+00:00",
+  "timing": "gps",
+  "gps_stamp_spread_s": 7.152557373046875e-07,
+  "tuned_khz": 41.0,
+  "receiver_fs_hz": 11998.931286,
+  "baseband_shift_hz": -1000.0,
+  "decimation": 8,
+  "fs_hz": 1499.86641075,
+  "wav_header_fs_hz": 1500,
+  "duration_s": 185.019,
+  "rssi_dbm": -98.2,
+  "adc_overflow_blocks": 0
+ },
+ "note": ""
+}

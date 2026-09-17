@@ -1,0 +1,50 @@
+{
+ "id": "msf-uk-2026-09-17",
+ "station_key": "MSF",
+ "station": {
+  "name": "MSF",
+  "operator": "NPL \u2014 National Physical Laboratory (UK)",
+  "country": "United Kingdom",
+  "frequency_khz": 60.0,
+  "service": "UK national time signal (LF 60 kHz)",
+  "site": {
+   "name": "Anthorn, Cumbria",
+   "lat": 54.9111,
+   "lon": -3.2789
+  },
+  "references": [
+   {
+    "title": "NPL: MSF radio time signal",
+    "url": "https://www.npl.co.uk/msf-signal"
+   }
+  ]
+ },
+ "receiver": {
+  "url": "http://wessex.zapto.org:8073",
+  "name": "Wessex KiWi V1 - G8JNJ - 0-30MHz - South West UK",
+  "location": "South West England, UK",
+  "gps": [
+   50.74,
+   -2.63
+  ],
+  "distance_km": 466,
+  "gps_timed": true,
+  "software": "KiwiSDR v1.902"
+ },
+ "capture": {
+  "t0_unix": 1789613875.327593,
+  "t0_utc": "2026-09-17T02:57:55.327+00:00",
+  "timing": "gps",
+  "gps_stamp_spread_s": 9.5367431640625e-07,
+  "tuned_khz": 61.0,
+  "receiver_fs_hz": 11998.917286,
+  "baseband_shift_hz": -1000.0,
+  "decimation": 8,
+  "fs_hz": 1499.86466075,
+  "wav_header_fs_hz": 1500,
+  "duration_s": 125.025,
+  "rssi_dbm": -104.2,
+  "adc_overflow_blocks": 0
+ },
+ "note": ""
+}

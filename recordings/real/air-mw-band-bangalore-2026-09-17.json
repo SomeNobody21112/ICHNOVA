@@ -1,0 +1,25 @@
+{
+ "id": "air-mw-band-bangalore-2026-09-17",
+ "kind": "waterfall",
+ "receiver": {
+  "url": "http://vu2cpl.ddns.net:8073",
+  "name": "VU2CPL KiwiSDR",
+  "location": "Bangalore, India",
+  "gps": [
+   13.187169,
+   77.622421
+  ]
+ },
+ "capture": {
+  "t0_unix": 1789616903.5267756,
+  "t0_utc": "2026-09-17T03:48:23+00:00",
+  "timing": "arrival",
+  "cf_khz": 1066.5,
+  "zoom": 4,
+  "rows": 600,
+  "duration_s": 60.08,
+  "row_units": "dBm = value - 255 + wf_cal",
+  "wf_cal_db": -3.0
+ },
+ "station_key": "AIR-MW"
+}

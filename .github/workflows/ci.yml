@@ -14,8 +14,8 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install -r requirements.txt pytest
-      - name: Core tests (Viterbi vs brute-force ML, syndrome null, sps aliases, reject path)
-        run: python -m pytest -q tests/test_core.py
+      - name: Tests (core engine; real-signal receivers incl. regression on recorded government transmissions)
+        run: python -m pytest -q tests
       - name: Generate bench-v1 sealed set (deterministic, seed0 99000)
         run: python src/generate.py sealed
       - name: bench-v1 regression tripwire

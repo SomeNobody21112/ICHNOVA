@@ -1,0 +1,50 @@
+{
+ "id": "ddh47-denmark-2026-09-17",
+ "station_key": "DDH47",
+ "station": {
+  "name": "DDH47",
+  "operator": "DWD \u2014 Deutscher Wetterdienst (German Meteorological Service)",
+  "country": "Germany",
+  "frequency_khz": 147.3,
+  "service": "Maritime weather RTTY (LF 147.3 kHz)",
+  "site": {
+   "name": "Pinneberg",
+   "lat": 53.6703,
+   "lon": 9.8014
+  },
+  "references": [
+   {
+    "title": "DWD: maritime weather broadcasts (radioteletype)",
+    "url": "https://www.dwd.de/EN/specialusers/shipping/broadcast_en/_node.html"
+   }
+  ]
+ },
+ "receiver": {
+  "url": "http://22902.proxy.kiwisdr.com",
+  "name": "0-30 MHz SDR",
+  "location": "OZ5OD Hoell Strand. Denmak",
+  "gps": [
+   55.636708,
+   9.737335
+  ],
+  "distance_km": 219,
+  "gps_timed": true,
+  "software": "KiwiSDR v1.902"
+ },
+ "capture": {
+  "t0_unix": 1789613884.5733206,
+  "t0_utc": "2026-09-17T02:58:04.573+00:00",
+  "timing": "gps",
+  "gps_stamp_spread_s": 9.5367431640625e-07,
+  "tuned_khz": 148.3,
+  "receiver_fs_hz": 11998.869913,
+  "baseband_shift_hz": -1000.0,
+  "decimation": 8,
+  "fs_hz": 1499.858739125,
+  "wav_header_fs_hz": 1500,
+  "duration_s": 125.025,
+  "rssi_dbm": -62.0,
+  "adc_overflow_blocks": 0
+ },
+ "note": ""
+}

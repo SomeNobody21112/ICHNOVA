@@ -30,7 +30,7 @@ const NAV: { sec: string; items: { to: string; label: string; icon: string; badg
 ]
 
 const TITLES: Record<string, [string, string]> = {
-  command: ['Command Center', 'RF observability'], monitor: ['Live Monitor', 'Waterfall & detections'],
+  command: ['Command Center', 'RF observability'], monitor: ['Live Monitor', 'Real transmissions'],
   analysis: ['Analysis', 'Field capture workflow'], signals: ['Signals', 'Library & evidence'], review: ['Review Queue', 'Human in the loop'],
   incidents: ['Incidents', 'Investigations'], spectrum: ['Spectrum Map', 'Spectrum intelligence'], genome: ['Signal Genome', 'Fingerprints & similarity'],
   intelligence: ['Intelligence', 'Cross-signal patterns'], reports: ['Reports', 'Evidence packages'], system: ['System', 'Architecture, quality, audit'],
@@ -38,7 +38,7 @@ const TITLES: Record<string, [string, string]> = {
 }
 
 export const SCENES = [
-  { title: 'An unknown world', route: '/app/monitor', text: 'Thousands of RF observations exist without a known protocol label. This waterfall is where every analysis starts: bursts, no names.' },
+  { title: 'Real signals, not a demo loop', route: '/app/monitor?rec=jjy40-japan-2026-09-17', text: 'A government time signal from Japan, received through a public receiver. The engine is told only where to listen: carrier, second timing, symbols and protocol are established from the signal, then the decoded minute is checked against the receiver’s GPS clock.' },
   { title: 'The platform observes', route: '/app/analysis', text: 'An operator brings in a .IQ or .wav capture with its metadata. The engine runs detection, symbol-structure search, CFO estimation and a structured FEC hypothesis search.' },
   { title: 'It does not guess', route: '/app/signals/BENCH-QPSK-K7?tab=hypotheses', text: 'Every combination of rate, modulation, rotation, code and interleaver is a hypothesis. Tens of thousands are tested; each point here is one of them.' },
   { title: 'Evidence', route: '/app/signals/BENCH-QPSK-K7?tab=chain', text: 'The decision is a chain of evidence: presence, structure, parity checks, multiple-testing correction and structural consistency. Every stage is inspectable.' },

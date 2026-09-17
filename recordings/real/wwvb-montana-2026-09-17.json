@@ -1,0 +1,50 @@
+{
+ "id": "wwvb-montana-2026-09-17",
+ "station_key": "WWVB",
+ "station": {
+  "name": "WWVB",
+  "operator": "NIST \u2014 U.S. Department of Commerce",
+  "country": "United States",
+  "frequency_khz": 60.0,
+  "service": "Standard time (LF 60 kHz)",
+  "site": {
+   "name": "Fort Collins, Colorado",
+   "lat": 40.6776,
+   "lon": -105.0471
+  },
+  "references": [
+   {
+    "title": "NIST Radio Station WWVB",
+    "url": "https://www.nist.gov/pml/time-and-frequency-division/time-distribution/radio-station-wwvb"
+   }
+  ]
+ },
+ "receiver": {
+  "url": "http://22033.proxy.kiwisdr.com",
+  "name": "W0AY:  kiwiSDR @1  0.1-30 MHz",
+  "location": "W. Montana, USA",
+  "gps": [
+   46.593829,
+   -114.027866
+  ],
+  "distance_km": 976,
+  "gps_timed": true,
+  "software": "KiwiSDR v1.902"
+ },
+ "capture": {
+  "t0_unix": 1789614982.7394283,
+  "t0_utc": "2026-09-17T03:16:22.739+00:00",
+  "timing": "gps",
+  "gps_stamp_spread_s": 7.152557373046875e-07,
+  "tuned_khz": 61.0,
+  "receiver_fs_hz": 11998.87511,
+  "baseband_shift_hz": -1000.0,
+  "decimation": 8,
+  "fs_hz": 1499.85938875,
+  "wav_header_fs_hz": 1500,
+  "duration_s": 185.02,
+  "rssi_dbm": -92.1,
+  "adc_overflow_blocks": 0
+ },
+ "note": ""
+}

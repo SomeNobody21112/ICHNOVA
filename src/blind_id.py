@@ -77,6 +77,65 @@ def syndrome_checks(th, code):
     return prod
 
 
+_SCAN_INDEX = {}
+
+
+def _scan_index(dims):
+    """Stacked deinterleave indices for a tuple of (rows, cols); padding points at a neutral 1.0."""
+    if dims not in _SCAN_INDEX:
+        L = max(r * c for r, c in dims)
+        idx = np.full((len(dims), L), -1, dtype=np.int64)
+        for i, (r, c) in enumerate(dims):
+            idx[i, :r * c] = deinterleave_index(r, c)
+        _SCAN_INDEX[dims] = (idx, np.array([r * c // 2 for r, c in dims]))
+    return _SCAN_INDEX[dims]
+
+
+def syndrome_scan(th, dims_list, codes=CODE_CATALOGUE):
+    """syndrome_checks() for every (interleaver, code) pair at once.
+
+    All candidate deinterleavings of one front end are gathered into one padded matrix, and each
+    code's parity products use the same factor order as syndrome_checks(), so every check sign (and
+    therefore every sign-test p-value) is identical to the per-pair loop. Returns a dict of arrays
+    rows, cols, code, n, pos, sum, sq in (dims, code) order, skipping pairs without checks."""
+    dims = tuple((r, c) for r, c in dims_list if r * c <= len(th))
+    empty = {k: np.zeros(0, dtype=float if k in ('sum', 'sq') else np.int64) for k in ('rows', 'cols', 'code', 'n', 'pos', 'sum', 'sq')}
+    if not dims:
+        return empty
+    idx, T = _scan_index(dims)
+    D = np.append(th, 1.0)[idx]
+    Tmax = idx.shape[1] // 2
+    c1, c2 = D[:, 0:2 * Tmax:2], D[:, 1:2 * Tmax:2]
+    cols = {k: [] for k in empty}
+    for ci, code in enumerate(codes):
+        g1, g2 = code['generators']
+        K = code['K']
+        n_max = Tmax - K + 1
+        if n_max <= 0:
+            continue
+        prod = np.ones((len(dims), n_max))
+        for j in range(K):
+            if (g2 >> j) & 1:
+                prod *= c1[:, K - 1 - j:K - 1 - j + n_max]
+            if (g1 >> j) & 1:
+                prod *= c2[:, K - 1 - j:K - 1 - j + n_max]
+        n_checks = T - K + 1
+        masked = np.where(np.arange(n_max)[None, :] < n_checks[:, None], prod, 0.0)
+        cols['n'].append(n_checks)
+        cols['pos'].append(np.count_nonzero(masked > 0, axis=1))
+        cols['sum'].append(masked.sum(axis=1))
+        cols['sq'].append(np.einsum('ij,ij->i', masked, masked))
+        cols['code'].append(np.full(len(dims), ci))
+        cols['rows'].append(np.array([d[0] for d in dims]))
+        cols['cols'].append(np.array([d[1] for d in dims]))
+    if not cols['n']:
+        return empty
+    # Stack as [code, dims] then reorder to (dims, code) - the order of the loop this replaces.
+    out = {k: np.stack(v, axis=1).reshape(-1) for k, v in cols.items()}
+    keep = out['n'] > 0
+    return {k: v[keep] for k, v in out.items()}
+
+
 def sign_test_log10p(n_positive, n_checks):
     """log10 P(Binomial(n_checks, 1/2) ≥ n_positive), vectorized."""
     n_positive = np.asarray(n_positive)

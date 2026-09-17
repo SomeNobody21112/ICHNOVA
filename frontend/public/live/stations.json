@@ -1,0 +1,1413 @@
+{
+ "stations": {
+  "WWV": {
+   "name": "WWV",
+   "operator": "NIST \u2014 U.S. Department of Commerce",
+   "country": "United States",
+   "service": "Standard time and frequency (HF)",
+   "frequency_khz": 10000.0,
+   "site": {
+    "name": "Fort Collins, Colorado",
+    "lat": 40.6781,
+    "lon": -105.0471
+   },
+   "analysis": "timecode",
+   "capture_s": 185,
+   "references": [
+    {
+     "title": "NIST Radio Station WWV",
+     "url": "https://www.nist.gov/pml/time-and-frequency-division/time-distribution/radio-station-wwv"
+    },
+    {
+     "title": "WWV/WWVH digital time code",
+     "url": "https://www.nist.gov/pml/time-and-frequency-division/time-distribution/radio-station-wwv/wwv-and-wwvh-digital-time-code"
+    }
+   ],
+   "protocol": "WWV"
+  },
+  "WWVB": {
+   "name": "WWVB",
+   "operator": "NIST \u2014 U.S. Department of Commerce",
+   "country": "United States",
+   "service": "Standard time (LF 60 kHz)",
+   "frequency_khz": 60.0,
+   "site": {
+    "name": "Fort Collins, Colorado",
+    "lat": 40.6776,
+    "lon": -105.0471
+   },
+   "analysis": "timecode",
+   "capture_s": 185,
+   "references": [
+    {
+     "title": "NIST Radio Station WWVB",
+     "url": "https://www.nist.gov/pml/time-and-frequency-division/time-distribution/radio-station-wwvb"
+    }
+   ],
+   "protocol": "WWVB"
+  },
+  "DCF77": {
+   "name": "DCF77",
+   "operator": "PTB \u2014 Physikalisch-Technische Bundesanstalt (Germany)",
+   "country": "Germany",
+   "service": "Legal time of Germany (LF 77.5 kHz)",
+   "frequency_khz": 77.5,
+   "site": {
+    "name": "Mainflingen",
+    "lat": 50.0156,
+    "lon": 9.0106
+   },
+   "analysis": "timecode",
+   "capture_s": 185,
+   "references": [
+    {
+     "title": "PTB: DCF77",
+     "url": "https://www.ptb.de/cms/en/ptb/fachabteilungen/abt4/fb-44/ag-442/dissemination-of-legal-time/dcf77.html"
+    }
+   ],
+   "protocol": "DCF77"
+  },
+  "MSF": {
+   "name": "MSF",
+   "operator": "NPL \u2014 National Physical Laboratory (UK)",
+   "country": "United Kingdom",
+   "service": "UK national time signal (LF 60 kHz)",
+   "frequency_khz": 60.0,
+   "site": {
+    "name": "Anthorn, Cumbria",
+    "lat": 54.9111,
+    "lon": -3.2789
+   },
+   "analysis": "timecode",
+   "capture_s": 185,
+   "references": [
+    {
+     "title": "NPL: MSF radio time signal",
+     "url": "https://www.npl.co.uk/msf-signal"
+    }
+   ],
+   "protocol": "MSF"
+  },
+  "JJY": {
+   "name": "JJY (40 kHz)",
+   "operator": "NICT \u2014 National Institute of Information and Communications Technology (Japan)",
+   "country": "Japan",
+   "service": "Japan Standard Time (LF 40 kHz)",
+   "frequency_khz": 40.0,
+   "site": {
+    "name": "Mt. Otakadoya, Fukushima",
+    "lat": 37.3725,
+    "lon": 140.8489
+   },
+   "analysis": "timecode",
+   "capture_s": 185,
+   "references": [
+    {
+     "title": "NICT: JJY transmission format",
+     "url": "https://jjy.nict.go.jp/jjy/trans/index-e.html"
+    }
+   ],
+   "protocol": "JJY"
+  },
+  "DDH47": {
+   "name": "DDH47",
+   "operator": "DWD \u2014 Deutscher Wetterdienst (German Meteorological Service)",
+   "country": "Germany",
+   "service": "Maritime weather RTTY (LF 147.3 kHz)",
+   "frequency_khz": 147.3,
+   "site": {
+    "name": "Pinneberg",
+    "lat": 53.6703,
+    "lon": 9.8014
+   },
+   "analysis": "fsk",
+   "capture_s": 90,
+   "references": [
+    {
+     "title": "DWD: maritime weather broadcasts (radioteletype)",
+     "url": "https://www.dwd.de/EN/specialusers/shipping/broadcast_en/_node.html"
+    }
+   ],
+   "protocol": null
+  },
+  "CHU": {
+   "name": "CHU",
+   "operator": "NRC \u2014 National Research Council Canada",
+   "country": "Canada",
+   "service": "Canada official time (HF, FSK time code)",
+   "frequency_khz": 7850.0,
+   "site": {
+    "name": "Ottawa, Ontario",
+    "lat": 45.295,
+    "lon": -75.7564
+   },
+   "analysis": "chu",
+   "capture_s": 70,
+   "references": [
+    {
+     "title": "NRC: CHU broadcasts",
+     "url": "https://nrc.canada.ca/en/certifications-evaluations-standards/canadas-official-time/nrc-shortwave-station-broadcasts-chu"
+    }
+   ],
+   "protocol": null
+  },
+  "AIR-MW": {
+   "name": "All India Radio (medium wave)",
+   "operator": "Prasar Bharati \u2014 Government of India public broadcaster",
+   "country": "India",
+   "service": "AM broadcasting 531\u20131602 kHz",
+   "frequency_khz": 720.0,
+   "site": {
+    "name": "Chennai (720 kHz, 200 kW)",
+    "lat": 13.0827,
+    "lon": 80.2707
+   },
+   "analysis": "am",
+   "capture_s": 30,
+   "references": [
+    {
+     "title": "Prasar Bharati: existing AIR stations and transmitters (31 May 2024)",
+     "url": "https://prasarbharati.gov.in/wp-content/uploads/2025/03/19-LIST-OF-EXISTING-STATIONS-AND-TRANSMITTERS-310524.pdf"
+    }
+   ],
+   "protocol": null
+  }
+ },
+ "layouts": {
+  "WWV": {
+   "operator": "NIST (U.S. Department of Commerce)",
+   "zone": "UTC",
+   "refers_to": "current",
+   "positions": [
+    {
+     "kind": "H",
+     "field": null
+    },
+    {
+     "kind": "X",
+     "field": null
+    },
+    {
+     "kind": "F",
+     "field": "dst1"
+    },
+    {
+     "kind": "F",
+     "field": "leap_warning"
+    },
+    {
+     "kind": "F",
+     "field": "year_u"
+    },
+    {
+     "kind": "F",
+     "field": "year_u"
+    },
+    {
+     "kind": "F",
+     "field": "year_u"
+    },
+    {
+     "kind": "F",
+     "field": "year_u"
+    },
+    {
+     "kind": "Z",
+     "field": null
+    },
+    {
+     "kind": "M",
+     "field": null
+    },
+    {
+     "kind": "F",
+     "field": "min_u"
+    },
+    {
+     "kind": "F",
+     "field": "min_u"
+    },
+    {
+     "kind": "F",
+     "field": "min_u"
+    },
+    {
+     "kind": "F",
+     "field": "min_u"
+    },
+    {
+     "kind": "Z",
+     "field": null
+    },
+    {
+     "kind": "F",
+     "field": "min_t"
+    },
+    {
+     "kind": "F",
+     "field": "min_t"
+    },
+    {
+     "kind": "F",
+     "field": "min_t"
+    },
+    {
+     "kind": "Z",
+     "field": null
+    },
+    {
+     "kind": "M",
+     "field": null
+    },
+    {
+     "kind": "F",
+     "field": "hour_u"
+    },
+    {
+     "kind": "F",
+     "field": "hour_u"
+    },
+    {
+     "kind": "F",
+     "field": "hour_u"
+    },
+    {
+     "kind": "F",
+     "field": "hour_u"
+    },
+    {
+     "kind": "Z",
+     "field": null
+    },
+    {
+     "kind": "F",
+     "field": "hour_t"
+    },
+    {
+     "kind": "F",
+     "field": "hour_t"
+    },
+    {
+     "kind": "Z",
+     "field": null
+    },
+    {
+     "kind": "Z",
+     "field": null
+    },
+    {
+     "kind": "M",
+     "field": null
+    },
+    {
+     "kind": "F",
+     "field": "day_u"
+    },
+    {
+     "kind": "F",
+     "field": "day_u"
+    },
+    {
+     "kind": "F",
+     "field": "day_u"
+    },
+    {
+     "kind": "F",
+     "field": "day_u"
+    },
+    {
+     "kind": "Z",
+     "field": null
+    },
+    {
+     "kind": "F",
+     "field": "day_t"
+    },
+    {
+     "kind": "F",
+     "field": "day_t"
+    },
+    {
+     "kind": "F",
+     "field": "day_t"
+    },
+    {
+     "kind": "F",
+     "field": "day_t"
+    },
+    {
+     "kind": "M",
+     "field": null
+    },
+    {
+     "kind": "F",
+     "field": "day_h"
+    },
+    {
+     "kind": "F",
+     "field": "day_h"
+    },
+    {
+     "kind": "Z",
+     "field": null
+    },
+    {
+     "kind": "Z",
+     "field": null
+    },
+    {
+     "kind": "Z",
+     "field": null
+    },
+    {
+     "kind": "Z",
+     "field": null
+    },
+    {
+     "kind": "Z",
+     "field": null
+    },
+    {
+     "kind": "Z",
+     "field": null
+    },
+    {
+     "kind": "Z",
+     "field": null
+    },
+    {
+     "kind": "M",
+     "field": null
+    },
+    {
+     "kind": "F",
+     "field": "dut1_sign"
+    },
+    {
+     "kind": "F",
+     "field": "year_t"
+    },
+    {
+     "kind": "F",
+     "field": "year_t"
+    },
+    {
+     "kind": "F",
+     "field": "year_t"
+    },
+    {
+     "kind": "F",
+     "field": "year_t"
+    },
+    {
+     "kind": "F",
+     "field": "dst2"
+    },
+    {
+     "kind": "F",
+     "field": "dut1"
+    },
+    {
+     "kind": "F",
+     "field": "dut1"
+    },
+    {
+     "kind": "F",
+     "field": "dut1"
+    },
+    {
+     "kind": "M",
+     "field": null
+    }
+   ]
+  },
+  "WWVB": {
+   "operator": "NIST (U.S. Department of Commerce)",
+   "zone": "UTC",
+   "refers_to": "current",
+   "positions": [
+    {
+     "kind": "M",
+     "field": null
+    },
+    {
+     "kind": "F",
+     "field": "min_t"
+    },
+    {
+     "kind": "F",
+     "field": "min_t"
+    },
+    {
+     "kind": "F",
+     "field": "min_t"
+    },
+    {
+     "kind": "Z",
+     "field": null
+    },
+    {
+     "kind": "F",
+     "field": "min_u"
+    },
+    {
+     "kind": "F",
+     "field": "min_u"
+    },
+    {
+     "kind": "F",
+     "field": "min_u"
+    },
+    {
+     "kind": "F",
+     "field": "min_u"
+    },
+    {
+     "kind": "M",
+     "field": null
+    },
+    {
+     "kind": "Z",
+     "field": null
+    },
+    {
+     "kind": "Z",
+     "field": null
+    },
+    {
+     "kind": "F",
+     "field": "hour_t"
+    },
+    {
+     "kind": "F",
+     "field": "hour_t"
+    },
+    {
+     "kind": "Z",
+     "field": null
+    },
+    {
+     "kind": "F",
+     "field": "hour_u"
+    },
+    {
+     "kind": "F",
+     "field": "hour_u"
+    },
+    {
+     "kind": "F",
+     "field": "hour_u"
+    },
+    {
+     "kind": "F",
+     "field": "hour_u"
+    },
+    {
+     "kind": "M",
+     "field": null
+    },
+    {
+     "kind": "Z",
+     "field": null
+    },
+    {
+     "kind": "Z",
+     "field": null
+    },
+    {
+     "kind": "F",
+     "field": "day_h"
+    },
+    {
+     "kind": "F",
+     "field": "day_h"
+    },
+    {
+     "kind": "Z",
+     "field": null
+    },
+    {
+     "kind": "F",
+     "field": "day_t"
+    },
+    {
+     "kind": "F",
+     "field": "day_t"
+    },
+    {
+     "kind": "F",
+     "field": "day_t"
+    },
+    {
+     "kind": "F",
+     "field": "day_t"
+    },
+    {
+     "kind": "M",
+     "field": null
+    },
+    {
+     "kind": "F",
+     "field": "day_u"
+    },
+    {
+     "kind": "F",
+     "field": "day_u"
+    },
+    {
+     "kind": "F",
+     "field": "day_u"
+    },
+    {
+     "kind": "F",
+     "field": "day_u"
+    },
+    {
+     "kind": "Z",
+     "field": null
+    },
+    {
+     "kind": "Z",
+     "field": null
+    },
+    {
+     "kind": "F",
+     "field": "dut1_sign"
+    },
+    {
+     "kind": "F",
+     "field": "dut1_sign"
+    },
+    {
+     "kind": "F",
+     "field": "dut1_sign"
+    },
+    {
+     "kind": "M",
+     "field": null
+    },
+    {
+     "kind": "F",
+     "field": "dut1"
+    },
+    {
+     "kind": "F",
+     "field": "dut1"
+    },
+    {
+     "kind": "F",
+     "field": "dut1"
+    },
+    {
+     "kind": "F",
+     "field": "dut1"
+    },
+    {
+     "kind": "Z",
+     "field": null
+    },
+    {
+     "kind": "F",
+     "field": "year_t"
+    },
+    {
+     "kind": "F",
+     "field": "year_t"
+    },
+    {
+     "kind": "F",
+     "field": "year_t"
+    },
+    {
+     "kind": "F",
+     "field": "year_t"
+    },
+    {
+     "kind": "M",
+     "field": null
+    },
+    {
+     "kind": "F",
+     "field": "year_u"
+    },
+    {
+     "kind": "F",
+     "field": "year_u"
+    },
+    {
+     "kind": "F",
+     "field": "year_u"
+    },
+    {
+     "kind": "F",
+     "field": "year_u"
+    },
+    {
+     "kind": "Z",
+     "field": null
+    },
+    {
+     "kind": "F",
+     "field": "leap_year"
+    },
+    {
+     "kind": "F",
+     "field": "leap_warning"
+    },
+    {
+     "kind": "F",
+     "field": "dst"
+    },
+    {
+     "kind": "F",
+     "field": "dst"
+    },
+    {
+     "kind": "M",
+     "field": null
+    }
+   ]
+  },
+  "DCF77": {
+   "operator": "PTB (Physikalisch-Technische Bundesanstalt, Germany)",
+   "zone": "CET/CEST",
+   "refers_to": "next",
+   "positions": [
+    {
+     "kind": "Z",
+     "field": null
+    },
+    {
+     "kind": "X",
+     "field": null
+    },
+    {
+     "kind": "X",
+     "field": null
+    },
+    {
+     "kind": "X",
+     "field": null
+    },
+    {
+     "kind": "X",
+     "field": null
+    },
+    {
+     "kind": "X",
+     "field": null
+    },
+    {
+     "kind": "X",
+     "field": null
+    },
+    {
+     "kind": "X",
+     "field": null
+    },
+    {
+     "kind": "X",
+     "field": null
+    },
+    {
+     "kind": "X",
+     "field": null
+    },
+    {
+     "kind": "X",
+     "field": null
+    },
+    {
+     "kind": "X",
+     "field": null
+    },
+    {
+     "kind": "X",
+     "field": null
+    },
+    {
+     "kind": "X",
+     "field": null
+    },
+    {
+     "kind": "X",
+     "field": null
+    },
+    {
+     "kind": "X",
+     "field": null
+    },
+    {
+     "kind": "F",
+     "field": "dst_announce"
+    },
+    {
+     "kind": "F",
+     "field": "cest"
+    },
+    {
+     "kind": "F",
+     "field": "cet"
+    },
+    {
+     "kind": "F",
+     "field": "leap_announce"
+    },
+    {
+     "kind": "O",
+     "field": null
+    },
+    {
+     "kind": "F",
+     "field": "min_u"
+    },
+    {
+     "kind": "F",
+     "field": "min_u"
+    },
+    {
+     "kind": "F",
+     "field": "min_u"
+    },
+    {
+     "kind": "F",
+     "field": "min_u"
+    },
+    {
+     "kind": "F",
+     "field": "min_t"
+    },
+    {
+     "kind": "F",
+     "field": "min_t"
+    },
+    {
+     "kind": "F",
+     "field": "min_t"
+    },
+    {
+     "kind": "P",
+     "field": "min"
+    },
+    {
+     "kind": "F",
+     "field": "hour_u"
+    },
+    {
+     "kind": "F",
+     "field": "hour_u"
+    },
+    {
+     "kind": "F",
+     "field": "hour_u"
+    },
+    {
+     "kind": "F",
+     "field": "hour_u"
+    },
+    {
+     "kind": "F",
+     "field": "hour_t"
+    },
+    {
+     "kind": "F",
+     "field": "hour_t"
+    },
+    {
+     "kind": "P",
+     "field": "hour"
+    },
+    {
+     "kind": "F",
+     "field": "mday_u"
+    },
+    {
+     "kind": "F",
+     "field": "mday_u"
+    },
+    {
+     "kind": "F",
+     "field": "mday_u"
+    },
+    {
+     "kind": "F",
+     "field": "mday_u"
+    },
+    {
+     "kind": "F",
+     "field": "mday_t"
+    },
+    {
+     "kind": "F",
+     "field": "mday_t"
+    },
+    {
+     "kind": "F",
+     "field": "dow"
+    },
+    {
+     "kind": "F",
+     "field": "dow"
+    },
+    {
+     "kind": "F",
+     "field": "dow"
+    },
+    {
+     "kind": "F",
+     "field": "month_u"
+    },
+    {
+     "kind": "F",
+     "field": "month_u"
+    },
+    {
+     "kind": "F",
+     "field": "month_u"
+    },
+    {
+     "kind": "F",
+     "field": "month_u"
+    },
+    {
+     "kind": "F",
+     "field": "month_t"
+    },
+    {
+     "kind": "F",
+     "field": "year_u"
+    },
+    {
+     "kind": "F",
+     "field": "year_u"
+    },
+    {
+     "kind": "F",
+     "field": "year_u"
+    },
+    {
+     "kind": "F",
+     "field": "year_u"
+    },
+    {
+     "kind": "F",
+     "field": "year_t"
+    },
+    {
+     "kind": "F",
+     "field": "year_t"
+    },
+    {
+     "kind": "F",
+     "field": "year_t"
+    },
+    {
+     "kind": "F",
+     "field": "year_t"
+    },
+    {
+     "kind": "P",
+     "field": "date"
+    },
+    {
+     "kind": "M",
+     "field": null
+    }
+   ]
+  },
+  "MSF": {
+   "operator": "NPL (National Physical Laboratory, UK)",
+   "zone": "UK",
+   "refers_to": "next",
+   "positions": [
+    {
+     "kind": "M",
+     "field": null
+    },
+    {
+     "kind": "Z",
+     "field": null
+    },
+    {
+     "kind": "Z",
+     "field": null
+    },
+    {
+     "kind": "Z",
+     "field": null
+    },
+    {
+     "kind": "Z",
+     "field": null
+    },
+    {
+     "kind": "Z",
+     "field": null
+    },
+    {
+     "kind": "Z",
+     "field": null
+    },
+    {
+     "kind": "Z",
+     "field": null
+    },
+    {
+     "kind": "Z",
+     "field": null
+    },
+    {
+     "kind": "Z",
+     "field": null
+    },
+    {
+     "kind": "Z",
+     "field": null
+    },
+    {
+     "kind": "Z",
+     "field": null
+    },
+    {
+     "kind": "Z",
+     "field": null
+    },
+    {
+     "kind": "Z",
+     "field": null
+    },
+    {
+     "kind": "Z",
+     "field": null
+    },
+    {
+     "kind": "Z",
+     "field": null
+    },
+    {
+     "kind": "Z",
+     "field": null
+    },
+    {
+     "kind": "F",
+     "field": "year"
+    },
+    {
+     "kind": "F",
+     "field": "year"
+    },
+    {
+     "kind": "F",
+     "field": "year"
+    },
+    {
+     "kind": "F",
+     "field": "year"
+    },
+    {
+     "kind": "F",
+     "field": "year"
+    },
+    {
+     "kind": "F",
+     "field": "year"
+    },
+    {
+     "kind": "F",
+     "field": "year"
+    },
+    {
+     "kind": "F",
+     "field": "year"
+    },
+    {
+     "kind": "F",
+     "field": "month"
+    },
+    {
+     "kind": "F",
+     "field": "month"
+    },
+    {
+     "kind": "F",
+     "field": "month"
+    },
+    {
+     "kind": "F",
+     "field": "month"
+    },
+    {
+     "kind": "F",
+     "field": "month"
+    },
+    {
+     "kind": "F",
+     "field": "mday"
+    },
+    {
+     "kind": "F",
+     "field": "mday"
+    },
+    {
+     "kind": "F",
+     "field": "mday"
+    },
+    {
+     "kind": "F",
+     "field": "mday"
+    },
+    {
+     "kind": "F",
+     "field": "mday"
+    },
+    {
+     "kind": "F",
+     "field": "mday"
+    },
+    {
+     "kind": "F",
+     "field": "dow"
+    },
+    {
+     "kind": "F",
+     "field": "dow"
+    },
+    {
+     "kind": "F",
+     "field": "dow"
+    },
+    {
+     "kind": "F",
+     "field": "hour"
+    },
+    {
+     "kind": "F",
+     "field": "hour"
+    },
+    {
+     "kind": "F",
+     "field": "hour"
+    },
+    {
+     "kind": "F",
+     "field": "hour"
+    },
+    {
+     "kind": "F",
+     "field": "hour"
+    },
+    {
+     "kind": "F",
+     "field": "hour"
+    },
+    {
+     "kind": "F",
+     "field": "minute"
+    },
+    {
+     "kind": "F",
+     "field": "minute"
+    },
+    {
+     "kind": "F",
+     "field": "minute"
+    },
+    {
+     "kind": "F",
+     "field": "minute"
+    },
+    {
+     "kind": "F",
+     "field": "minute"
+    },
+    {
+     "kind": "F",
+     "field": "minute"
+    },
+    {
+     "kind": "F",
+     "field": "minute"
+    },
+    {
+     "kind": "Z",
+     "field": null
+    },
+    {
+     "kind": "O",
+     "field": null
+    },
+    {
+     "kind": "O",
+     "field": null
+    },
+    {
+     "kind": "O",
+     "field": null
+    },
+    {
+     "kind": "O",
+     "field": null
+    },
+    {
+     "kind": "O",
+     "field": null
+    },
+    {
+     "kind": "O",
+     "field": null
+    },
+    {
+     "kind": "Z",
+     "field": null
+    }
+   ]
+  },
+  "JJY": {
+   "operator": "NICT (National Institute of Information and Communications Technology, Japan)",
+   "zone": "JST",
+   "refers_to": "current",
+   "positions": [
+    {
+     "kind": "M",
+     "field": null
+    },
+    {
+     "kind": "F",
+     "field": "min_t"
+    },
+    {
+     "kind": "F",
+     "field": "min_t"
+    },
+    {
+     "kind": "F",
+     "field": "min_t"
+    },
+    {
+     "kind": "Z",
+     "field": null
+    },
+    {
+     "kind": "F",
+     "field": "min_u"
+    },
+    {
+     "kind": "F",
+     "field": "min_u"
+    },
+    {
+     "kind": "F",
+     "field": "min_u"
+    },
+    {
+     "kind": "F",
+     "field": "min_u"
+    },
+    {
+     "kind": "M",
+     "field": null
+    },
+    {
+     "kind": "Z",
+     "field": null
+    },
+    {
+     "kind": "Z",
+     "field": null
+    },
+    {
+     "kind": "F",
+     "field": "hour_t"
+    },
+    {
+     "kind": "F",
+     "field": "hour_t"
+    },
+    {
+     "kind": "Z",
+     "field": null
+    },
+    {
+     "kind": "F",
+     "field": "hour_u"
+    },
+    {
+     "kind": "F",
+     "field": "hour_u"
+    },
+    {
+     "kind": "F",
+     "field": "hour_u"
+    },
+    {
+     "kind": "F",
+     "field": "hour_u"
+    },
+    {
+     "kind": "M",
+     "field": null
+    },
+    {
+     "kind": "Z",
+     "field": null
+    },
+    {
+     "kind": "Z",
+     "field": null
+    },
+    {
+     "kind": "F",
+     "field": "day_h"
+    },
+    {
+     "kind": "F",
+     "field": "day_h"
+    },
+    {
+     "kind": "Z",
+     "field": null
+    },
+    {
+     "kind": "F",
+     "field": "day_t"
+    },
+    {
+     "kind": "F",
+     "field": "day_t"
+    },
+    {
+     "kind": "F",
+     "field": "day_t"
+    },
+    {
+     "kind": "F",
+     "field": "day_t"
+    },
+    {
+     "kind": "M",
+     "field": null
+    },
+    {
+     "kind": "F",
+     "field": "day_u"
+    },
+    {
+     "kind": "F",
+     "field": "day_u"
+    },
+    {
+     "kind": "F",
+     "field": "day_u"
+    },
+    {
+     "kind": "F",
+     "field": "day_u"
+    },
+    {
+     "kind": "Z",
+     "field": null
+    },
+    {
+     "kind": "Z",
+     "field": null
+    },
+    {
+     "kind": "P",
+     "field": "hour"
+    },
+    {
+     "kind": "P",
+     "field": "min"
+    },
+    {
+     "kind": "Z",
+     "field": null
+    },
+    {
+     "kind": "M",
+     "field": null
+    },
+    {
+     "kind": "Z",
+     "field": null
+    },
+    {
+     "kind": "F",
+     "field": "year_t"
+    },
+    {
+     "kind": "F",
+     "field": "year_t"
+    },
+    {
+     "kind": "F",
+     "field": "year_t"
+    },
+    {
+     "kind": "F",
+     "field": "year_t"
+    },
+    {
+     "kind": "F",
+     "field": "year_u"
+    },
+    {
+     "kind": "F",
+     "field": "year_u"
+    },
+    {
+     "kind": "F",
+     "field": "year_u"
+    },
+    {
+     "kind": "F",
+     "field": "year_u"
+    },
+    {
+     "kind": "M",
+     "field": null
+    },
+    {
+     "kind": "F",
+     "field": "dow"
+    },
+    {
+     "kind": "F",
+     "field": "dow"
+    },
+    {
+     "kind": "F",
+     "field": "dow"
+    },
+    {
+     "kind": "F",
+     "field": "leap"
+    },
+    {
+     "kind": "F",
+     "field": "leap"
+    },
+    {
+     "kind": "Z",
+     "field": null
+    },
+    {
+     "kind": "Z",
+     "field": null
+    },
+    {
+     "kind": "Z",
+     "field": null
+    },
+    {
+     "kind": "Z",
+     "field": null
+    },
+    {
+     "kind": "M",
+     "field": null
+    }
+   ]
+  }
+ }
+}
