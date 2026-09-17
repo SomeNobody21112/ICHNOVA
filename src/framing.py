@@ -201,12 +201,47 @@ def frame_map(bits, period, offset, anchor_bits):
     while header_end < period and (const[header_end] or alt[header_end]):
         header_end += 1
     frames_needed = int(np.ceil(np.log2(period / COLUMN_ALPHA))) + 1   # F-1 identical comparisons reach the bar
-    return {'n_frames': int(F), 'period_bits': int(period), 'offset_bits': int(offset),
+    # Counter fields are looked for over the header and the first bytes after it, because a frame
+    # count often sits just past the anchor even when the columns around it cannot yet be proven.
+    counters = counter_fields(bits, period, offset, min(header_end + 64, period))
+    return {'counter_fields': counters,
+            'n_frames': int(F), 'period_bits': int(period), 'offset_bits': int(offset),
             'anchor_bits': int(anchor_bits), 'header_bits': [0, header_end], 'payload_bits': [header_end, int(period)],
             'proven_constant_columns': int(const.sum()), 'proven_alternating_columns': int(alt.sum()),
             'undetermined_columns': int(period - const.sum() - alt.sum()),
             'frames_needed_per_column': frames_needed,
             'column_class': ''.join('C' if c else 'A' if a else '?' for c, a in zip(const, alt))}
+
+
+COUNTER_WIDTHS = (8, 16)             # byte-aligned counter fields looked for in a frame header
+
+
+def counter_fields(bits, period, offset, header_bits, widths=COUNTER_WIDTHS):
+    """Byte-aligned fields in the header that increment by a constant step from frame to frame.
+
+    A frame counter is the one header field whose *change* is predictable, so it is evidence of
+    framing that a constant-field test cannot give. For a field of width w read MSB first, the
+    values of F frames must satisfy v[i+1] = (v[i] + delta) mod 2^w for one delta ≠ 0. Under
+    independent fair bits that happens with probability 2^{-w(F-1)} for a given field and delta, so
+    the reported log10 p is −w(F−1)·log10 2 + log10(2^w − 1) (the union over the possible steps).
+    Nothing is claimed about what the field means: a counter is a measurement, not an interpretation
+    of a particular standard's header layout."""
+    b = np.asarray(bits, dtype=np.uint8)[offset:]
+    F = len(b) // period
+    if F < 3:                        # two frames give one difference: any field would "match"
+        return []
+    frames = b[:F * period].reshape(F, period)
+    out = []
+    for w in widths:
+        for start in range(0, max(header_bits - w + 1, 0), 8):
+            vals = frames[:, start:start + w] @ (1 << np.arange(w - 1, -1, -1))
+            steps = (np.diff(vals.astype(np.int64)) % (1 << w))
+            if len(np.unique(steps)) == 1 and steps[0] != 0:
+                out.append({'offset_bits': int(start), 'width_bits': int(w),
+                            'step': int(steps[0]), 'first_value': int(vals[0]),
+                            'n_frames': int(F),
+                            'log10_p': float(-w * (F - 1) * np.log10(2) + np.log10((1 << w) - 1))})
+    return out
 
 
 def column_variability(bits, period, offset):
