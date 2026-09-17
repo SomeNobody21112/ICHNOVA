@@ -1,6 +1,6 @@
 # ICHNOVA — operator console
 
-Working name; the product name is not final. Prototype for SIH 2026 problem statement SIH26147 (sponsor: NTRO). Not an official Government of India system.
+ICHNOVA (*From noise to harmony*). Prototype for SIH 2026 problem statement SIH26147 (sponsor: NTRO). Not an official Government of India system.
 
 React 19 + TypeScript + Vite. The console asks one question of every capture: *what evidence supports this signal interpretation?*
 

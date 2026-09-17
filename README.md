@@ -1,4 +1,4 @@
-# SIH26147 — Blind Signal Analysis & Decoding
+# ICHNOVA — Blind Signal Analysis & Decoding (SIH26147)
 
 Takes a raw IQ capture and, without being told any signal parameters, searches carrier offset, symbol rate, modulation (BPSK/QPSK) and phase. It then tests every convolutional code (K=7/5/3, rate ½) × block-interleaver hypothesis with a dual-code syndrome test. A payload is returned only when the best hypothesis is statistically significant after accounting for how many hypotheses were tried; otherwise the receiver says so.
 
@@ -51,7 +51,7 @@ cd frontend && npm install && npm run build && cd ..
 python server/app.py      # http://127.0.0.1:8765
 ```
 
-Upload an .IQ/.wav capture (a benchmark capture, or a real government recording) and follow the evidence chain from raw IQ to decision; open the Live Monitor to receive WWV, DCF77, MSF, JJY, DDH47 or All India Radio live (or replay recorded sessions offline); browse the Experiment Lab for the measured numbers. Monitoring-network views use clearly labelled simulated data. Details, including Google sign-in setup: `frontend/README.md`.
+Upload an .IQ/.wav capture (a benchmark capture, or a real government recording) and follow the evidence chain from raw IQ to decision; open the Live Monitor to receive WWV, DCF77, MSF, JJY, DDH47 or All India Radio live (or replay recorded sessions offline); browse the Experiment Lab for the measured numbers. Monitoring-network views use clearly labelled simulated data. The console has light and dark themes, a text-size control and a skip-to-content link, with a layout modelled on DoT spectrum portals (Tarang Sanchar, Saral Sanchar). It is an independent prototype, not an official Government of India system. Details, including Google sign-in setup: `frontend/README.md`.
 
 ## Stack & documentation
 

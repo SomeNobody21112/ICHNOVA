@@ -1,5 +1,15 @@
 # SIH26147 — Session Progress Report
 
+## Session 6 — ICHNOVA brand, themes, calmer console
+
+- **Brand:** ICHNOVA mark, wordmark and lockup drawn as SVG from the brand sheet (`frontend/src/components/brand.tsx`); gold on dark, ink on light; favicon.
+- **Themes:** light and dark token sets in `styles.css`, pre-paint theme script, canvases and waterfalls read theme tokens; accessibility bar (skip link, text size, Light/Dark).
+- **Layout** modelled on DoT Tarang Sanchar / Saral Sanchar: grouped navigation, breadcrumbs, four task cards on Home, secondary charts folded away, sample lists in tabs, site footer with disclaimer.
+- **Alignment fixes:** System data flow, library/incident tables (no wrapping IDs, scroll inside panel), Analysis sample rows, Monitor station cards, sidebar at 768 px height.
+- **Code recheck:** unused imports/variables removed (`pipeline.py`, `fsk.py`, `export_live_replays.py`); `kiwi.py` dedupes receivers and follows WebSocket redirects. Engine decisions unchanged; 30/30 tests.
+
+---
+
 ## Session 5 — Real transmissions, live monitor, performance
 
 - **Real signals, blind.** New receivers `src/timecodes.py` (WWV/WWVB/DCF77/MSF/JJY: epoch from the signal, least-squares symbol fits, ML frame decode with parity constraints, joint multi-frame scoring, per-digit 100:1 reliability), `src/fsk.py` (tone pair, shift, baud incl. 1.5-stop half-bit grid, framing test, ITA2/ASCII, CHU packets), `src/broadcast.py` (AM, one-sided passband detection). Public KiwiSDR client (`server/kiwi.py`, stdlib websocket, GPS block timestamps, waterfall stream).
