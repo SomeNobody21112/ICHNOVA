@@ -340,3 +340,84 @@ the payload stays aligned with the transmission instead of silently dropping unc
 virtual fill and a rejection of non-byte-aligned periods); the full CCSDS chain decodes with every
 parameter identified; the CLTU decodes and reports unresolved polarity; a framed stream with random
 data and one with constant fill are both refused, the latter on the degenerate-codeword rule.
+
+## Phase 10 (step 5) — 8PSK and 16-QAM front ends: EXPERIMENTAL, off by default (operator decision)
+
+**What was built.** The gated higher-modulation search of §12.1: 8PSK is searched when the QPSK y⁴
+signature is *not* significant, 16-QAM when constant modulus *is* contradicted, using
+`constellations` for phase, SNR, LLRs and rotations, with the serial-dependence step equal to the
+bits per symbol. The gates are decided **once per capture** on the strongest symbol-rate candidate.
+
+**Measured cost of enabling it by default** (this is why it is off):
+
+| Gate | Default (BPSK/QPSK) | With 8PSK + 16-QAM |
+|---|---|---|
+| bench-v1 sealed | 30/30, 0 FA | **25/30** — CI gate (≥ 28) broken |
+| bench-v1 train | 63/100, 0 FA | 63/100 |
+| Null-set false accepts | 0/900 | **1/900** (a noise file DECODED) |
+| Null-set wrong decodes | 0/450 | **1/450** (a K5 file) |
+| Null-set correct K7/K5/K3 | 61/36/31 | 57/39/38 |
+| Null-set runtime | 40 s | 114 s (per file, mean 2–3 s, max 19 s) |
+
+Mechanism: on a weak or short burst the QPSK y⁴ signature is not significant **because the capture is
+weak**, so the gate opens on captures carrying no higher-modulation evidence. M₁ then grows from
+about 25,000 to about 245,000, the bar tightens by a decade, and five sealed files fall below it. The
+same inflation pushed the family past α, which is how a noise file was accepted.
+
+**Gating per front end was worse and was fixed first.** The first implementation decided the gates on
+every (CFO, sps) front end. At a wrong sps the matched-filter output is not the symbol stream: its y⁴
+signature is not significant and its amplitudes are spread by ISI, so *both* gates open on aliases of
+a plain QPSK capture. That cost 11 of 30 sealed files; per-capture gating recovered 6 of them.
+
+**Operator decision (asked, because the CI gate broke):** keep the default engine unchanged and ship
+the higher modulations as EXPERIMENTAL behind `pipeline.SEARCH_HIGHER_MODULATIONS = False`, with
+`analyze_iq(..., search_higher_modulations=True)` to enable them per call. The gates are still
+measured and reported in `diagnostics.modulation_gates` (with `enabled: false`), so an analyst can
+see what the capture says about modulation even when nothing is searched.
+
+**Default path proven unchanged after the change:** 0 differences on all 1,350 null-set files
+(`eval/identity.py`), sealed 30/30, train 63/100, 66 tests pass.
+
+**Defect 5 — 8PSK could not be decoded at all, and the primitives were not at fault.** At the true
+front end the true hypothesis scores p = 10⁻²⁷·¹ with payload BER 0, but the engine never built that
+front end:
+- the symbol-rate ranking uses the lag-1 correlation of y⁴, and for 8PSK y⁴ = ±1 flips with the
+  data, so the true sps is never ranked (measured: q4 ranks sps 17 first, q8 ranks the true sps 4);
+- the CFO candidates come from the x² and x⁴ spectral lines, which are data-dependent for 8PSK, so
+  the carrier offset was off by ~3×10⁻³ cycles/sample — enough to rotate a burst out of coherence
+  (measured: x⁸ brings the error to 1.8×10⁻⁵).
+
+Both estimators now have 8th-power variants, added **only on the experimental path** (`_sps_table`
+and `_sps_candidates` take `higher=`, `_cfo_candidates` takes `orders=`, whose default (2, 4) keeps
+the Bonferroni factor and every default decision as before). With them, 8PSK decodes blind.
+
+**EXPERIMENTAL measurements** (`eval/higher_mod_sweep.py`, 96 runs, development data, nothing held
+out):
+
+| Modulation | Interleaver | Es/N0 11 | 14 | 17 | 20 | Wrong decodes |
+|---|---|---|---|---|---|---|
+| 8PSK | block | 0/3 | 1/3 | 2/3 | 1/3 | 0 |
+| 8PSK | diagonal | 0/3 | 0/3 | 1/3 | 1/3 | 0 |
+| 8PSK | convolutional | 0/3 | 0/3 | 0/3 | 0/3 | 0 |
+| 8PSK | QPP | 0/3 | 2/3 | 1/3 | 2/3 | 0 |
+| 16-QAM | block | 0/3 | 0/3 | 1/3 | 1/3 | 0 |
+| 16-QAM | diagonal | 0/3 | 0/3 | 1/3 | 1/3 | 0 |
+| 16-QAM | convolutional | 0/3 | 0/3 | 0/3 | 0/3 | 0 |
+| 16-QAM | QPP | 0/3 | 0/3 | 1/3 | 2/3 | 0 |
+
+Totals 18/96 correct, **0 wrong decodes**, mean M₁ 229,274, mean runtime 6.4 s, max 19.5 s. At a
+clean 20 dB per-sample SNR both modulations decode with block, diagonal and convolutional
+interleavers at payload BER 0 (`tests/test_families.py`). The null-set files of class `8psk_k7` sit at
+Es/N0 3–12 dB and none is decoded (0/100), which is consistent with the sweep: this path needs
+roughly 17 dB and above.
+
+**Honest summary of row 34:** 8PSK and 16-QAM are implemented, verified against their definitions and
+able to decode blind, but they are **not** part of the default engine and none of the §18–§19
+guarantees covers them. Putting them in the default path needs a Constitution amendment (an F1
+sub-weight split so the extra hypotheses do not tax the BPSK/QPSK bar, and a gate with a power
+condition so weakness cannot open it).
+
+**Constitution v2.5.1** (status amendment, no rule, weight or catalogue change): §24 rows 33, 35, 36
+and 36b move from LOCKED to IMPLEMENTED with the measured evidence above; row 34 becomes
+EXPERIMENTAL with its measured cost; §12.1 marks the higher modulations as not in the default path;
+§44 and the changelog record the amendment.

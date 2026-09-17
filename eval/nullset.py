@@ -28,7 +28,7 @@ sys.stdout.reconfigure(encoding='utf-8')
 
 from modem import modulate, pulse_shape, rrc_filter, channel, save_iq, load_iq   # noqa: E402
 from fec import conv_encode, block_interleave                                   # noqa: E402
-from pipeline import analyze_file                                                # noqa: E402
+from pipeline import analyze_file, analyze_iq                                    # noqa: E402
 from analyze import matched_filter_demod, symbol_snr_m2m4, psk_llrs              # noqa: E402
 from blind_id import (CODE_CATALOGUE, interleaver_candidates, deinterleave_index,  # noqa: E402
                       syndrome_checks, sign_test_log10p, decode_hypothesis)
@@ -102,9 +102,10 @@ def ber(decoded, original):
     return 1.0 if L == 0 else float(min(np.mean(d[:L] != o[:L]), np.mean((1 - d[:L]) != o[:L])))
 
 
-def run_one(path):
+def run_one(job):
+    path, higher = job if isinstance(job, tuple) else (job, False)
     gt = json.load(open(path + '.gt.json'))
-    r = analyze_file(path)
+    r = analyze_iq(load_iq(path), search_higher_modulations=higher)
     top = r['diagnostics']['top_hypotheses'][:1]
     return {'file': os.path.basename(path)[:-3], 'class': gt['class'], 'coded_bits': gt['coded_bits'],
             'sps': gt['sps'], 'esn0_db': gt['esn0_db'], 'modulation': gt['modulation'],
@@ -115,14 +116,19 @@ def run_one(path):
             'n_hypotheses': r['accept']['n_hypotheses'],
             'detection_log10_p': r['diagnostics']['detection_log10_p'],
             'runtime': r['runtime'], 'timers': r['diagnostics']['timers_s'],
-            'top1': top[0] if top else None}
+            'top1': top[0] if top else None,
+            **({'higher_modulations': True} if higher else {})}
 
 
-def run():
-    paths = sorted(glob.glob(OUT + '/*.iq'))
+def run(higher=False):
+    """`higher` runs the EXPERIMENTAL 8PSK / 16-QAM search (pipeline.SEARCH_HIGHER_MODULATIONS is off
+    by default). Its rows go to results/nullset_rows_higher.jsonl, so the two measurements can never
+    be confused with each other."""
+    paths = [(p, higher) for p in sorted(glob.glob(OUT + '/*.iq'))]
     os.makedirs('results', exist_ok=True)
+    out_name = 'results/nullset_rows_higher.jsonl' if higher else 'results/nullset_rows.jsonl'
     with Pool(max(1, (os.cpu_count() or 2) - 1)) as pool, \
-            open('results/nullset_rows.jsonl', 'w') as f:
+            open(out_name, 'w') as f:
         for i, row in enumerate(pool.imap_unordered(run_one, paths, chunksize=4)):
             f.write(json.dumps(row) + '\n')
             if (i + 1) % 100 == 0:
@@ -156,8 +162,9 @@ def _top_is_true(r):
             and list(t['interleaver'] or []) == list(r['interleaver'] or []))
 
 
-def report():
-    rows = [json.loads(line) for line in open('results/nullset_rows.jsonl')]
+def report(higher=False):
+    name = 'results/nullset_rows_higher.jsonl' if higher else 'results/nullset_rows.jsonl'
+    rows = [json.loads(line) for line in open(name)]
     classes = list(PER_LENGTH)
     print(f'# Null / other-code calibration ({len(rows)} files)\n')
 
@@ -312,4 +319,6 @@ def compare():
 
 
 if __name__ == '__main__':
-    {'generate': generate, 'run': run, 'report': report, 'compare': compare}[sys.argv[1]]()
+    fn = {'generate': generate, 'run': run, 'report': report, 'compare': compare}[sys.argv[1]]
+    kw = {'higher': True} if '--higher' in sys.argv[2:] and fn in (run, report) else {}
+    fn(**kw)

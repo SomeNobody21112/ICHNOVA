@@ -1,5 +1,35 @@
 # SIH26147 — CONSTITUTION CHANGELOG
 
+## v2.5.1 — 2026-09-18 — Status amendment: families F1–F4 in the engine
+
+No rule, weight or catalogue item changed. Acceptance families F1–F4 (§13.1) were implemented in
+`src/pipeline.py`, so §24 is brought into agreement with what is now measured:
+
+- **Row 33 (frame sync / bit-stream correlation)** LOCKED → IMPLEMENTED, measured: family F3 finds
+  the CCSDS ASM blind at P = 512 and P = 2,072 with a header/payload map, reports SIGNAL_NO_CODE for
+  a framed stream with no code, and refuses noise and an idle carrier.
+- **Row 35 (Reed-Solomon, concatenated)** LOCKED → IMPLEMENTED, measured: the full CCSDS chain
+  (RS(255,223) E = 16, I = 1 + TM 131071 randomizer + ASM + inner K7) decodes blind with every
+  parameter identified and payload BER 0, on the exact tail statistic, with degenerate codewords
+  refused.
+- **Row 36 (diagonal / convolutional / QPP interleavers, TC LDPC)** LOCKED → IMPLEMENTED, measured:
+  all four interleaver types are in the default search with bench-v1 and the null set unchanged
+  (sealed 30/30, 0/900 false accepts) and wrong-structure accepts improved from 2/225 to 0/225; a TC
+  LDPC CLTU decodes blind with 1,536/1,536 satisfied checks.
+- **Row 36b (randomizers)** LOCKED → IMPLEMENTED, verified against the published bits and identified
+  blind as part of an F4 hypothesis.
+- **Row 34 (8PSK, 16-QAM)** LOCKED → **EXPERIMENTAL, off by default**. Both modulations decode blind
+  when enabled (payload BER 0 at 20 dB; development sweep 18/96 bursts at Es/N0 11–20 dB, 0 wrong
+  decodes), but enabling them by default was measured to cost bench-v1 sealed 5 of 30 files, to add
+  one null false accept (1/900) and one wrong K5 decode, and to raise runtime about 20×: on a weak or
+  short capture the QPSK y⁴ signature is not significant because the capture is weak, so the gate
+  opens without higher-modulation evidence and M₁ grows about tenfold. Moving them into the default
+  path therefore needs a real amendment (an F1 sub-weight split and a gate with a power condition),
+  and §12.1 now says so.
+
+The default engine path is unchanged by this amendment: 0 decision differences on all 1,350 null-set
+files, sealed 30/30, train 63/100.
+
 ## v2.5 (SIH-readiness amendment, 2026-09-17)
 
 Triggered by the engineering & SIH readiness audit (2026-09-17). Nothing measured changed at the time of amendment. The amendment **pre-registers** design decisions before implementation.

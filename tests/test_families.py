@@ -202,6 +202,55 @@ def test_f4_refuses_a_frame_with_no_code_and_a_degenerate_codeblock():
         assert not (row['log10_p'] <= r2['block_code']['log10_threshold'] and not row.get('degenerate')), row
 
 
+def _higher_mod_burst(mod, spec, rng, esn0_db=20.0, sps=4, beta=0.35):
+    import constellations as cs, interleavers as il
+    n = spec[1] * spec[2]
+    info = rng.randint(0, 2, n // 2).astype(np.uint8)
+    bits = il.interleave(conv_encode(info, stream.CODE['generators'], 7)[:n], spec)
+    syms = cs.modulate(bits, mod)
+    sig = modem.pulse_shape(syms, sps, modem.rrc_filter(beta, sps))
+    snr = esn0_db - 10 * np.log10(len(sig) / len(syms))
+    return modem.channel(sig, snr, 0.003, 0.0, 0.5, rng)[0], info
+
+
+def test_higher_modulations_are_off_by_default():
+    """EXPERIMENTAL: 8PSK/16-QAM must not be searched unless asked for, and the gates are reported."""
+    assert pipeline.SEARCH_HIGHER_MODULATIONS is False
+    rng = np.random.RandomState(51)
+    iq, _ = _higher_mod_burst('16QAM', ('block', 12, 16), rng)
+    r = pipeline.analyze_iq(iq)
+    gates = r['diagnostics']['modulation_gates']
+    assert all(not g['enabled'] and not g['searched'] for g in gates.values())
+    assert 'constant_modulus_contradiction_log10p' in gates['16QAM']       # still measured
+    assert all(h['modulation'] in pipeline.MODULATIONS for h in r['diagnostics']['top_hypotheses'])
+    assert r['modulation'] in (None,) + pipeline.MODULATIONS
+
+
+def test_higher_modulations_decode_when_enabled():
+    rng = np.random.RandomState(41)
+    for mod in ('8PSK', '16QAM'):
+        iq, info = _higher_mod_burst(mod, ('block', 12, 16), rng)
+        r = pipeline.analyze_iq(iq, search_higher_modulations=True)
+        assert r['status'] == 'DECODED' and r['modulation'] == mod, (mod, r['status'])
+        assert r['interleaver'] == [12, 16] and _ber(r['payload_bits'], info) < 0.01
+
+
+def test_eighth_power_estimators_are_what_8psk_needs():
+    """8PSK: y^4 and x^4 are data-dependent, so the q4/order-4 estimators cannot see it."""
+    rng = np.random.RandomState(41)
+    iq, _ = _higher_mod_burst('8PSK', ('block', 12, 16), rng, esn0_db=26.0)
+    table = pipeline._sps_table(iq, higher=True)
+    assert max(table, key=lambda r: r['q8'])['sps'] == 4          # the true symbol rate
+    assert max(table, key=lambda r: r['q4'])['sps'] != 4          # q4 ranks it nowhere
+    assert 4 in pipeline._sps_candidates(table, 4.0, higher=True)
+    low, _ = pipeline._cfo_candidates(iq, orders=(2, 4))
+    high, _ = pipeline._cfo_candidates(iq, orders=(2, 4, 8))
+    # The x^8 line locates the carrier; x^2/x^4 are off by ~10^-3 cycles/sample, which is enough to
+    # rotate a burst out of coherence.
+    assert min(abs(c['cfo'] - 0.003) for c in high) < 1e-4
+    assert min(abs(c['cfo'] - 0.003) for c in low) > 1e-3
+
+
 def test_family_bars_are_the_pre_registered_weights():
     """The weights are pre-registered (§13.1) and the bars must follow α·w/M, not a tuned constant."""
     assert pipeline.FAMILY_WEIGHTS == {'F1_burst_code': 0.50, 'F2_stream_code': 0.10,

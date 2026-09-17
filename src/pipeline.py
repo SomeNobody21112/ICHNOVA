@@ -33,6 +33,7 @@ import interleavers
 import stream
 import framing
 import blockcode
+import constellations
 
 # ---- Receiver search domain: a front-end specification, independent of any dataset ----
 SPS_RANGE = (2, 20)     # integer samples/symbol → symbol rates fs/20 … fs/2
@@ -47,7 +48,17 @@ ACCEPT_SEARCH = 20      # significant hypotheses examined by the structural chec
 # on the odd-indexed ones): wrong-structure accepts 39/225 -> 2/225, wrong-hypothesis 5 -> 0.
 BL_DELTA_SYMBOLS = 1.7  # 99th pct shortfall of correct hypotheses' coverage vs transmission span
 PM_FLOOR = 0.926        # 99th pct of top-1 soft path metric on calibration null files
-MODULATIONS = ('BPSK', 'QPSK')
+MODULATIONS = ('BPSK', 'QPSK')          # always searched
+GATED_MODULATIONS = ('8PSK', '16QAM')   # catalogue v1 §12.1, gated and OFF BY DEFAULT — see below
+# EXPERIMENTAL (Constitution §24): searching 8PSK and 16-QAM is implemented and gated, but it is not
+# in the default path. Measured cost of enabling it (reports/SIH_READINESS_EXECUTION.md, Phase 10
+# step 5): on a weak or short burst the QPSK y⁴ signature is not significant because the capture is
+# weak, so the gate opens on captures that carry no higher-modulation evidence, M₁ grows from ~25,000
+# to ~245,000, and the tightened bar cost bench-v1 sealed 5 of 30 files, one null file was falsely
+# accepted (1/900) and one K5 file was decoded wrongly. Putting it in the default path needs a
+# Constitution amendment (an F1 sub-weight split and a gate with a power condition), so until then
+# the default engine searches BPSK/QPSK only and every guarantee in §18–§19 refers to that path.
+SEARCH_HIGHER_MODULATIONS = False
 INTERLEAVER_TYPES = interleavers.TYPES   # block, diagonal, Forney convolutional, LTE QPP (§12.1)
 # Pre-registered acceptance-family weights (Constitution v2.5 §13.1; amendment only, never fitted).
 # A family's per-hypothesis bar is p <= ALPHA * weight / M_family, and the weights sum to 1, so the
@@ -81,13 +92,17 @@ def rrc_filter(beta, sps):
 
 
 def analyze_iq(iq, fs=None, _oracle=None, _top_k=5, _keep_bits=False, _all_hypotheses=False,
-               fs_source=None):
+               fs_source=None, search_higher_modulations=None):
     """Blind analysis of complex baseband samples.
 
     `fs` is the absolute sample rate in Hz, or None when it is not known. Every decision is made
     in normalised units (samples per symbol, cycles per sample), so a missing sample rate never
     changes the verdict; it only means no absolute rate (Hz) is reported. `fs_source` records
     where fs came from (FS_SOURCES); it defaults to 'declared' when fs is given, else 'unavailable'.
+
+    `search_higher_modulations` turns the EXPERIMENTAL 8PSK / 16-QAM search on for this call
+    (default: SEARCH_HIGHER_MODULATIONS, i.e. off). With it off, the gates are still measured and
+    reported in diagnostics.modulation_gates, and no hypothesis of those modulations is tested.
 
     `_oracle` is evaluation-only (eval/ladder.py): ground-truth values that replace the
     corresponding estimates (keys: modulation, sps, cfo, beta, timing_offset, phase,
@@ -99,6 +114,8 @@ def analyze_iq(iq, fs=None, _oracle=None, _top_k=5, _keep_bits=False, _all_hypot
     fs_source = fs_source or ('declared' if fs is not None else 'unavailable')
     if fs_source not in FS_SOURCES:
         raise ValueError(f'fs_source must be one of {FS_SOURCES}')
+    higher = (SEARCH_HIGHER_MODULATIONS if search_higher_modulations is None
+              else bool(search_higher_modulations))
     timers = dict.fromkeys(['cfo', 'sps', 'matched_filter', 'syndrome_search',
                             'viterbi', 'scoring', 'stream_search', 'frame_search',
                             'block_code_search'], 0.0)
@@ -110,20 +127,25 @@ def analyze_iq(iq, fs=None, _oracle=None, _top_k=5, _keep_bits=False, _all_hypot
     n = np.arange(len(iq))
 
     t = time.perf_counter()
-    cfo_cands, detection_log10p = _cfo_candidates(iq)
+    cfo_cands, detection_log10p = _cfo_candidates(iq, orders=(2, 4, 8) if higher else (2, 4))
     cfo_list = [float(o['cfo'])] if 'cfo' in o else [c['cfo'] for c in cfo_cands]
     timers['cfo'] += time.perf_counter() - t
 
     t = time.perf_counter()
-    sps_table = _sps_table(iq)
+    sps_table = _sps_table(iq, higher=higher)
     # Always in normalised units: welch's frequency grid in Hz rounds differently at the band edges
     # (e.g. the Nyquist bin), which made the candidate set depend on the declared rate.
     raw_rate, _ = estimate_symbol_rate(iq, 1.0, SPS_RANGE)
     raw_sps = 1.0 / raw_rate
-    sps_list = [int(o['sps'])] if 'sps' in o else _sps_candidates(sps_table, raw_sps)
+    sps_list = [int(o['sps'])] if 'sps' in o else _sps_candidates(sps_table, raw_sps, higher=higher)
     timers['sps'] += time.perf_counter() - t
     mods = [o['modulation']] if 'modulation' in o else list(MODULATIONS)
+    # The modulation gates are decided once per capture, on the symbol stream of the strongest
+    # symbol-rate candidate (see _modulation_gates), not per front end.
     beta = float(o.get('beta', RX_BETA))
+    gates = _modulation_gates(iq, sps_table, cfo_list, beta, higher)
+    gated_mods = ([] if 'modulation' in o or not higher
+                  else [m for m in GATED_MODULATIONS if gates[m]['searched']])
 
     fronts, rejected_serial = [], 0
     hyp_parts, spec_ids = [], {}
@@ -136,16 +158,26 @@ def analyze_iq(iq, fs=None, _oracle=None, _top_k=5, _keep_bits=False, _all_hypot
             if len(y) < MIN_SYMBOLS:
                 continue
             span = _front_end_evidence(y)
-            for mod in mods:
-                phase = float(o['phase']) if 'phase' in o else estimate_carrier_phase(y, mod)
-                ys = y * np.exp(-1j * phase)
-                S, N = symbol_snr_m2m4(ys)
+            for mod in mods + gated_mods:
+                higher = mod in GATED_MODULATIONS
+                if higher:
+                    phase = constellations.carrier_phase(y, mod)
+                    ys = y * np.exp(-1j * phase)
+                    S, N = constellations.symbol_snr(ys, mod)
+                else:
+                    phase = float(o['phase']) if 'phase' in o else estimate_carrier_phase(y, mod)
+                    ys = y * np.exp(-1j * phase)
+                    S, N = symbol_snr_m2m4(ys)
                 # QPSK: rotations 0 and π/2; π and 3π/2 only complement all bits, which
                 # every parity check of the catalogue codes (odd-weight generators) ignores.
-                rots = [0.0] if (mod == 'BPSK' or 'phase' in o) else [0.0, np.pi / 2]
+                # 8PSK and 16-QAM have no such symmetry, so every rotation of the mapping is a
+                # separate hypothesis (constellations.ROTATIONS).
+                rots = (list(constellations.ROTATIONS[mod]) if higher else
+                        [0.0] if (mod == 'BPSK' or 'phase' in o) else [0.0, np.pi / 2])
                 for rot in rots:
                     t = time.perf_counter()
-                    llrs = psk_llrs(ys * np.exp(-1j * rot), mod, S, N)
+                    llrs = (constellations.llrs(ys * np.exp(-1j * rot), mod, S, N) if higher
+                            else psk_llrs(ys * np.exp(-1j * rot), mod, S, N))
                     # The syndrome null needs serially independent hard decisions. A front end that
                     # oversamples the signal (sps too small) repeats each symbol, which biases short
                     # parity checks: at 2x oversampling every second neighbouring pair is the same
@@ -157,7 +189,7 @@ def analyze_iq(iq, fs=None, _oracle=None, _top_k=5, _keep_bits=False, _all_hypot
                     # against 1/2, and testing against 1/2 therefore discarded the *coherent* front
                     # end of a framed stream and kept an off-frequency one (whose polarity flips in
                     # segments). Measured in reports/SIH_READINESS_EXECUTION.md (Phase 10 step 3).
-                    step = 1 if mod == 'BPSK' else 2
+                    step = constellations.BITS_PER_SYMBOL[mod]
                     same = np.count_nonzero((llrs[step:] < 0) == (llrs[:-step] < 0))
                     n_pairs = len(llrs) - step
                     if float(np.log10(max(bdtrc(same - 1, n_pairs, SERIAL_AGREEMENT_MAX), 1e-300))
@@ -220,7 +252,7 @@ def analyze_iq(iq, fs=None, _oracle=None, _top_k=5, _keep_bits=False, _all_hypot
             'mdl_savings_bits': float(n_steps - dec['soft_disagreement_nats'] / np.log(2) - np.log2(M)),
             'uncoded_mdl_savings_bits': 0.0,
             'active_symbols': fr['active_symbols'],
-            'covered_symbols': dec['covered_bits'] / (1 if fr['modulation'] == 'BPSK' else 2),
+            'covered_symbols': dec['covered_bits'] / constellations.BITS_PER_SYMBOL[fr['modulation']],
             'bpsk_presence_log10p': fr['bpsk_presence_log10p'],
             'bpsk_contradiction_log10p': fr['bpsk_contradiction_log10p'],
             '_decoded_bits': dec['decoded_bits'],
@@ -391,6 +423,7 @@ def analyze_iq(iq, fs=None, _oracle=None, _top_k=5, _keep_bits=False, _all_hypot
         'modulation_stats': [_modulation_stat(r) for r in sps_table if r['sps'] in sps_list],
         'top_hypotheses': top, 'runner_up_margin_log10': runner_margin,
         'n_front_ends': len(fronts), 'front_ends_rejected_serial_dependence': rejected_serial,
+        'modulation_gates': gates,
         'timers_s': timers,
     }
     if _all_hypotheses and M:
@@ -627,6 +660,36 @@ def _structural_rejection(d):
     return None
 
 
+def _modulation_gates(iq, sps_table, cfo_list, beta, enabled=False):
+    """Which catalogue modulations beyond BPSK/QPSK this capture may search (§12.1).
+
+    8PSK is searched only when the QPSK y^4 signature is NOT significant (a significant signature
+    says the symbols are BPSK or QPSK, so an 8PSK hypothesis is contradicted), and 16-QAM only when
+    constant modulus IS contradicted. Both statistics are free of the carrier phase.
+
+    The decision is made **once per capture**, on the symbol stream of the strongest symbol-rate
+    candidate (largest y^4 lag-1 correlation) at the strongest CFO candidate. Gating per front end
+    was measured to be wrong: at a wrong sps the matched-filter output is not the symbol stream, its
+    y^4 signature is not significant and its amplitudes are spread by ISI, so both gates open on
+    aliases of a plain QPSK capture. That multiplied M1 by about ten and cost bench-v1 sealed
+    11 of 30 files (reports/SIH_READINESS_EXECUTION.md, Phase 10 step 5)."""
+    log_alpha = float(np.log10(ALPHA))
+    out = {m: {'searched': False, 'enabled': enabled} for m in GATED_MODULATIONS}
+    if not sps_table or not cfo_list:
+        return out
+    best = max(sps_table, key=lambda r: r['q4'])
+    y = matched_filter_demod(iq * np.exp(-2j * np.pi * cfo_list[0] * np.arange(len(iq))),
+                             rrc_filter(beta, best['sps']), best['sps'])
+    sig = constellations.qpsk_signature_log10p(y)
+    cm = constellations.constant_modulus_contradiction_log10p(y)
+    return {'8PSK': {'searched': bool(sig > log_alpha) and enabled, 'enabled': enabled,
+                     'qpsk_signature_log10p': sig, 'sps': best['sps'],
+                     'gate': 'searched unless the QPSK y^4 signature is significant'},
+            '16QAM': {'searched': bool(cm <= log_alpha) and enabled, 'enabled': enabled,
+                      'constant_modulus_contradiction_log10p': cm, 'sps': best['sps'],
+                      'gate': 'searched only when constant modulus is contradicted'}}
+
+
 def _front_end_evidence(y):
     """Per-front-end evidence logged for acceptance rules.
 
@@ -687,16 +750,20 @@ def _decode_both_polarities(llrs, code, spec):
     return dict(best, flip=np.pi if best is b else 0.0)
 
 
-def _cfo_candidates(iq, pad=16):
+def _cfo_candidates(iq, pad=16, orders=(2, 4)):
     """CFO candidates from spectral lines of x² (BPSK) and x⁴ (BPSK and QPSK).
 
     For noise, unpadded periodogram bins in the band are ~Exp(mean floor); floor is
     estimated as median/ln2. A peak of ratio γ over B band bins has
-    p = P(max of B Exp(1) ≥ γ) = 1 − (1 − e^−γ)^B, Bonferroni-doubled for the two spectra.
-    Returns (candidates sorted by p, detection log10 p of the strongest line)."""
+    p = P(max of B Exp(1) ≥ γ) = 1 − (1 − e^−γ)^B, Bonferroni-corrected over the spectra used.
+    Returns (candidates sorted by p, detection log10 p of the strongest line).
+
+    With the EXPERIMENTAL higher modulations enabled, x⁸ is added: for 8PSK the x² and x⁴ lines are
+    data-dependent (s⁴ = ±1), so the carrier offset of an 8PSK capture is not among the candidates
+    and no coherent front end is ever built. x⁸ is data-free for 8PSK."""
     N = len(iq)
     cands = []
-    for order in (2, 4):
+    for order in orders:
         x = iq ** order
         band = order * CFO_MAX
         f = np.fft.fftfreq(N)
@@ -714,7 +781,8 @@ def _cfo_candidates(iq, pad=16):
             p = -np.expm1(B * np.log1p(-np.exp(-ratio)))
             cands.append({'cfo': float(fp[k] / order), 'order': order,
                           'peak_to_floor_db': float(10 * np.log10(ratio)),
-                          'log10_p': float(min(np.log10(max(p, 1e-300)) + np.log10(2), 0.0))})
+                          'log10_p': float(min(np.log10(max(p, 1e-300))
+                                              + np.log10(len(orders)), 0.0))})
     cands.sort(key=lambda c: c['log10_p'])
     merged = []
     for c in cands:   # x² and x⁴ lines of one BPSK signal give the same CFO
@@ -723,25 +791,39 @@ def _cfo_candidates(iq, pad=16):
     return merged, (merged[0]['log10_p'] if merged else 0.0)
 
 
-def _sps_table(iq):
-    """Lag-1 correlation of y⁴ (both PSKs) and y² (BPSK only) at every sps in the domain."""
+def _sps_table(iq, higher=False):
+    """Lag-1 correlation of y⁴ (both PSKs) and y² (BPSK only) at every sps in the domain.
+
+    With the EXPERIMENTAL higher modulations enabled, q8 is added: for 8PSK, y⁴ = ±1 flips with the
+    data, so the q4 ranking never proposes the true symbol rate of an 8PSK capture (measured: the
+    correct hypothesis scores 10⁻²⁷ at the true front end, which the engine never builds). The 8th
+    power is data-free for 8PSK, exactly as y⁴ is for QPSK."""
     rows = []
     for s in range(SPS_RANGE[0], SPS_RANGE[1] + 1):
         if len(iq) // s < MIN_SYMBOLS:
             break
         y = matched_filter_demod(iq, rrc_filter(RX_BETA, s), s)
-        rows.append({'sps': s, 'n_symbols': len(iq) // s,
-                     'q4': lag1_correlation(y ** 4), 'q2': lag1_correlation(y ** 2)})
+        row = {'sps': s, 'n_symbols': len(iq) // s,
+               'q4': lag1_correlation(y ** 4), 'q2': lag1_correlation(y ** 2)}
+        if higher:
+            row['q8'] = lag1_correlation(y ** 8)
+        rows.append(row)
     return rows
 
 
-def _sps_candidates(sps_table, raw_sps):
+def _sps_candidates(sps_table, raw_sps, higher=False):
     """Best N_SPS_RANKED sps by q4, each followed by its integer divisors, then the raw
     spectral estimate. The true sps's multiples also score high, so divisors are always
-    tested; the code test decides between them."""
+    tested; the code test decides between them.
+
+    With the EXPERIMENTAL higher modulations enabled, the best candidates by q8 are added the same
+    way, because q4 cannot rank an 8PSK capture (see _sps_table)."""
     valid = {r['sps'] for r in sps_table}
     out = []
-    for r in sorted(sps_table, key=lambda r: -r['q4'])[:N_SPS_RANKED]:
+    ranked = sorted(sps_table, key=lambda r: -r['q4'])[:N_SPS_RANKED]
+    if higher:
+        ranked = ranked + sorted(sps_table, key=lambda r: -r.get('q8', 0.0))[:N_SPS_RANKED]
+    for r in ranked:
         for d in [r['sps']] + [d for d in range(r['sps'] - 1, 1, -1) if r['sps'] % d == 0]:
             if d in valid and d not in out:
                 out.append(d)

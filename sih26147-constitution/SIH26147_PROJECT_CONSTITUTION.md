@@ -3,8 +3,8 @@
 **Problem statement:** SIH26147 (Smart India Hackathon 2026; sponsor listed in the problem statement: NTRO)
 **Product:** ICHNOVA — *From noise to harmony* (blind signal analysis engine + operator console)
 **Document:** Master Project Constitution — **the single source of truth**
-**Version:** 2.5 (SIH-readiness amendment: catalogue v1 and acceptance families locked before implementation) · **Date:** 2026-09-17
-**Verified against:** branch `baseline-hardening` at `acf4201` (v2.4 text; engine code unchanged since `cb51397`); v2.5 work on branch `sih-readiness`. Baseline re-measured in `reports/AUTONOMOUS_EXECUTION_BASELINE.md`
+**Version:** 2.5.1 (status amendment: acceptance families F1–F4 implemented; §24 rows 33–36b measured; 8PSK/16-QAM EXPERIMENTAL and off by default) · **Date:** 2026-09-18
+**Verified against:** branch `sih-readiness`. v2.5 text verified against `acf4201`; the v2.5.1 status rows are measured on the engine as committed, with the default path unchanged (0 decision differences on 1,350 null-set files, sealed 30/30, train 63/100). Evidence per phase in `reports/SIH_READINESS_EXECUTION.md`
 **Supersedes:** v2.0 (research-verified, 2026-09-16), v2.1–v2.4, and every earlier plan document where they disagree (§3)
 
 > **v2.5 in one paragraph.** The engineering audit (2026-09-17) found that most explicit SIH26147 capabilities were missing: QAM, RS, concatenated coding, LDPC, three interleaver types, bit-stream correlation, sample-rate provenance. v2.5 re-prioritises the roadmap to close them (§35). It **pre-registers**, before any code or measurement, the finite catalogue to be searched (§12.1), the weighted multiple-testing families that keep the file-level false-accept bound at α = 0.01 (§13.1), the bench-v2 sealed-split policy (§18.1) and sample-rate provenance (§10). New capabilities enter §24 as **LOCKED**. They move up only with committed evidence.
@@ -209,7 +209,7 @@ The search is over a **finite, documented catalogue**, never over "all possible"
 
 | Layer | Catalogue v1 | Source of definition |
 |---|---|---|
-| Modulation | BPSK, QPSK (always searched); **8PSK**, Gray-mapped (symbol k = e^{j2πk/8}, bits = k ⊕ (k≫1), MSB first), 8 rotation hypotheses, searched when the QPSK signature (y⁴ pair test) is *not* significant; **16-QAM**, square Gray-mapped (I from bits 0–1, Q from bits 2–3, per axis 00→+1, 01→+3, 10→−1, 11→−3, scaled 1/√10), 4 rotation hypotheses, searched when constant modulus is contradicted (inner-amplitude binomial test at α) | Project definition |
+| Modulation | BPSK, QPSK (always searched); **8PSK** (EXPERIMENTAL, off by default in the engine — §24 row 34), Gray-mapped (symbol k = e^{j2πk/8}, bits = k ⊕ (k≫1), MSB first), 8 rotation hypotheses, searched when the QPSK signature (y⁴ pair test) is *not* significant; **16-QAM**, square Gray-mapped (I from bits 0–1, Q from bits 2–3, per axis 00→+1, 01→+3, 10→−1, 11→−3, scaled 1/√10), 4 rotation hypotheses, searched when constant modulus is contradicted (inner-amplitude binomial test at α) | Project definition |
 | Burst interleaver (joint with code, zero-start burst) | **Block** r×c (rows 2–16, cols 4–24; unchanged). **Diagonal** r×c, same domain (bits written row-wise into r×c, read along wrapped diagonals d = (c − r) mod C, in increasing d, rows top-down within a diagonal). **Convolutional** (Forney) B ∈ {2,3,4,6,8,12} branches × delay unit D ∈ {1,2,3,4,6,8}: input bit i on branch i mod B appears at output position i + (i mod B)·D·B; unfilled output positions are fill. **Pseudo-random**: 3GPP TS 36.212 Table 5.1.3-3 quadratic permutation polynomial (QPP) entries π(i) = (f1·i + f2·i²) mod K with K ≤ 384 (44 entries; all 188 table entries transcribed and verified to be permutations) | Block/diagonal/convolutional: project definitions of standard structures. QPP: 3GPP TS 36.212 v10.0.0 |
 | Convolutional code | Burst: K7 (171,133), K5 (23,35), K3 (7,5), rate ½ (unchanged). Continuous stream: K7 (171,133) with and without **G2 output inversion** (CCSDS 131.0-B-5 §3.3.1), both c1/c2 pairings for BPSK | CCSDS 131.0-B-5 §3 |
 | Frame synchronisation / bit-stream correlation | Catalogue markers: CCSDS ASM `1ACFFC1D` (32 bits), CCSDS 64-bit marker `034776C7272895B0` (TM rate-½/2/3/4/5 LDPC ASM and TC LDPC Start Sequence). Both polarities. Periodic markers over byte-aligned frame periods 64–16,384 bits, ≥ 2 frames. **Blind** periodic constant-field discovery for non-catalogue formats: byte-aligned periods 64–16,384 bits, window widths {16, 24, 32, 48, 64} bits, ≥ 2 frames | CCSDS 131.0-B-5 §9, CCSDS 231.0-B-4 §5.2.2 |
@@ -450,12 +450,12 @@ FSK tone-pair search: one STFT per shift class (30 s → 2.5 s on 125 s). RRC ta
 | 30 | Google sign-in | **FUNCTIONAL (prototype)** | Client-side token decode, not verified server-side | Server-side verification / on-prem IdP |
 | 31 | Signal genome similarity | **EXPERIMENTAL** | Shown with label | Validation study |
 | 32 | Monitoring network, incidents, occupancy | **SIMULATED** | `sim.ts` | Real station feeds |
-| 33 | Frame sync / bit-stream correlation, header/payload map | **LOCKED (v2.5)** | Catalogue §12.1, family F3 §13.1 | P0 |
-| 34 | 8PSK, 16-QAM identification and demodulation | **LOCKED (v2.5)** | Catalogue §12.1; 64-QAM+ not in catalogue | P0 |
-| 35 | Reed-Solomon (CCSDS, dual basis, depth I), concatenated RS + K7 | **LOCKED (v2.5)** | Catalogue §12.1, family F4 §13.1 | P0 |
-| 36 | Diagonal, convolutional and QPP pseudo-random interleavers; CCSDS TC LDPC (128,64) | **LOCKED (v2.5)** | Catalogue §12.1 | P0 |
+| 33 | Frame sync / bit-stream correlation, header/payload map | **IMPLEMENTED, measured on synthetic captures** | Family F3 in the engine: ASM found blind at P = 512 and P = 2,072 with the frame map attached; a framed stream with no code is SIGNAL_NO_CODE; noise and an idle carrier refused; M₃ counts the whole declared domain | Real framed recording (row 42) |
+| 34 | 8PSK, 16-QAM identification and demodulation | **EXPERIMENTAL — implemented, gated, OFF BY DEFAULT** (`pipeline.SEARCH_HIGHER_MODULATIONS = False`) | Primitives verified (BER < 1e-3 at 20 dB, gates separate the classes). Enabled, both decode blind: 8PSK with block, diagonal and convolutional interleavers and 16-QAM with block, all at payload BER 0 at 20 dB; development sweep 18/96 bursts at Es/N0 11–20 dB with 0 wrong decodes. Measured cost of enabling it by default: bench-v1 sealed 25/30, null false accepts 1/900, one wrong K5 decode, runtime ~20×, because the gate opens on weak captures and M₁ grows ~10× | Default path needs a Constitution amendment: F1 sub-weights plus a gate with a power condition |
+| 35 | Reed-Solomon (CCSDS, dual basis, depth I), concatenated RS + K7 | **IMPLEMENTED, measured on synthetic captures** | Encoder matches reedsolo on 28 vectors, dual basis matches Annex F. Full chain decoded blind (RS(255,223) E=16 I=1 + TM 131071 randomizer + ASM P=2,072 + inner K7): every parameter identified, 4/4 codewords, payload BER 0. Accepted on the exact tail P(≥ D decodes), never on decoder success; constant fill refused as degenerate | Real recording (row 42); bench-v2 |
+| 36 | Diagonal, convolutional and QPP pseudo-random interleavers; CCSDS TC LDPC (128,64) | **IMPLEMENTED, measured** | All four interleaver types are searched in the default path: bench-v1 sealed 30/30 and train 63/100 unchanged, null set 0/900 false accepts and 0/450 wrong decodes, wrong-structure accepts 0/225 (was 2/225 with block only), M₁ ≈ 2.4×. LDPC: H·Gᵀ = 0 and rank 64 at import; a TC LDPC CLTU decoded blind at offset 64 with 1,536/1,536 checks and payload BER 0 (polarity reported unresolved) | bench-v2 channel classes |
 | 36a | Sample-rate provenance (`fs_source`), no silent default | **LOCKED (v2.5)** | §10 | P0 |
-| 36b | Catalogue pseudo-randomizers (CCSDS TM 131071 / 255, TC BTG) | **LOCKED (v2.5)** | §12.1 | P0 |
+| 36b | Catalogue pseudo-randomizers (CCSDS TM 131071 / 255, TC BTG) | **IMPLEMENTED, verified against the standards** | Each reproduces the published first 40 bits; the randomizer is identified blind as part of an F4 hypothesis (TM 131071 on the RS chain, TC BTG on the CLTU) | — |
 | 37 | Cyclic-CAF symbol-rate estimator | **BLOCKED** | Only 5/100 train failures wait on sps | §36.1 |
 | 38 | SAGE-Lite feedback | **BLOCKED** | Needs calibrated soft score, frame sync/CRC, bench-v2 | §36.3 |
 | 39 | 2 dB QPSK rescue experiment | **PREMISE CHANGED** | Sealed 2 dB QPSK files pass; test_020/025 failures don't reproduce | Re-target at stress set |
@@ -796,6 +796,7 @@ Possible application areas (**not deployment claims**): spectrum monitoring and 
 | 2.3 | 2026-09-17 | Structural acceptance (0/900), real government transmissions, live monitor, 3–4× faster |
 | 2.4 | 2026-09-17 | Consolidated single source of truth; ICHNOVA brand; console, themes and UX rules; claims corrected; plan documents marked historical |
 | **2.5** | **2026-09-17** | **SIH-readiness amendment: catalogue v1 (§12.1), weighted acceptance families (§13.1), bench-v2 sealed policy (§18.1), fs provenance (§10), P0 re-prioritisation (§35), cloud clause (§9.2); audit conflicts C1–C9 resolved** |
+| **2.5.1** | **2026-09-18** | **Status amendment (no rule, weight or catalogue change): §24 rows 33, 35, 36, 36b move from LOCKED to IMPLEMENTED with measured evidence as families F1–F4 entered the engine; row 34 (8PSK/16-QAM) becomes EXPERIMENTAL and off by default, with the measured cost of enabling it; §12.1 marks the higher modulations as not in the default path** |
 
 Details: `SIH26147_CONSTITUTION_CHANGELOG.md`.
 
@@ -820,4 +821,4 @@ The system succeeds not when it produces an answer, but when it can show why tha
 
 ---
 
-**ICHNOVA · SIH26147 PROJECT CONSTITUTION v2.5 — COMPLETE**
+**ICHNOVA · SIH26147 PROJECT CONSTITUTION v2.5.1 — COMPLETE**
