@@ -63,12 +63,16 @@ def _build_trellis(generators, K):
 _TRELLIS_CACHE: dict = {}
 
 
-def viterbi_decode(llrs, generators, K, terminated=True):
+def viterbi_decode(llrs, generators, K, terminated=True, start='zero'):
     """Fully-vectorized soft-decision Viterbi decoder.
     llrs: soft LLRs (LLR > 0 favors bit=0).
     terminated=False: stream was cut mid-codeword (no zero tail) — keep every step.
+    start='zero': the encoder was reset at the start of the capture (a burst).
+    start='any': no reset point (a continuous stream) — every start state is equally likely.
     Returns decoded bits (trimmed of tail if terminated) as uint8 array.
     """
+    if start not in ('zero', 'any'):
+        raise ValueError(f"start must be 'zero' or 'any', got {start!r}")
     n_out = len(generators)
     n_states = 1 << (K - 1)
     n_steps = len(llrs) // n_out
@@ -83,8 +87,10 @@ def viterbi_decode(llrs, generators, K, terminated=True):
     llrs_f = llrs[:n_steps * n_out].astype(np.float32).reshape(n_steps, n_out)
     branch_metrics = np.einsum('tj,sbj->tsb', llrs_f, output_signs)  # [n_steps, n_states, 2]
 
-    metrics = np.full(n_states, -1e30, dtype=np.float32)
-    metrics[0] = 0.0
+    metrics = np.zeros(n_states, dtype=np.float32)
+    if start == 'zero':
+        metrics[:] = -1e30
+        metrics[0] = 0.0
     paths = np.empty((n_steps, n_states), dtype=np.int16)
 
     for t in range(n_steps):

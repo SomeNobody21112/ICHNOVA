@@ -29,6 +29,7 @@ from analyze import (estimate_symbol_rate, lag1_correlation, estimate_carrier_ph
 from scipy.special import bdtr, bdtrc, ndtr
 from blind_id import CODE_CATALOGUE, syndrome_scan, sign_test_log10p, decode_hypothesis, as_spec
 import interleavers
+import stream
 
 # ---- Receiver search domain: a front-end specification, independent of any dataset ----
 SPS_RANGE = (2, 20)     # integer samples/symbol → symbol rates fs/20 … fs/2
@@ -44,7 +45,12 @@ ACCEPT_SEARCH = 20      # significant hypotheses examined by the structural chec
 BL_DELTA_SYMBOLS = 1.7  # 99th pct shortfall of correct hypotheses' coverage vs transmission span
 PM_FLOOR = 0.926        # 99th pct of top-1 soft path metric on calibration null files
 MODULATIONS = ('BPSK', 'QPSK')
-INTERLEAVER_TYPES = ('block',)   # burst interleaver types searched (interleavers.TYPES)
+INTERLEAVER_TYPES = interleavers.TYPES   # block, diagonal, Forney convolutional, LTE QPP (§12.1)
+# Pre-registered acceptance-family weights (Constitution v2.5 §13.1; amendment only, never fitted).
+# A family's per-hypothesis bar is p <= ALPHA * weight / M_family, and the weights sum to 1, so the
+# union bound still gives P(any false structural claim on a file) <= ALPHA.
+FAMILY_WEIGHTS = {'F1_burst_code': 0.50, 'F2_stream_code': 0.10,
+                  'F3_frame': 0.20, 'F4_block_code': 0.20}
 
 
 FS_SOURCES = ('declared', 'wav_header', 'inferred', 'relative_only', 'unavailable')
@@ -84,7 +90,7 @@ def analyze_iq(iq, fs=None, _oracle=None, _top_k=5, _keep_bits=False, _all_hypot
     if fs_source not in FS_SOURCES:
         raise ValueError(f'fs_source must be one of {FS_SOURCES}')
     timers = dict.fromkeys(['cfo', 'sps', 'matched_filter', 'syndrome_search',
-                            'viterbi', 'scoring'], 0.0)
+                            'viterbi', 'scoring', 'stream_search'], 0.0)
     t_start = time.perf_counter()
     iq = np.asarray(iq, dtype=complex)
     if 'timing_offset' in o:   # undo the generator's fractional delay exp(-j2πfτ)
@@ -143,7 +149,7 @@ def analyze_iq(iq, fs=None, _oracle=None, _top_k=5, _keep_bits=False, _all_hypot
                     th = np.tanh(np.clip(llrs, -40, 40) / 2)
                     fi = len(fronts)
                     fronts.append({'cfo': cfo, 'sps': s, 'modulation': mod, 'phase': phase,
-                                   'rotation': rot, 'llrs': llrs,
+                                   'rotation': rot, 'llrs': llrs, 'th': th,
                                    'symbol_snr_db': float(10 * np.log10(S / N + 1e-30)), **span})
                     spec_list = ([as_spec(o['interleaver'])] if 'interleaver' in o
                                  else interleavers.candidates(len(llrs), INTERLEAVER_TYPES))
@@ -165,7 +171,7 @@ def analyze_iq(iq, fs=None, _oracle=None, _top_k=5, _keep_bits=False, _all_hypot
     specs = sorted(spec_ids, key=spec_ids.get)
     M = len(hyp['n'])
     top, best_log10p, runner_margin, rejected = [], 0.0, None, []
-    log10_threshold = float(np.log10(ALPHA / max(M, 1)))
+    log10_threshold = float(np.log10(ALPHA * FAMILY_WEIGHTS['F1_burst_code'] / max(M, 1)))
     described = {}
 
     def describe(k):
@@ -232,6 +238,10 @@ def analyze_iq(iq, fs=None, _oracle=None, _top_k=5, _keep_bits=False, _all_hypot
     if M:
         top = [describe(k) for k in order[:_top_k]]
 
+    t = time.perf_counter()
+    f2 = _stream_family(fronts)
+    timers['stream_search'] += time.perf_counter() - t
+
     signal_front = _signal_front(cfo_cands, sps_table, o)
     result = {
         'status': 'UNKNOWN', 'payload_bits': np.array([], dtype=np.uint8), 'code': None,
@@ -265,6 +275,16 @@ def analyze_iq(iq, fs=None, _oracle=None, _top_k=5, _keep_bits=False, _all_hypot
                       symbol_rate_est=_rate_hz(fs, b['sps']), symbol_rate_norm=1.0 / b['sps'],
                       cfo=b['cfo'], phase=b['phase'],
                       rotation=b['rotation'])
+    elif f2['accepted']:
+        b = f2['accepted_hypothesis']
+        fr = fronts[b['front']]
+        dec = stream.decode(fr['llrs'], b['offset'], b['g2_inverted'])
+        b.update({k: dec[k] for k in ('covered_bits', 'path_metric', 'consistency', 'polarity_flipped')})
+        result.update(status='DECODED', payload_bits=dec['decoded_bits'], code=stream.CODE_NAME,
+                      modulation=fr['modulation'], sps=fr['sps'],
+                      symbol_rate_est=_rate_hz(fs, fr['sps']), symbol_rate_norm=1.0 / fr['sps'],
+                      cfo=fr['cfo'], phase=fr['phase'],
+                      rotation=fr['rotation'] + (np.pi if dec['polarity_flipped'] else 0.0))
     elif detection_log10p <= np.log10(ALPHA) and signal_front:
         result.update(status='SIGNAL_NO_CODE', symbol_rate_est=_rate_hz(fs, signal_front['sps']),
                       symbol_rate_norm=1.0 / signal_front['sps'],
@@ -278,7 +298,19 @@ def analyze_iq(iq, fs=None, _oracle=None, _top_k=5, _keep_bits=False, _all_hypot
     result['accept'] = {'log10_p': best_log10p, 'log10_threshold': log10_threshold,
                         'n_hypotheses': M, 'alpha': ALPHA, 'accepted_hypothesis': accepted_desc,
                         'significant_but_rejected': rejected,
-                        'rules': {'bl_delta_symbols': BL_DELTA_SYMBOLS, 'pm_floor': PM_FLOOR}}
+                        'rules': {'bl_delta_symbols': BL_DELTA_SYMBOLS, 'pm_floor': PM_FLOOR},
+                        'families': [{'name': 'F1_burst_code',
+                                      'weight': FAMILY_WEIGHTS['F1_burst_code'],
+                                      'tested_hypotheses': M, 'log10_threshold': log10_threshold,
+                                      'best_log10_p': best_log10p, 'accepted': accepted},
+                                     {'name': 'F2_stream_code',
+                                      'weight': FAMILY_WEIGHTS['F2_stream_code'],
+                                      'tested_hypotheses': f2['tested_hypotheses'],
+                                      'log10_threshold': f2['log10_threshold'],
+                                      'best_log10_p': f2['best_log10_p'],
+                                      'accepted': f2['accepted']}],
+                        'interleaver_types': list(INTERLEAVER_TYPES)}
+    result['stream_code'] = {k: v for k, v in f2.items() if k != 'rows'}
     result['diagnostics'] = {
         'cfo_candidates': cfo_cands, 'detection_log10_p': float(detection_log10p),
         'raw_sps_estimate': float(raw_sps), 'sps_table': sps_table,
@@ -302,6 +334,28 @@ def analyze_iq(iq, fs=None, _oracle=None, _top_k=5, _keep_bits=False, _all_hypot
             'log10_p': [float(v) for v in log10p]}
     result['runtime'] = time.perf_counter() - t_start
     return result
+
+
+def _stream_family(fronts):
+    """Family F2: the continuous-stream sign test over every front end (stream.py).
+
+    M2 counts every (front end x pair offset x G2 inversion) hypothesis tested, and the bar is
+    ALPHA * w(F2) / M2 (Constitution v2.5 Section 13.1). The best hypothesis is accepted on the sign
+    test alone, as pre-registered; the front end it belongs to has already passed the serial-
+    independence check that the null model needs."""
+    rows = []
+    for i, fr in enumerate(fronts):
+        for row in stream.scan(fr['th'], fr['modulation']):
+            rows.append({'front': i, 'sps': fr['sps'], 'cfo': fr['cfo'],
+                         'modulation': fr['modulation'], **row})
+    M2 = len(rows)
+    bar = float(np.log10(ALPHA * FAMILY_WEIGHTS['F2_stream_code'] / max(M2, 1)))
+    best = min(rows, key=lambda r: r['log10_p']) if rows else None
+    acc = best if best is not None and best['log10_p'] <= bar else None
+    return {'code': stream.CODE_NAME, 'tested_hypotheses': M2, 'log10_threshold': bar,
+            'best_log10_p': best['log10_p'] if best else 0.0, 'accepted': acc is not None,
+            'accepted_hypothesis': acc,
+            'top': sorted(rows, key=lambda r: r['log10_p'])[:5], 'rows': rows}
 
 
 def _rate_hz(fs, sps):

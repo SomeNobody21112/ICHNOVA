@@ -153,7 +153,7 @@ def correct_decode(row):
 def _top_is_true(r):
     t = r['top1']
     return (t is not None and r['interleaver'] is not None and CODE_LABEL.get(t['code']) == r['class']
-            and list(t['interleaver']) == list(r['interleaver']))
+            and list(t['interleaver'] or []) == list(r['interleaver'] or []))
 
 
 def report():

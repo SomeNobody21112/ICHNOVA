@@ -153,3 +153,62 @@ the reference baseline exactly, except `uncoded_qpsk` → UNKNOWN 122/150 where 
 table records 121/150 (one file also differs from the earlier run in the `.venv` baseline rows: the
 pre-refactor and post-refactor runs here agree on all 1,350). Treated as a platform difference in a
 single borderline file; it is not a decision change of this commit.
+
+## Phase 10 (step 2) — F1 at the weighted bar with all four interleaver types, and F2 wired in
+
+**Changed**
+- `src/pipeline.py`:
+  - `INTERLEAVER_TYPES = interleavers.TYPES` — block, diagonal, Forney convolutional and LTE QPP are
+    now all searched (catalogue v1, §12.1);
+  - `FAMILY_WEIGHTS` holds the pre-registered §13.1 weights; the F1 bar is now
+    `α·0.50 / M₁` instead of `α / M₁`;
+  - `accept.families` lists each family with its weight, tested hypotheses, bar, best p and verdict;
+    `accept.interleaver_types` records what was searched;
+  - family F2 runs after the burst family, and a file whose F1 family accepts nothing but whose F2
+    family does is DECODED as a continuous stream (`result.stream_code` carries the evidence).
+- `src/stream.py` (new) — family F2: the dual-code sign test applied directly to the stream, for pair
+  offset × G2 inversion. Because g1 = 0o171 has odd weight, inverting every c2 bit negates every
+  check, so the inverted hypothesis is the lower tail of the same count (no second pass) — both are
+  counted in M₂. `decode` uses an unknown start state and resolves polarity by path metric.
+- `src/fec.py`: `viterbi_decode(..., start='zero'|'any')`. The default is unchanged (`'zero'`);
+  `'any'` initialises every start state at 0 for a continuous stream with no reset point.
+- `eval/nullset.py`, `eval/acceptance.py`: a top hypothesis with a non-block interleaver has
+  `interleaver = None`, which these comparisons now handle.
+
+**Measured**
+
+| Gate | Before (block only, α/M₁) | After (4 types, 0.5·α/M₁) |
+|---|---|---|
+| bench-v1 sealed | 30/30, 0 FA | **30/30, 0 FA** |
+| bench-v1 train | 63/100, 0 FA | **63/100, 0 FA** |
+| Null set false accepts | 0/900 | **0/900** |
+| Null set correct K7/K5/K3 | 61/37/31 | **61/37/31** |
+| Noise → SIGNAL_NO_CODE | 21/500 (4.2%) | 21/500 (4.2%) — Phase 11 |
+| Mean hypotheses M₁ per file (null set) | 9,206–11,986 | 18,530–27,780 (≈2.4×) |
+| Mean runtime per null file | 0.11–0.13 s | 0.18–0.26 s; whole null set 24 s → 35 s |
+
+**The expected recall loss did not appear.** §13.1 note 3 predicted that halving the F1 budget and
+growing M₁ would cost bench-v1 recall. It cost none: the accepted hypotheses on these files are far
+below the bar (a 1-decade change in the bar is small next to their p-values), so no file crossed it.
+Reported, not tuned — nothing was adjusted to obtain this.
+
+**Wrong-structure null with the new interleaver types** (`eval/acceptance.py`, 1,350 null + 450
+wrong-structure runs; the true interleaver is removed so any accept is wrong), evaluation split:
+
+| Rule | Recall | Wrong-hypothesis | Null false accepts | Wrong-structure accepts |
+|---|---|---|---|---|
+| R0 (sign test only) | 0.311 | 4/225 | 1/450 | 37/225 |
+| **R0+MC+BL+PM (adopted)** | **0.320** | **0/225** | **0/450** | **0/225 (≤1.7%)** |
+
+Three more interleaver families therefore did **not** buy wrong-structure accepts (v2.5 measured
+2/225 with block only; this run gives 0/225 at the same recall). The R0-only sweep on the null set is
+also unchanged (τ = −2: 4 null accepts vs 6 before).
+
+**Not adopted:** this run's calibration split recomputes the path-metric floor as 0.959 against the
+shipped `PM_FLOOR = 0.926`. The shipped constant is left alone — changing it needs a Constitution
+amendment (§13, §46), and re-fitting it here would tune on data the rule is being judged on.
+
+**Tests** — `tests/test_families.py` (new, 4 tests): `start='any'` decodes a mid-stream cut that
+`start='zero'` cannot; a continuous K7 stream is accepted and decoded at BER 0 with and without G2
+inversion; noise and an uncoded stream are refused with the family bar shown; every family's bar
+equals α·w/M with the pre-registered weights. Full suite: **55 passed**.

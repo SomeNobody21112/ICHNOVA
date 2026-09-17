@@ -63,7 +63,7 @@ def run_one(job):
         bits = h.pop('decoded_bits')
         h['correct'] = bool(kind != 'wrongnull' and true_code is not None
                             and CODE_LABEL[h['code']] == true_code
-                            and list(h['interleaver']) == list(gt['interleaver'] or [])
+                            and list(h['interleaver'] or []) == list(gt['interleaver'] or [])
                             and _ber(bits, gt['original_bits']) < 0.01)
         tops.append({k: h[k] for k in ('code', 'interleaver', 'modulation', 'sps', 'log10_p',
                                        'path_metric', 'covered_symbols', 'active_symbols',
