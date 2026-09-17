@@ -84,3 +84,24 @@ def test_interleavers_round_trip_and_qpp_table():
         assert np.array_equal(s[il.deinterleave_index(spec, len(s))], c)
     c = rng.integers(0, 2, 200); s = il.interleave(c, ('conv', 4, 3))
     assert np.array_equal(s[il.deinterleave_index(('conv', 4, 3), len(s))], c)
+
+
+def test_8psk_16qam_demapping_and_modulation_gates():
+    import constellations as cs, modem
+    rng = np.random.default_rng(2)
+    for mod in ('8PSK', '16QAM'):
+        bits = rng.integers(0, 2, cs.BITS_PER_SYMBOL[mod] * 3000).astype(np.uint8)
+        s = cs.modulate(bits, mod)
+        assert abs(np.mean(abs(s) ** 2) - 1) < 0.03
+        N = 10 ** (-2.0)                                   # Es/N0 20 dB, phase offset 0.3 rad
+        y = s * np.exp(0.3j) + np.sqrt(N / 2) * (rng.standard_normal(len(s)) + 1j * rng.standard_normal(len(s)))
+        ph, (S, Nn) = cs.carrier_phase(y, mod), cs.symbol_snr(y, mod)
+        ber = min(np.mean((cs.llrs(y * np.exp(-1j * (ph + r)), mod, S, Nn) < 0) != bits) for r in cs.ROTATIONS[mod])
+        assert ber < 1e-3, (mod, ber)
+        gate = cs.constant_modulus_contradiction_log10p(y)
+        assert (gate < -10) if mod == '16QAM' else (gate > -2)
+        if mod == '8PSK':
+            assert cs.qpsk_signature_log10p(y) > -2
+    q = modem.modulate(rng.integers(0, 2, 6000).astype(np.uint8), 'QPSK')
+    y = q + 0.1 * (rng.standard_normal(len(q)) + 1j * rng.standard_normal(len(q)))
+    assert cs.qpsk_signature_log10p(y) < -10 and cs.constant_modulus_contradiction_log10p(y) > -2
