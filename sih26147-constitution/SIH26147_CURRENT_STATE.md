@@ -12,7 +12,7 @@
 | bench-v1 train | 63/100, 0 false accepts, ~4.4 s | §18 |
 | Null set, 900 non-catalogue files | 0 false accepts (95% upper bound 0.43%) | §19 |
 | Null set, 450 coded files | 0 wrong decodes | §19 |
-| Wrong-structure null (held-out split) | 2/225 = 0.9% | §19 |
+| Wrong-structure null (evaluation split of the null-set generator) | 2/225 = 0.9% | §19 |
 | Real time codes decoded blind | JJY, DCF77, MSF, WWV; GPS agreement +1.9 to +23.4 ms; WWVB time refused | §22 |
 | Real FSK text | DWD DDH47, 50 Bd / 85 Hz ITA2, p = 10^-241 | §22 |
 | AIR medium wave | 5/5 carriers matched to Prasar Bharati's official list | §22 |

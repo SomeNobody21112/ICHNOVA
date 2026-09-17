@@ -160,7 +160,7 @@ Novelty classification:
 
 - "An integrated blind signal analysis system combining established DSP with a novel cross-layer feedback architecture"
 - "Indigenous, auditable, air-gap-compatible"
-- "93% blind payload recovery on sealed held-out synthetic benchmark" (measured)
+- ~~"93% blind payload recovery on sealed held-out synthetic benchmark" (measured)~~ — **WITHDRAWN (Constitution v2.4 §37.4, re-confirmed v2.5):** the sealed set was used during development, so it is not held-out; the figure also predates structural acceptance. Kept here only as a record of what v2.0 allowed.
 - "Bridges a gap in the literature between blind FEC identification and code-aided synchronization"
 - "'Decoding as a Sensor' — a novel design principle for blind receivers"
 

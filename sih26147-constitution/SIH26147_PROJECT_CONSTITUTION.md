@@ -3,9 +3,11 @@
 **Problem statement:** SIH26147 (Smart India Hackathon 2026; sponsor listed in the problem statement: NTRO)
 **Product:** ICHNOVA — *From noise to harmony* (blind signal analysis engine + operator console)
 **Document:** Master Project Constitution — **the single source of truth**
-**Version:** 2.4 (complete, code-verified) · **Date:** 2026-09-17
-**Verified against:** branch `baseline-hardening` at `cb51397` (PR #2, CI green); `main` at `d5c557f`
-**Supersedes:** v2.0 (research-verified, 2026-09-16), v2.1–v2.3 amendments, and every earlier plan document where they disagree (§3)
+**Version:** 2.5 (SIH-readiness amendment: catalogue v1 and acceptance families locked before implementation) · **Date:** 2026-09-17
+**Verified against:** branch `baseline-hardening` at `acf4201` (v2.4 text; engine code unchanged since `cb51397`); v2.5 work on branch `sih-readiness`. Baseline re-measured in `reports/AUTONOMOUS_EXECUTION_BASELINE.md`
+**Supersedes:** v2.0 (research-verified, 2026-09-16), v2.1–v2.4, and every earlier plan document where they disagree (§3)
+
+> **v2.5 in one paragraph.** The engineering audit (2026-09-17) found that most explicit SIH26147 capabilities were missing: QAM, RS, concatenated coding, LDPC, three interleaver types, bit-stream correlation, sample-rate provenance. v2.5 re-prioritises the roadmap to close them (§35). It **pre-registers**, before any code or measurement, the finite catalogue to be searched (§12.1), the weighted multiple-testing families that keep the file-level false-accept bound at α = 0.01 (§13.1), the bench-v2 sealed-split policy (§18.1) and sample-rate provenance (§10). New capabilities enter §24 as **LOCKED**. They move up only with committed evidence.
 
 ---
 
@@ -46,6 +48,9 @@ This document defines, in one place: what the project solves, how the engine wor
 | `reports/RESEARCH_LANDSCAPE.md` | Products and literature with sources | Evidence |
 | `reports/TECH_STACK.md` | Stack, user flows, workflows | Reference |
 | `reports/data/` | Raw evidence (JSON, ladders, null-set tables) | Evidence |
+| `reports/AUTONOMOUS_EXECUTION_BASELINE.md` | Re-measured baseline before the v2.5 work | Evidence |
+| `reports/SIH_READINESS_EXECUTION.md` | v2.5 execution log: what was built, measured, failed, deferred | Evidence (updated per phase) |
+| `references/` | Transcribed normative constants (QPP table, CCSDS vectors) with their source documents | Reference data |
 | `PROGRESS.md` | Session-by-session engineering log | History |
 | `SIH26147_EXECUTION_ROADMAP.md`, `SIH26147_2DB_QPSK_RESCUE_EXPERIMENT.md` | v2.0 plan built on the 28/30 baseline and consistency acceptance | **HISTORICAL** — premise changed (§35) |
 | `SIH26147_NOVELTY_AUDIT.md`, `SIH26147_RESEARCH_FRONTIER.md` | v2.0 literature audit and research directions | Reference; claims constrained by §37, priorities by §35 |
@@ -136,7 +141,7 @@ A figure without a label must not be shown. Simulated data must never be describ
 | # | Constraint |
 |---|---|
 | 9.1 | **CPU only.** No GPU prerequisite. |
-| 9.2 | **Air-gap compatible engine.** No cloud, API or network dependency for analysis. (Public-receiver live reception and Google sign-in are optional console features; the engine and offline replays work without them.) |
+| 9.2 | **Air-gap compatible engine.** No cloud, API or network dependency for analysis. (Public-receiver live reception and Google sign-in are optional console features; the engine and offline replays work without them.) **v2.5:** any other cloud integration (e.g. a CRM) may only consume exported evidence one way, may never be required for an analysis, and needs its own amendment. None is approved. |
 | 9.3 | **Reproducible.** Every experiment records data, code version, configuration, seed, estimates, metrics, runtime and failures. Datasets regenerate byte-identically from seed. |
 | 9.4 | **Auditable.** Every decision carries its test statistic, threshold, hypothesis count and rejected alternatives. |
 | 9.5 | **Do not modify `src/generate.py`.** |
@@ -156,7 +161,7 @@ A figure without a label must not be shown. Simulated data must never be describ
 | Item | Specification |
 |---|---|
 | Input | `.iq` interleaved float32 I/Q; `.wav` int16 stereo I/Q (`src/modem.py::load_iq`, `load_wav`) |
-| Told to the engine | Sample rate (and, for real signals, the tuned frequency) |
+| Told to the engine | Sample rate when known (and, for real signals, the tuned frequency). **v2.5:** every result records `fs_source` ∈ {`declared`, `wav_header`, `inferred`, `relative_only`, `unavailable`}. A missing sample rate must never silently become a default. Without one, the engine works in normalised units (samples per symbol, cycles per sample), reports "Absolute sample rate not established", and does not print absolute Hz values |
 | Not told | Modulation, symbol rate, carrier offset, timing, roll-off, code, interleaver, framing, polarity, station, protocol |
 | Output | `DECODED` · `SIGNAL_NO_CODE` · `UNKNOWN`, plus payload (when decoded) and a full evidence record |
 | Families (PSK engine) | BPSK, QPSK; convolutional rate-½ K7 (171,133), K5, K3; single block interleaver; uncoded |
@@ -198,6 +203,24 @@ Every assumption is **declared**, not hidden. Out-of-domain behaviour is unteste
 | Pulse | Root-raised cosine | Declared |
 | Significance | α = 0.01 family-wise (Bonferroni) | Declared |
 
+### 12.1 Catalogue v1 (LOCKED in v2.5; pre-registered before implementation)
+
+The search is over a **finite, documented catalogue**, never over "all possible" structures. Items not listed are out of domain and are reported as such.
+
+| Layer | Catalogue v1 | Source of definition |
+|---|---|---|
+| Modulation | BPSK, QPSK (always searched); **8PSK**, Gray-mapped (symbol k = e^{j2πk/8}, bits = k ⊕ (k≫1), MSB first), 8 rotation hypotheses, searched when the QPSK signature (y⁴ pair test) is *not* significant; **16-QAM**, square Gray-mapped (I from bits 0–1, Q from bits 2–3, per axis 00→+1, 01→+3, 10→−1, 11→−3, scaled 1/√10), 4 rotation hypotheses, searched when constant modulus is contradicted (inner-amplitude binomial test at α) | Project definition |
+| Burst interleaver (joint with code, zero-start burst) | **Block** r×c (rows 2–16, cols 4–24; unchanged). **Diagonal** r×c, same domain (bits written row-wise into r×c, read along wrapped diagonals d = (c − r) mod C, in increasing d, rows top-down within a diagonal). **Convolutional** (Forney) B ∈ {2,3,4,6,8,12} branches × delay unit D ∈ {1,2,3,4,6,8}: input bit i on branch i mod B appears at output position i + (i mod B)·D·B; unfilled output positions are fill. **Pseudo-random**: 3GPP TS 36.212 Table 5.1.3-3 quadratic permutation polynomial (QPP) entries π(i) = (f1·i + f2·i²) mod K with K ≤ 384 (44 entries; all 188 table entries transcribed and verified to be permutations) | Block/diagonal/convolutional: project definitions of standard structures. QPP: 3GPP TS 36.212 v10.0.0 |
+| Convolutional code | Burst: K7 (171,133), K5 (23,35), K3 (7,5), rate ½ (unchanged). Continuous stream: K7 (171,133) with and without **G2 output inversion** (CCSDS 131.0-B-5 §3.3.1), both c1/c2 pairings for BPSK | CCSDS 131.0-B-5 §3 |
+| Frame synchronisation / bit-stream correlation | Catalogue markers: CCSDS ASM `1ACFFC1D` (32 bits), CCSDS 64-bit marker `034776C7272895B0` (TM rate-½/2/3/4/5 LDPC ASM and TC LDPC Start Sequence). Both polarities. Periodic markers over byte-aligned frame periods 64–16,384 bits, ≥ 2 frames. **Blind** periodic constant-field discovery for non-catalogue formats: byte-aligned periods 64–16,384 bits, window widths {16, 24, 32, 48, 64} bits, ≥ 2 frames | CCSDS 131.0-B-5 §9, CCSDS 231.0-B-4 §5.2.2 |
+| Pseudo-randomizer (scrambler) | None; CCSDS TM 131071-bit h(x) = x¹⁷+x¹⁴+1, seed `11000111000111000`; CCSDS TM legacy 255-bit h(x) = x⁸+x⁷+x⁵+x³+1, all-ones seed; CCSDS TC BTG h(x) = x⁸+x⁶+x⁴+x³+x²+x+1, all-ones seed. Each checked against the first 40 published bits | CCSDS 131.0-B-5 §10, CCSDS 231.0-B-4 §6 |
+| Reed-Solomon | CCSDS RS(255,223) E = 16 and RS(255,239) E = 8 over GF(2⁸), F(x) = x⁸+x⁷+x²+x+1, g(x) = Π(x − α^{11j}), j = 128−E … 127+E, **dual-basis** symbols (Annex F matrices), interleaving depth I ∈ {1,2,3,4,5,8}, virtual fill Q ∈ multiples of I (derived from the measured frame period) | CCSDS 131.0-B-5 §4, Annex F |
+| Concatenated | Outer CCSDS RS (above), inner K7 rate-½ convolutional code (with or without G2 inversion), ASM convolutionally encoded, randomizer between (CCSDS order) | CCSDS 131.0-B-5 §5, §9.2.1.5, §10.2.2 |
+| LDPC | **One code:** CCSDS TC LDPC (128,64). Parity-check matrix from §4.2.2 a); generator from Table 4-1 (W built from right circular shifts of each 16-bit circulant). Codeword offset ∈ [0,128) × {no randomizer, TC BTG preset per codeword} | CCSDS 231.0-B-4 §4, §6.3.2 |
+| Not in catalogue v1 | Punctured convolutional rates, turbo codes, other LDPC codes, arbitrary RS parameters, arbitrary permutations, 64-QAM and higher, OFDM, differential encoding | — |
+
+The H matrix and generator of the LDPC code come from two separate normative parts of CCSDS 231.0-B-4. They were checked against each other: H·Gᵀ = 0 over GF(2), and H has rank 64.
+
 ## 13. Acceptance Rule (adopted v2.3)
 
 A hypothesis is accepted only if **all** hold:
@@ -210,6 +233,27 @@ A hypothesis is accepted only if **all** hold:
 Rejected alternative: **RM** runner-up margin (cost recall). Calibration protocol: constants from even-indexed files, results on odd-indexed files, success criteria fixed before running.
 
 **Re-encode consistency ≥ 0.98 is RETIRED as acceptance** (noise reaches 1.00; AUC 0.834; TPR 0 at zero null false positives). It remains a logged diagnostic.
+
+### 13.1 Acceptance families (LOCKED in v2.5; pre-registered weights)
+
+The v2.5 search has layers whose hypothesis counts differ by orders of magnitude. A few hundred burst hypotheses sit beside ~10⁸ frame-period windows. One Bonferroni bar over their sum would silently destroy the burst family's power. v2.5 therefore uses a **weighted Bonferroni** split, fixed here before any measurement:
+
+| Family | What it tests | Weight wₓ | Per-hypothesis bar |
+|---|---|---|---|
+| **F1 burst code** | code × interleaver (block, diagonal, convolutional, QPP) × front end, zero-start burst; sign test + MC/BL/PM (§13) | 0.50 | p ≤ α·0.50 / M₁ |
+| **F2 stream code** | continuous convolutional stream (K7, G2 inverted or not, c1/c2 pairing) × front end; the same sign test | 0.10 | p ≤ α·0.10 / M₂ |
+| **F3 frame** | catalogue markers × polarity × period × offset, and blind constant-field windows × period × offset; exact binomial agreement tests | 0.20 | p ≤ α·0.20 / M₃ |
+| **F4 block code** | RS profiles (E, I, Q, randomizer) on synchronised frames: exact union-bound probability that uniform random bytes decode; LDPC (128,64) offset × randomizer: sign test on satisfied parity checks | 0.20 | p ≤ α·0.20 / M₄ |
+
+1. The weights sum to 1. By the union bound, P(any false structural claim on a file) ≤ α = 0.01. Every hypothesis actually tested in a family is counted in that family's M, including hypotheses tested only because an earlier layer was accepted (conditional testing never lowers a bar).
+2. The weights are design choices, not fitted values. They may be changed only by amendment, never after looking at sealed results.
+3. The F1 bar for bench-v1-type captures changes from α/M to 0.5·α/M, and M grows with the new interleaver types. **A recall loss on bench-v1 is expected and must be reported, not tuned away.**
+4. Front-end selection for F3 and F4 on long captures is hierarchical (§11): front ends whose F2 stream code was accepted, plus the top front ends by symbol SNR (count declared in code and logged). Only tested hypotheses enter M.
+5. An RS decode is **never** accepted on decoder success alone. The statistic is the exact tail P(≥ D successes of C codewords | uniform random bytes) with per-codeword probability V(n′, E)/256^{2E}. A structural check rejects degenerate codewords (all symbols equal), because constant bit streams (idle carriers) are codewords. The LDPC statistic is exact because the 64 rows of H are linearly independent.
+6. Outcome mapping is unchanged:
+   - **DECODED** requires an accepted FEC layer (F1, F2+F4, or F4).
+   - A proven frame structure without an accepted code is **SIGNAL_NO_CODE**, with the frame map attached.
+   - Otherwise **UNKNOWN**.
 
 ## 14. Output and Evidence Model
 
@@ -282,6 +326,16 @@ Generator `src/generate.py` (unmodified): fs = 1 MHz, 400 random info bits, K7 (
 
 Train by block: 32 bits (4×8) **0/24** — structurally unprovable at α = 1% (ten parity checks give p ≥ 10⁻³); 64 bits 37/41; 128 bits 26/35.
 Pass = DECODED and BER < 0.01; DECODED with BER ≥ 0.01 is a false accept. CI gate: ≥ 28/30 and 0 false accepts.
+
+### 18.1 bench-v2 policy (LOCKED in v2.5)
+
+- Generator in `eval/` only (`src/generate.py` stays untouched).
+- Three splits from disjoint seed ranges: **CALIBRATION** (constants may be fitted here), **TRAIN** (development and debugging), **SEALED** (final evaluation only).
+- The SEALED manifest (per-file SHA-256 + manifest hash) is committed when first generated.
+- Success criteria are committed in `eval/bench2_criteria.json` **before** SEALED is ever run.
+- The SEALED runner refuses to run without an explicit final-evaluation flag, and it appends every run to a committed access log.
+- A SEALED result obtained after any engine change made in response to it is reported as contaminated.
+- Every result reports N, TP, FP, FN, recall, false-accept rate with a 95% Wilson upper bound, dataset and split provenance.
 
 ## 19. Null Set and Wrong-Structure Null
 
@@ -396,17 +450,19 @@ FSK tone-pair search: one STFT per shift class (30 s → 2.5 s on 125 s). RRC ta
 | 30 | Google sign-in | **FUNCTIONAL (prototype)** | Client-side token decode, not verified server-side | Server-side verification / on-prem IdP |
 | 31 | Signal genome similarity | **EXPERIMENTAL** | Shown with label | Validation study |
 | 32 | Monitoring network, incidents, occupancy | **SIMULATED** | `sim.ts` | Real station feeds |
-| 33 | Frame sync / bit-stream correlation | **FUTURE** | — | P1 |
-| 34 | QAM, 8PSK demodulation | **FUTURE** | 8PSK used only as null class | P1 |
-| 35 | Reed-Solomon, concatenated FEC | **FUTURE** | AFF3CT (MIT) as reference | P1 |
-| 36 | Convolutional/diagonal interleavers, catalogue LDPC | **FUTURE** | — | P2 |
+| 33 | Frame sync / bit-stream correlation, header/payload map | **LOCKED (v2.5)** | Catalogue §12.1, family F3 §13.1 | P0 |
+| 34 | 8PSK, 16-QAM identification and demodulation | **LOCKED (v2.5)** | Catalogue §12.1; 64-QAM+ not in catalogue | P0 |
+| 35 | Reed-Solomon (CCSDS, dual basis, depth I), concatenated RS + K7 | **LOCKED (v2.5)** | Catalogue §12.1, family F4 §13.1 | P0 |
+| 36 | Diagonal, convolutional and QPP pseudo-random interleavers; CCSDS TC LDPC (128,64) | **LOCKED (v2.5)** | Catalogue §12.1 | P0 |
+| 36a | Sample-rate provenance (`fs_source`), no silent default | **LOCKED (v2.5)** | §10 | P0 |
+| 36b | Catalogue pseudo-randomizers (CCSDS TM 131071 / 255, TC BTG) | **LOCKED (v2.5)** | §12.1 | P0 |
 | 37 | Cyclic-CAF symbol-rate estimator | **BLOCKED** | Only 5/100 train failures wait on sps | §36.1 |
 | 38 | SAGE-Lite feedback | **BLOCKED** | Needs calibrated soft score, frame sync/CRC, bench-v2 | §36.3 |
 | 39 | 2 dB QPSK rescue experiment | **PREMISE CHANGED** | Sealed 2 dB QPSK files pass; test_020/025 failures don't reproduce | Re-target at stress set |
 | 40 | Conformal prediction / formal UNKNOWN | **FUTURE** | — | Research |
-| 41 | Adversarial benchmark, bench-v2 (full payload, CRC) | **FUTURE (next)** | — | §35 |
-| 42 | Real PSK/FEC modems on air | **FUTURE** | — | §35 |
-| 43 | Arbitrary blind LDPC, arbitrary pseudo-random interleaver | **REJECTED** | Rank collapse | — |
+| 41 | bench-v2 (catalogue v1 families, nulls, channel impairments, sealed split §18.1); adversarial benchmark | **LOCKED (v2.5)** for bench-v2; adversarial FUTURE | — | §35 |
+| 42 | Real PSK/FEC recording analysed blind vs an independent published decode | **LOCKED (v2.5)** — dataset must first pass the compatibility check in §35 | — | §35 |
+| 43 | Arbitrary blind LDPC, arbitrary pseudo-random interleaver | **REJECTED** (catalogue versions are LOCKED, rows 36, 36b) | Rank collapse | — |
 | 44 | Generic CNN/ResNet acceptance | **REJECTED** | No per-decision error control | ML only for prioritisation (FUTURE) |
 | 45 | BSS/ICA multi-signal separation | **REJECTED for MVP** | Single-signal scope | — |
 | 46 | Local SDR hardware capture | **SUPERSEDED** | Public receivers used | Field hardware when authorised |
@@ -582,21 +638,27 @@ Branching: work on a feature branch (currently `baseline-hardening`, PR #2), CI-
 
 The v2.0 plan (freeze 28/30 → Cyclic-CAF → SAGE-Lite → 2 dB QPSK rescue) is **historical**: the 28/30 failures do not reproduce, consistency acceptance is retired, and the oracle ladder shows sps is not the main bottleneck.
 
-**Current critical path (engine):**
+**Current critical path (engine), v2.5.** The audit showed that SIH26147 names capabilities the engine lacked, so closing them under the existing acceptance discipline comes first. bench-v2 grows alongside them.
+
 ```
-bench-v2 (full 400-bit payload, CRC, multi-block, fading/phase-noise channels)
-→ detection-test calibration (4.2% → 1%)
-→ Es/N0 waterfall per code and block length
-→ frame sync / CRC-based payload confirmation
+fs provenance (no silent default)
+→ catalogue primitives with external reference vectors: GF(2⁸)/RS dual basis, CCSDS randomizers, LDPC (128,64), QPP/diagonal/convolutional interleavers, 8PSK/16-QAM
+→ acceptance families F1–F4 wired into one decision (§13.1); bench-v1 and null-set regression measured and reported
+→ bench-v2 generator + nulls + sealed split (§18.1)
+→ frame sync + header/payload; RS + concatenated; LDPC; QAM; interleavers — each with null and wrong-structure tests
+→ detection-test calibration (4.2% → 1%); channel robustness (fading, phase noise, CFO drift)
+→ real-noise null on committed recordings; real PSK/FEC recording (only if compatible with the declared domain)
+→ data-quality flag; recapture guidance ("what would prove it"); console: fs provenance, elimination funnel, frame map
 → only then Cyclic-CAF (if sps misses grow) and SAGE-Lite (§36)
 ```
 
 | Priority | Item |
 |---|---|
-| **P0** | bench-v2; detection calibration; recalibrate PM on new channels; keep 0 false accepts |
-| **P0 (product)** | Operator usability test; keep every figure provenance-labelled |
-| **P1** | Frame sync; synchronous FSK (SITOR-B/NAVTEX); real PSK/FEC modems on air; receiver delay calibration; QAM/8PSK; Reed-Solomon; server-side auth for LAN deployments |
-| **P2** | Convolutional/diagonal interleavers; catalogue LDPC; DRM characterisation; genome validation |
+| **P0** | fs provenance; frame sync / bit-stream correlation + header/payload; RS + concatenated; 8PSK/16-QAM; diagonal/convolutional/QPP interleavers; CCSDS TC LDPC (128,64); acceptance families; bench-v2 with sealed split; keep 0 false accepts |
+| **P0 (validation)** | Null and wrong-structure tests per family; real-noise null on committed recordings; detection calibration; PM/structural checks under fading and phase noise |
+| **P1** | Real PSK/FEC recording (compatibility check first: modulation, coding, bandwidth, sample rate, framing, published decode, representable in the declared domain); data-quality flag; recapture guidance validated by truncation; console evidence funnel; operator usability test |
+| **P2** | Synchronous FSK; receiver delay calibration; DRM characterisation; genome validation; server-side auth for LAN |
+| **DEFERRED (not approved)** | Salesforce/CRM workflow, official-list diff, sky canaries, multi-receiver pooling (proposals of 2026-09-17; closed no SIH requirement) |
 | **Research** | SAGE-Lite; conformal UNKNOWN; full BCJR/factor graph; adversarial benchmark |
 
 ## 36. Research Frontier (references verified 2026-09-16)
@@ -645,6 +707,7 @@ Cyclostationary analysis, cumulant/M-power methods, Viterbi, convolutional codes
 - "Matched 5/5 medium-wave carriers to Prasar Bharati's official transmitter list."
 - "3–4× faster with zero decision changes on 1,480 files."
 - "'Decoding as a Sensor' is our research framing; the phrase was not found in the literature."
+- (v2.5) Catalogue v1 capabilities may be named only after their §24 row reaches at least PARTIALLY PROVEN, and always with the catalogue scope (e.g. "CCSDS RS(255,223)", not "Reed-Solomon codes").
 
 ### 37.4 Must not say
 - "Held-out 30/30" or "93% on held-out data" (sealed is contaminated; that v2.0 sentence is withdrawn).
@@ -654,6 +717,7 @@ Cyclostationary analysis, cumulant/M-power methods, Viterbi, convolutional codes
 - "First of its kind", "patented", "novel algorithms".
 - "Official", "Government of India system", "deployed by DoT/NTRO/WPC".
 - "Live monitoring network" for the simulated station layer.
+- (v2.5) "Identifies the sampling frequency" unless `fs_source = inferred` was validated; "supports LDPC/RS/QAM" without the catalogue scope; "real-world validated" without naming the signal types.
 
 ## 38. Landscape
 
@@ -730,7 +794,8 @@ Possible application areas (**not deployment claims**): spectrum monitoring and 
 | 2.1 | 2026-09-16 | Code-verified: 30/30 sealed, truncated codeword, v2.0 failures do not reproduce |
 | 2.2 | 2026-09-16 | Evidence-first hardening: leakage removed, sign test + Bonferroni, null set, oracle ladder, 63/100 train |
 | 2.3 | 2026-09-17 | Structural acceptance (0/900), real government transmissions, live monitor, 3–4× faster |
-| **2.4** | **2026-09-17** | **Consolidated single source of truth; ICHNOVA brand; console, themes and UX rules; claims corrected; plan documents marked historical** |
+| 2.4 | 2026-09-17 | Consolidated single source of truth; ICHNOVA brand; console, themes and UX rules; claims corrected; plan documents marked historical |
+| **2.5** | **2026-09-17** | **SIH-readiness amendment: catalogue v1 (§12.1), weighted acceptance families (§13.1), bench-v2 sealed policy (§18.1), fs provenance (§10), P0 re-prioritisation (§35), cloud clause (§9.2); audit conflicts C1–C9 resolved** |
 
 Details: `SIH26147_CONSTITUTION_CHANGELOG.md`.
 
@@ -755,4 +820,4 @@ The system succeeds not when it produces an answer, but when it can show why tha
 
 ---
 
-**ICHNOVA · SIH26147 PROJECT CONSTITUTION v2.4 — COMPLETE**
+**ICHNOVA · SIH26147 PROJECT CONSTITUTION v2.5 — COMPLETE**

@@ -1,5 +1,22 @@
 # SIH26147 — CONSTITUTION CHANGELOG
 
+## v2.5 (SIH-readiness amendment, 2026-09-17)
+
+Triggered by the engineering & SIH readiness audit (2026-09-17). Nothing measured changed at the time of amendment. The amendment **pre-registers** design decisions before implementation.
+
+| Item | v2.4 | v2.5 |
+|---|---|---|
+| Priorities (audit C5) | bench-v2 → detection calibration → waterfall → frame sync; RS/QAM P1; LDPC and interleavers P2 | Explicit SIH26147 capabilities are **P0** under the existing acceptance discipline (§35); CRM, list diff, canaries, pooling DEFERRED |
+| Catalogue | BPSK/QPSK, K7/K5/K3, block interleaver | Catalogue v1 (§12.1): + 8PSK, 16-QAM, diagonal/convolutional/QPP interleavers, CCSDS ASM + blind frame sync, CCSDS randomizers, CCSDS RS dual basis + depth, concatenated, CCSDS TC LDPC (128,64). Each item cites its defining document |
+| Multiple testing | One Bonferroni bar α/M | Weighted Bonferroni families F1–F4 (0.5 / 0.1 / 0.2 / 0.2), file-level bound α unchanged (§13.1); RS success alone never accepts |
+| Benchmarks | bench-v2 described as future | bench-v2 policy: calibration/train/sealed splits, committed sealed manifest, criteria committed before any sealed run, access log (§18.1) |
+| Sample rate (audit C1) | "Told to the engine" | `fs_source` provenance; no silent default (§10) |
+| Cloud (audit C9) | Silent on optional cloud integrations | One-way, never required, needs its own amendment; none approved (§9.2) |
+| Verification header (audit C7) | `cb51397` | `acf4201` + re-measured baseline report |
+| Terminology (audit C2–C4) | "held-out split" in UI/CURRENT_STATE/PROGRESS; withdrawn "93%" still listed in NOVELTY_AUDIT | "evaluation split"; PROGRESS annotated as historical; NOVELTY_AUDIT line struck through with the reason. Earlier changelog entries are left as written (history) |
+
+Baseline re-measured before any change (`reports/AUTONOMOUS_EXECUTION_BASELINE.md`): tests 30/30, sealed 30/30, train 63/100, null set 0/900 and 0/450. One count differs from v2.4 §19: uncoded QPSK → UNKNOWN is 122/150, not 121.
+
 ## v2.4 (consolidated single source of truth, 2026-09-17)
 
 The Constitution was rewritten so that it alone describes the whole project. Nothing measured changed; everything stale was corrected.

@@ -32,4 +32,4 @@ India's own monitoring context: the Wireless Monitoring Organisation (DoT/WPC) o
 1. **Refusal is a result with a number attached.** Every accept is an exact test with family-wise error control plus structural checks; 0/900 false accepts on non-catalogue benchmark files; on a real weak WWVB capture the station is detected but the time refused.
 2. **Checked against the world.** Real government transmissions decoded blind and compared with receiver GPS time, the transmission's own content and India's official transmitter list (`reports/REAL_SIGNAL_VALIDATION.md`).
 3. **Evidence travels with the answer** into review, incidents, reports and national aggregation.
-4. **Measured before claimed.** Oracle ladder, null sets, held-out calibration and a performance change that is proven decision-identical on 1,480 files.
+4. **Measured before claimed.** Oracle ladder, null sets, split-sample calibration (constants fitted on one half of the null set, reported on the other) and a performance change that is proven decision-identical on 1,480 files.

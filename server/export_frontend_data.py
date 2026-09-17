@@ -198,7 +198,7 @@ def export_benchmark():
            'bench_v1': bench, 'oracle_ladder': ladder, 'nullset': nullset, 'acceptance': acceptance,
            'scoring': scoring, 'runtime': runtime, 'performance': performance, 'real_signals': real,
            'research_issue': 'Wrong-interleaver hypotheses can still pass on 0.9% of wrong-structure runs '
-                             '(2/225, held-out split); low-SNR recall is limited (K7 3/34 at 3 dB Es/N0).'}
+                             '(2/225, evaluation split of the null-set generator); low-SNR recall is limited (K7 3/34 at 3 dB Es/N0).'}
     json.dump(out, open(os.path.join(PUB, 'benchmark.json'), 'w'), indent=1, default=to_json_default)
     print('benchmark.json written')
 

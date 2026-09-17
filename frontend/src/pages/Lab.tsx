@@ -146,7 +146,7 @@ export default function Lab() {
       )}
 
       {tab === 'accept' && (
-        <Panel title="Acceptance rules · held-out split" sub={`Constants calibrated on even-indexed files: block-length tolerance ${b.acceptance.params.delta.toFixed(2)} symbols, path-metric floor ${b.acceptance.params.t.toFixed(3)}`}>
+        <Panel title="Acceptance rules · evaluation split" sub={`Constants calibrated on even-indexed files: block-length tolerance ${b.acceptance.params.delta.toFixed(2)} symbols, path-metric floor ${b.acceptance.params.t.toFixed(3)}`}>
           <table className="tbl"><thead><tr><th>Rule</th><th className="num">Recall</th><th className="num">Wrong hypothesis</th><th className="num">Null false accepts</th><th className="num">Wrong-structure accepts</th></tr></thead>
             <tbody>{b.acceptance.evaluation_split.map((r) => (
               <tr key={r.rule} className={r.rule === b.acceptance.adopted ? 'sel' : ''}>

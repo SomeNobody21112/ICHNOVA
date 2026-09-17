@@ -23,7 +23,7 @@
 
 ## Session 4 — Structural acceptance
 
-See `reports/STRUCTURAL_ACCEPTANCE_REPORT.md`. Wrong-structure null exposed 17% wrong accepts under the syndrome-only rule; modulation-consistency + block-length + soft path-metric checks cut them to 0.9% (held-out split) with no recall loss. Full null set: 0/900 false accepts, 0/450 wrong decodes. bench-v1 unchanged (30/30, 63/100).
+See `reports/STRUCTURAL_ACCEPTANCE_REPORT.md`. Wrong-structure null exposed 17% wrong accepts under the syndrome-only rule; modulation-consistency + block-length + soft path-metric checks cut them to 0.9% (evaluation split: constants fitted on even-indexed null-set files, reported on odd-indexed files of the same generator) with no recall loss. Full null set: 0/900 false accepts, 0/450 wrong decodes. bench-v1 unchanged (30/30, 63/100).
 
 ---
 
@@ -62,9 +62,11 @@ Pushed without a benchmark run. Measured: **4/30** as pushed; path-metric scorin
 
 ### Result
 **30/30 sealed, every file consistency = 1.000, correct sps on all 30.**
-**Train set (100 files, sps 4/8, held-out for these fixes): 60/100** — Phase 1 code scored 35/100 (BER-only) and every file it passed still passes.
+**Train set (100 files, sps 4/8, not used to diagnose these particular fixes): 60/100** — Phase 1 code scored 35/100 (BER-only) and every file it passed still passes.
 
-Caveat: fixes 8–9 were diagnosed on the sealed set, so the train set is the unbiased evidence.
+Caveat: fixes 8–9 were diagnosed on the sealed set, so the train set was the less-biased evidence *at that time*.
+
+> **Historical note (Constitution v2.5, 2026-09-17):** from Session 3 onward the train set was used for development (leakage removal, oracle ladder, acceptance work), so it is **not held-out** for any later result. The only held-out-style split in the project so far is the calibration/evaluation split of the null set, and bench-v2 introduces the first sealed split.
 
 ### Next
 1. Remove the sps=6 bias (forced sps candidate, sps=6 modulation-ID filter) — train failures are 27 BPSK (some at 10–15 dB) + 13 QPSK at 0–3 dB, all sps 4/8.
