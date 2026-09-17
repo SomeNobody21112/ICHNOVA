@@ -1,721 +1,758 @@
-# SIH26147 — PROJECT CONSTITUTION
+# ICHNOVA · SIH26147 — PROJECT CONSTITUTION
+
+**Problem statement:** SIH26147 (Smart India Hackathon 2026; sponsor listed in the problem statement: NTRO)
+**Product:** ICHNOVA — *From noise to harmony* (blind signal analysis engine + operator console)
+**Document:** Master Project Constitution — **the single source of truth**
+**Version:** 2.4 (complete, code-verified) · **Date:** 2026-09-17
+**Verified against:** branch `baseline-hardening` at `cb51397` (PR #2, CI green); `main` at `d5c557f`
+**Supersedes:** v2.0 (research-verified, 2026-09-16), v2.1–v2.3 amendments, and every earlier plan document where they disagree (§3)
+
+---
+
+# PART A — IDENTITY AND GOVERNANCE
 
 ## 1. Project Identity
 
-**Problem Statement:** SIH26147
-**Project:** SIH 2026
-**Document:** Master Project Constitution
-**Status:** Active — Single Source of Truth
-**Version:** 2.0 (Research-Verified)
-**Date:** 2026-09-16
-**Basis:** Reconciliation of v1.0 Constitution, Engineering Handoff, Selection Rationale, and independent literature verification via web search (all references verified 2026-09-16)
+| Item | Value |
+|---|---|
+| Name | **ICHNOVA** (all capitals in the wordmark; "Ichnova" acceptable in running text). **Never "THADAM"** — rejected by the team. Name and taglines live in `frontend/src/brand.ts` |
+| Tagline / motto | "From noise to harmony" · "Hidden signals, brighter tomorrows" |
+| Concept strip | Noise → Discovery → Harmony |
+| What it is | An evidence-first blind signal-analysis engine for raw IQ captures, plus an operator console that shows the evidence behind every decision |
+| What it is not | Not an official Government of India system. Not affiliated with DoT, WPC, NTRO, Prasar Bharati or any operator whose transmissions it analyses. An independent SIH prototype |
+| Repository | `github.com/SomeNobody21112/SIH26147` |
+| Question the product answers | Not "what does the AI think this signal is?" but **"what evidence supports this signal interpretation?"** |
+
+## 2. Constitutional Purpose and Authority
+
+This document defines, in one place: what the project solves, how the engine works, what has been measured, what is partial, what is refused, what the product looks like, how work is validated, what may be claimed, and what comes next.
+
+1. **No implementation, benchmark, presentation, pitch, README or UI copy may contradict this Constitution** without first amending it (§46).
+2. When this document and another file disagree, **this document governs** until the other is corrected — except that reproducible measurement always beats prose: if a command in §34 produces a different number, the number wins and this document must be amended.
+3. Only implementation plus reproducible evidence can promote a capability through the status system (§7).
+4. The project prioritises **measurable capability over feature count, marketing language or complexity.**
+
+## 3. Document Map
+
+| Document | Role | Status |
+|---|---|---|
+| **`sih26147-constitution/SIH26147_PROJECT_CONSTITUTION.md`** | Everything: identity, rules, architecture, evidence, product, roadmap, claims | **GOVERNING** |
+| `sih26147-constitution/SIH26147_CURRENT_STATE.md` | Dated snapshot of headline numbers and verification commands; derived from §24 | Derived |
+| `sih26147-constitution/SIH26147_CONSTITUTION_CHANGELOG.md` | What changed between versions and why | Governing for history |
+| `reports/BASELINE_HARDENING_REPORT.md` | Leakage removal, null set, scoring comparison, oracle ladder | Evidence |
+| `reports/STRUCTURAL_ACCEPTANCE_REPORT.md` | Wrong-structure null, adopted acceptance rule | Evidence |
+| `reports/REAL_SIGNAL_VALIDATION.md` | Government transmissions received blind | Evidence |
+| `reports/PERFORMANCE_REPORT.md` | Vectorised search, decision identity | Evidence |
+| `reports/RESEARCH_LANDSCAPE.md` | Products and literature with sources | Evidence |
+| `reports/TECH_STACK.md` | Stack, user flows, workflows | Reference |
+| `reports/data/` | Raw evidence (JSON, ladders, null-set tables) | Evidence |
+| `PROGRESS.md` | Session-by-session engineering log | History |
+| `SIH26147_EXECUTION_ROADMAP.md`, `SIH26147_2DB_QPSK_RESCUE_EXPERIMENT.md` | v2.0 plan built on the 28/30 baseline and consistency acceptance | **HISTORICAL** — premise changed (§35) |
+| `SIH26147_NOVELTY_AUDIT.md`, `SIH26147_RESEARCH_FRONTIER.md` | v2.0 literature audit and research directions | Reference; claims constrained by §37, priorities by §35 |
+| `README.md`, `frontend/README.md` | How to run | Must agree with §33–§34 |
 
 ---
 
-> **⚠ Baseline superseded (v2.1, 2026-09-16):** the code in this repo now scores **30/30** on the regenerated sealed set and **60/100** on the 100-file train set. The test_020/test_025 2 dB QPSK failures described below come from an earlier codebase/dataset and do not reproduce here (current test_020 = QPSK 8 dB, test_025 = QPSK 5 dB, both pass). See `SIH26147_CURRENT_STATE.md` and the v2.1 entry in `SIH26147_CONSTITUTION_CHANGELOG.md`. Kept for plan/history.
+## 4. Mission
 
-## 2. Constitutional Purpose
+Recover communication structure from degraded, non-cooperative signal observations when transmission parameters are unknown: modulation, symbol rate, carrier offset, timing, forward error correction, interleaving, framing and payload — and **refuse, with a number attached, when the evidence does not support an answer.**
 
-This document defines the single source of truth for the technical, scientific, experimental, architectural, and strategic direction of SIH26147.
+Long-term research objective (unchanged from v2.0, now gated, §36): a cross-layer receiver in which decoding evidence refines the upstream estimates responsible for failure ("decoding as a sensor").
 
-It defines what the project is solving, what has been experimentally demonstrated, what is partially demonstrated, what has been selected for implementation, what remains future work, what is currently unknown, what has been rejected, how new capabilities must be validated, and what constitutes project completion.
+## 5. Core Thesis
 
-No major implementation, architecture, benchmark, presentation, or research claim may contradict this Constitution without explicitly updating it.
+### 5.1 Evidence first (operative thesis since v2.2)
 
-The project prioritizes **measurable scientific capability over feature count, marketing language, or unnecessary complexity.**
+Every accepted interpretation must be backed by a statistical test whose error rate under the null is **known**, corrected for the number of hypotheses searched, and checked against structural alternatives. An answer without such evidence is reported as `SIGNAL_NO_CODE` or `UNKNOWN`, never guessed.
 
----
-
-## 3. Project Mission
-
-SIH26147 aims to recover communication structure from degraded, non-cooperative signal observations when important transmission parameters are unknown or uncertain.
-
-The system investigates blind inference of parameters including modulation, symbol rate, carrier frequency offset, timing, Forward Error Correction, interleaving, framing, and related signal structure.
-
-The immediate engineering objective is to overcome the demonstrated low-SNR symbol-rate estimation bottleneck in the existing system.
-
-The long-term objective is to transform the receiver from a strictly sequential processing chain into a **cross-layer iterative inference system**, where decoding evidence can refine upstream physical-layer estimates.
-
----
-
-## 4. Core Project Thesis
-
-### DECODING AS A SENSOR
-
-**Literature search result (verified 2026-09-16):** The exact phrase "Decoding as a Sensor" does not appear in IEEE Xplore, Google Scholar, arXiv, or CrossRef. It is a novel framing coined by this project. The underlying mechanism has established analogues in the **code-aided synchronization** and **turbo synchronization** literature (see §21), but the specific phrase and its use as a design principle for blind receivers appears original.
-
-Conventional blind signal processing follows a feed-forward architecture:
+### 5.2 Decoding as a sensor (research direction)
 
 ```
-Signal → Parameter Estimation → Demodulation → FEC / Decoding → Output
+Conventional:  Signal → Parameter estimation → Demodulation → FEC decode → Output
+Research goal: Signal → Initial inference → Demodulation → Soft information → Decode
+               → Consistency / residual evidence → Parameter refinement → Demodulate and decode again
 ```
 
-An error in an upstream parameter propagates through every downstream stage and can prevent decoding.
+"Decoding as a Sensor" was not found in IEEE Xplore, Google Scholar, arXiv or CrossRef (search 2026-09-16). Its mechanism has established analogues in **code-aided / turbo synchronisation** (§36.2). The feedback loop (SAGE-Lite) is **BLOCKED**, not abandoned (§36.3).
 
-SIH26147 investigates a different principle:
+## 6. Project Principles
 
-```
-Signal → Initial Inference → Demodulation → Soft Information → Decoding
-→ Consistency / Residual Evidence → Parameter Refinement
-→ Demodulation Again → Decoding Again
-```
+1. **Evidence before claims.** A capability is PROVEN only by project measurement — not by literature, mathematics, a prototype, or another product.
+2. **Preserve the baseline.** Every change is compared with the current receiver; decision-changing changes need a report.
+3. **Fix the measured bottleneck.** Priorities come from the oracle ladder and null sets (§21, §19), not intuition.
+4. **Ambition with restraint.** New capability must show measurable benefit, feasibility, acceptable CPU cost, reproducibility and relevance.
+5. **UNKNOWN is a valid result.** Refusal is a feature and is shown as one in the product.
+6. **Absence of framework is evidence.** Two Python dependencies and no server framework keep every decision readable (§31).
+7. **Real world over synthetic.** Where a real, lawfully receivable transmission can check a capability, it is preferred to more synthetic data.
+8. **Calm product.** The console shows what an operator needs to act and folds away the rest (§29).
 
-The decoder is not treated solely as the final stage. Its output becomes evidence that may be used to refine the physical-layer parameters responsible for decoding uncertainty.
-
-The first implementation will be a deliberately constrained **SAGE-Lite / decoding-assisted feedback loop**.
-
-SAGE-Lite must not be represented as a complete implementation of full SAGE, BCJR, or Bayesian factor-graph formulation unless those systems are actually implemented and experimentally validated.
-
----
-
-## 5. Project Principles
-
-### 5.1 Evidence Before Claims
-
-A capability becomes **PROVEN** only after appropriate project experimentation — not because literature suggests it should work, mathematics permits it, a prototype has been written, or another system uses it.
-
-### 5.2 Preserve the Baseline
-
-The existing working system is an experimental reference and must remain reproducible. New algorithms must be compared against the baseline before adoption.
-
-### 5.3 Solve the Demonstrated Bottleneck First
-
-Existing evidence identifies low-SNR symbol-rate estimation as the principal demonstrated bottleneck. MVP engineering priority: (1) symbol-rate estimation, (2) decoding-assisted parameter refinement, (3) regression protection, (4) broader validation.
-
-### 5.4 Scientific Ambition With Engineering Restraint
-
-Each proposed capability must demonstrate measurable benefit, technical feasibility, acceptable computational cost, architectural compatibility, reproducibility, and relevance to the project bottleneck.
-
-### 5.5 UNKNOWN Is a Valid Scientific Outcome
-
-Where available evidence is insufficient, the correct output may be `UNKNOWN` or `INSUFFICIENT EVIDENCE`.
-
----
-
-## 6. Evidence Classification
+## 7. Evidence Classification
 
 | Status | Meaning |
 |---|---|
-| **PROVEN** | Directly demonstrated by project experiments or supplied experimental artifacts |
-| **PARTIALLY PROVEN** | Demonstrated under some conditions but known to degrade or remain incompletely validated |
-| **LOCKED** | Formally selected for implementation — does NOT mean PROVEN |
-| **FUTURE** | Technically relevant capability intentionally deferred |
-| **UNKNOWN** | Insufficient evidence currently exists |
-| **REJECTED** | Explicitly excluded based on project constraints |
+| **PROVEN** | Directly demonstrated by project experiments with committed artifacts |
+| **PROVEN on real signal** | Demonstrated on a committed over-the-air recording with an independent check |
+| **PARTIALLY PROVEN** | Demonstrated under some conditions; known to degrade or not fully validated |
+| **FUNCTIONAL** | Works and is used, but its accuracy has not been measured |
+| **IMPLEMENTED, UNTESTED** | Code exists; no test or measurement |
+| **EXPERIMENTAL** | Shown in the product, explicitly not validated |
+| **LOCKED** | Selected for implementation — does not mean proven |
+| **BLOCKED** | Selected, but a named prerequisite is unmet |
+| **FUTURE** | Relevant, intentionally deferred |
+| **RETIRED** | Previously used; replaced by measured evidence, kept as a diagnostic |
+| **SUPERSEDED** | Replaced by a different approach |
+| **REJECTED** | Excluded on evidence or constraints |
+| **UNKNOWN** | Insufficient evidence exists |
+
+## 8. Claim Discipline
+
+### 8.1 Four kinds of sentence, never interchangeable
+
+- "The literature shows…" — established knowledge, cited.
+- "Our hypothesis is…" — untested conjecture.
+- "Our implementation does…" — what the code computes.
+- "Our experiment measured…" — an artifact-backed number with its dataset named.
+
+### 8.2 Provenance labels (mandatory in every document, slide and screen)
+
+| Label | Meaning |
+|---|---|
+| **BENCHMARK** | Real engine output on synthetic benchmark captures |
+| **LIVE** | Real engine output on a capture analysed now, or on a real over-the-air recording |
+| **SIMULATED** | Generated data: monitoring network, stations, incidents, occupancy (`frontend/src/lib/sim.ts`) |
+| **EXPERIMENTAL** | Implemented, not validated (e.g. genome similarity) |
+| **NOT ESTABLISHED** | Not built or not validated (ML models, QAM, RS/LDPC, …) |
+
+A figure without a label must not be shown. Simulated data must never be described as real, and benchmark data never as field data.
+
+### 8.3 Dataset wording
+
+- bench-v1 **sealed** is a **development-contaminated regression tripwire**, never "held-out" and never a performance claim.
+- "SNR" in bench-v1 is **per-sample**; sealed "2 dB" ≈ 10 dB Es/N0 (`eval/snr.py`). Quote Es/N0 when discussing difficulty.
+- Each bench-v1 file transmits only 30–60 of its 400 payload bits.
+
+## 9. Non-Negotiable Constraints
+
+| # | Constraint |
+|---|---|
+| 9.1 | **CPU only.** No GPU prerequisite. |
+| 9.2 | **Air-gap compatible engine.** No cloud, API or network dependency for analysis. (Public-receiver live reception and Google sign-in are optional console features; the engine and offline replays work without them.) |
+| 9.3 | **Reproducible.** Every experiment records data, code version, configuration, seed, estimates, metrics, runtime and failures. Datasets regenerate byte-identically from seed. |
+| 9.4 | **Auditable.** Every decision carries its test statistic, threshold, hypothesis count and rejected alternatives. |
+| 9.5 | **Do not modify `src/generate.py`.** |
+| 9.6 | **Do not regenerate bench-v1 differently, tune on the sealed set, or game any benchmark.** |
+| 9.7 | **Never fabricate or hand-type results.** Every number in the console comes from exported engine output (`server/export_frontend_data.py`) or is labelled SIMULATED. |
+| 9.8 | **No dataset constants in inference** (sps lists, β lists, bonuses); guarded by `tests/test_core.py`. |
+| 9.9 | **No claim of being an official government system**; no imitation of government branding, emblems or domains. |
+| 9.10 | **Authorised use only** (§39). |
+| 9.11 | **No feature-count competition.** One convincing capability beats many unproven ones. |
 
 ---
 
-## 7. Claim Discipline
+# PART B — THE ENGINE
 
-Project documentation must distinguish between:
+## 10. Problem Scope and I/O
 
-- **"The literature shows..."** — established knowledge
-- **"Our hypothesis is..."** — untested project conjecture
-- **"Our implementation does..."** — what the code computes
-- **"Our experiment measured..."** — artifact-backed numerical result
+| Item | Specification |
+|---|---|
+| Input | `.iq` interleaved float32 I/Q; `.wav` int16 stereo I/Q (`src/modem.py::load_iq`, `load_wav`) |
+| Told to the engine | Sample rate (and, for real signals, the tuned frequency) |
+| Not told | Modulation, symbol rate, carrier offset, timing, roll-off, code, interleaver, framing, polarity, station, protocol |
+| Output | `DECODED` · `SIGNAL_NO_CODE` · `UNKNOWN`, plus payload (when decoded) and a full evidence record |
+| Families (PSK engine) | BPSK, QPSK; convolutional rate-½ K7 (171,133), K5, K3; single block interleaver; uncoded |
+| Families (real-signal receivers) | Five time codes (WWV, WWVB, DCF77, MSF, JJY), start-stop FSK (ITA2/ASCII), CHU packets, AM, medium-wave carrier census |
 
-These must never be treated as equivalent.
-
----
-
-## 8. Non-Negotiable System Constraints
-
-### 8.1 CPU-Oriented Execution
-MVP must execute on restricted CPU hardware. GPU must not become a prerequisite.
-
-### 8.2 Air-Gapped Compatibility
-No unnecessary dependence on cloud, APIs, network, or heavyweight ML frameworks.
-
-### 8.3 Reproducibility
-Experiments record: input data, algorithm version, configuration, random seed, estimated parameters, output metrics, runtime, failure information.
-
-### 8.4 Auditability
-Decisions traceable through measurable intermediate evidence. Prefer interpretable evidence over opaque predictions.
-
-### 8.5 No Feature-Count Competition
-The central objective is to demonstrate one technically meaningful capability convincingly:
-
-> **A degraded signal that fails under conventional feed-forward inference may provide enough decoding evidence to improve the upstream inference responsible for that failure.**
-
----
-
-## 9. Existing System — Verified Baseline
-
-### 9.1 Baseline Architecture
-
-Sequential, feed-forward blind signal-analysis pipeline in pure NumPy/SciPy on CPU.
-
-**Environment (verified):** Python 3.12.3; numpy 2.4.4, scipy 1.17.1, scikit-learn 1.8.0, matplotlib 3.10.8. Single CPU core, ~3.9 GB RAM, no GPU. No GNU Radio, no PyTorch, no commpy.
-
-### 9.2 Source Files
-
-| File | Purpose | Lines |
-|---|---|---|
-| `src/generate.py` | Ground-truth signal generator | ~120 |
-| `src/modem.py` | BPSK/QPSK, RRC, channel, IQ/WAV I/O | ~104 |
-| `src/fec.py` | Conv encoder, vectorized soft Viterbi, block interleaver | ~145 |
-| `src/analyze.py` | Detection, symbol-rate, carrier, cumulant mod-ID, demod, soft bits | ~168 |
-| `src/blind_id.py` | GF(2) rank code/interleaver ID + CODE_CATALOGUE | ~148 |
-| `src/decode_search.py` | Rotation/offset search + sync resolver (stub) | ~73 |
-| `src/pipeline.py` | Staged blind pipeline `analyze_file()` | ~115 |
-| `sealed_test.py` | Sealed harness + funnel | ~85 |
-| `baselines.py` | Genie/classical baselines + ablations | ~89 |
-| `tests/test_core.py` | 6 automated tests | ~76 |
-
-### 9.3 Current Verified Performance
-
-**Baseline (v2.1): 30/30 on the sealed benchmark; 60/100 on the train set.** (v2.0 figure of 28/30 was from an earlier codebase.)
-
-**Genie experiment: 100% payload recovery** when correct upstream parameters are supplied.
-
-> The core decoding chain is capable of successful recovery when required upstream parameters are known. The principal remaining limitation is concentrated in blind parameter estimation.
-
-30/30 was achieved 2026-09-16 (v2.1). Because the fixes were diagnosed on the sealed set, the train set and fresh seeds are now the held-out evidence.
-
-### 9.4 Signal Generation Parameters (verified from generate.py)
-
-- Modulations: BPSK, QPSK. Sample rate: fs = 1,000,000 Hz. Payload: 400 random info bits/file.
-- FEC: K=7 rate-1/2 convolutional, generators 171/133 octal (NASA/CCSDS), zero-terminated at the encoder — **but the block interleaver keeps only rows×cols (60/120) of the 812 coded bits, so the received codeword is truncated and has no tail** (v2.1 correction).
-- Interleaver: block, dimensions per split.
-- Channel: RRC pulse shaping, random carrier offset (±0.01 cyc/sample), fractional timing offset (±0.5 sample), random static phase, AWGN.
-
-**Train vs Sealed split:**
-
-| Parameter | TRAIN (seed0=1000, n=100) | SEALED (seed0=99000, n=30) |
-|---|---|---|
-| SNR (dB) | {0, 3, 6, 10, 15} | {2, 5, 8, 12} — **unseen** |
-| sps | {4, 8} | {6} — **unseen** |
-| Interleaver | {(4,8),(8,8),(8,16)} | {(6,10),(10,12)} — **unseen** |
-| RRC roll-off β | {0.35} | {0.25, 0.5} — **unseen** |
-
----
-
-## 10. Known Failure Mode
-
-### 10.1 Low-SNR Symbol-Rate Estimation
-
-The existing estimator uses spectral/cyclostationary information from |x| and |x|². At sufficiently low SNR, noise-generated spectral features dominate the true signal feature.
-
-### 10.2 Known 2 dB QPSK Failures (historical — v2.0 codebase; do not reproduce in v2.1)
-
-| File | GT Mod | GT SNR | GT Symbol Rate | EST Symbol Rate | Consistency | BER | Status |
-|---|---|---|---|---|---|---|---|
-| test_020 | QPSK | 2 dB | 166,667 Hz | **84,891 Hz** | 0.866 | 0.490 | FAIL |
-| test_025 | QPSK | 2 dB | 166,667 Hz | **473,131 Hz** | 0.854 | 0.495 | FAIL |
-
-### 10.3 Failure Chain
+## 11. Engine Architecture (as built)
 
 ```
-Low SNR → Incorrect symbol-rate estimate → Incorrect timing/demodulation
-→ Corrupted soft information → Viterbi receives poor evidence
-→ Consistency fails → Payload recovery fails
+Raw IQ
+ ├─ Symbol-rate spectrum (|x|, |x|²) + lag-1 y⁴ quality over integer sps 2–20
+ │    → sps candidates: best 3 by quality + integer divisors + raw spectral estimate
+ ├─ Carrier: x² and x⁴ spectral lines with p-values, zero-padded, top candidates per order
+ ├─ For each front end (sps × CFO × modulation BPSK/QPSK × rotation):
+ │    RRC matched filter (β = 0.3, fixed delay) → M-power phase → symbol-domain M2M4 SNR
+ │    → calibrated PSK LLRs → serial-independence check (reject dependent front ends)
+ ├─ Vectorised syndrome scan over code × interleaver hypotheses (≈20,000 per capture)
+ │    dual-code parity sign test, exact Binomial null
+ ├─ Acceptance (§13): Bonferroni over all hypotheses, then structural checks MC, BL, PM
+ ├─ Zero-start soft Viterbi on the accepted hypothesis; payload tie-break across
+ │    equivalent front ends and both polarities
+ └─ Decision + evidence record (§14)
 ```
 
-This exposes a structural weakness in purely feed-forward architecture and motivates the cross-layer inference hypothesis.
+Files: `src/pipeline.py` (orchestration, domain constants, acceptance), `src/blind_id.py` (catalogue, interleaver domain, `syndrome_scan`, `sign_test_log10p`, `decode_hypothesis`), `src/analyze.py` (spectra, matched filter, M-power, M2M4, LLRs), `src/fec.py` (encoder, vectorised soft Viterbi K7/K5/K3, block interleaver), `src/modem.py` (modulation, RRC, channel, I/O).
 
----
+## 12. Declared Search Domain and Assumptions
 
-## 11. Existing Proven DSP Corrections
+Every assumption is **declared**, not hidden. Out-of-domain behaviour is untested unless stated.
 
-These must not be reintroduced.
+| Assumption | Value | Status |
+|---|---|---|
+| Samples per symbol | Integer 2–20, ≥ 16 symbols | Declared receiver spec |
+| Carrier offset | \|Δf\| ≤ 0.0125 cycles/sample | Declared; out-of-range untested |
+| RRC roll-off at receiver | 0.3 (single value) | Declared; oracle shows 0 files waiting on β |
+| Interleaver | Single block, rows 2–16, cols 4–24, ≤ 384 bits | Declared; repeated blocks unsupported |
+| Encoder start state | Zero | Declared; real mid-stream captures need frame sync |
+| Timing | Integer sps, fixed matched-filter delay | Declared; no fractional timing recovery |
+| QPSK bit order | I then Q | Declared |
+| Pulse | Root-raised cosine | Declared |
+| Significance | α = 0.01 family-wise (Bonferroni) | Declared |
 
-### 11.1 Matched-Filter Delay
-Total group delay: `delay = len(h) - 1` (NOT `(len(h)-1)//2`). Two convolutions, two half-delays.
+## 13. Acceptance Rule (adopted v2.3)
 
-### 11.2 QPSK Unsigned Integer Overflow
-`1 - 2*b` on uint8: `1 - 2*1 = -1` wraps to 255. Fix: cast bits to float64 before signed arithmetic. Nastiest bug — produces plausible wrong output, not crash.
+A hypothesis is accepted only if **all** hold:
 
-### 11.3 QPSK M-Power Phase Estimation
-BPSK: `ph = angle(mean(s^2)) / 2`. QPSK: `ph = (angle(mean(s^4)) - π) / 4`. Residual 90° ambiguity intentionally left for decode search.
+1. **R0 — Syndrome sign test, Bonferroni.** Dual-code parity checks on hard decisions; exact Binomial p-value; accept if p · M ≤ 0.01 (M = number of hypotheses searched). Evidence e = log10 p + log10 M ≤ −2.
+2. **MC — Modulation consistency.** Non-overlapping pairs v = y²(2m+1)·conj(y²(2m)): Re(v) > 0 for BPSK, fair coin for QPSK. Exact binomial tests reject QPSK hypotheses on BPSK-looking signals and BPSK hypotheses whose count is too low for BPSK at the measured SNR. α = 0.01, untuned.
+3. **BL — Block-length consistency.** Transmission span from a two-level change-point fit to |y|²; reject if covered symbols < span − Δ, **Δ = 1.7 symbols** (99th percentile shortfall of correct hypotheses, calibration split).
+4. **PM — Soft path-metric floor.** Zero-start Viterbi path metric ≥ **0.926** (99th percentile of top-1 path metric on calibration null files).
 
-### 11.4 Symbol-Rate Estimation
-Combined |x| and |x|² with 1%-of-fs guard. Improved but does not eliminate low-SNR failure.
+Rejected alternative: **RM** runner-up margin (cost recall). Calibration protocol: constants from even-indexed files, results on odd-indexed files, success criteria fixed before running.
 
-### 11.5 Viterbi Vectorization
-~50× faster using scatter-max with argsort-ascending trick. Verified bit-identical.
+**Re-encode consistency ≥ 0.98 is RETIRED as acceptance** (noise reaches 1.00; AUC 0.834; TPR 0 at zero null false positives). It remains a logged diagnostic.
 
----
+## 14. Output and Evidence Model
 
-## 12. DSP and Implementation Conventions
+| Status | Condition | Payload |
+|---|---|---|
+| **DECODED** | A hypothesis passes §13 | Zero-start Viterbi payload |
+| **SIGNAL_NO_CODE** | No hypothesis passes, but an x² or x⁴ line (or a real-signal structure) is significant | Hard decisions, explicitly **not decoded** |
+| **UNKNOWN** | Neither | Empty |
+
+Every result carries `accept{log10_p, log10_threshold, n_hypotheses}`, `accept.significant_but_rejected` (with reasons), all CFO candidates (order, peak-to-floor dB, p), the sps table (q4, q2), modulation statistic per sps candidate with margin, top-5 hypotheses (code, interleaver, sps, CFO, modulation, rotation, checks, positives, log10 p, z, covered/total bits, coverage, consistency, path metric, MDL savings), runner-up margin, front ends searched/rejected, and per-stage timers. The server packages this as an **evidence pack** (`server/evidence.py`, ~1 MB JSON per capture).
+
+## 15. DSP Conventions and Proven Corrections (must never regress)
 
 | Convention | Rule | Consequence if broken |
 |---|---|---|
-| LLR sign | `LLR > 0` favors bit = 0 | Every decode inverts |
-| Matched-filter delay | `len(h) - 1` total (TX+RX) | Appears as noise |
-| QPSK phase offset | Subtract π before `/4` in M-power | No valid rotation |
-| Bit dtype | Cast to float before `1 - 2*b` | Silent corruption |
-| Trellis termination | Encoder zero-terminates; Viterbi trims K-1 bits | Length mismatch |
-| Complement-tolerant BER | `min(BER, 1-BER) < 0.01` | Under-count recoveries |
-| Consistency acceptance | Re-encode agreement ≥ ~0.98 | False accepts if lowered |
+| LLR sign | LLR > 0 favours bit 0 | Every decode inverts |
+| Matched-filter delay | `len(h) − 1` total (TX + RX) | Looks like noise |
+| QPSK M-power phase | `(angle(mean(s⁴)) − π) / 4`; BPSK `angle(mean(s²)) / 2` | No valid rotation |
+| Bit dtype | Cast to float before `1 − 2b` (uint8 wraps −1 → 255) | Plausible wrong output, no crash |
+| Codeword termination | bench-v1 interleaver keeps only rows×cols of 812 coded bits → **truncated, no tail**; decode with `terminated=False` | Consistency ceiling ~0.9 |
+| Terminated traceback | Starts from state 0, not argmax (bug found by exhaustive-ML test) | Not maximum likelihood |
+| Encoder convention | Bit *i* of octal generator taps input delayed by *i* (LSB = current); "171" impulse response `1,0,0,1,1,1,1` — **bit-reversed vs MATLAB `poly2trellis`** (117/155 there) | Incompatible with standard tools |
+| Complement-tolerant BER | min(BER, 1 − BER) < 0.01 | Under-counts recoveries |
+| CFO resolution | Zero-pad x⁴ FFT 16×, keep several candidates | Misses true tone at low Es/N0 |
+| Viterbi | Vectorised ACS, per-step renormalisation; equals exhaustive ML (K7/K5/K3, terminated/truncated, 150 noisy frames) | Silent decode loss |
+| Syndrome scan | Vectorised with **the same factor order** as the scalar version | Non-identical p-values |
 
----
+## 16. Real-Signal Receivers
 
-## 13. Consistency Principle
+Entry point `src/realsig.py` runs every receiver on one recording.
 
-Re-encode consistency: decode → re-encode → compare against received evidence.
-
-**Observed separation:** successes ≥ 0.984, failures ≤ 0.866. Threshold: `≥ 0.98`.
-
-This is an engineering criterion, not a universal statistical guarantee.
-
-**Competitor note (verified 2026-09-16):** PROCITEC go2signals uses a similar catalogue-based approach they call the **"revolver principle"** (introduced 2003) — cycling through known modem configurations and testing against the signal. Our catalogue + consistency approach follows the same industry-standard pattern.
-
----
-
-## 14. Existing FEC Scope
-
-**CODE_CATALOGUE:** conv_k7_r12_171_133, conv_k5, conv_k3, uncoded.
-
-Rank-method collapse data:
-
-| BER into rank identifier | n correct | K correct |
+| Receiver | File | Method |
 |---|---|---|
-| 0.000 | 5/5 | 5/5 |
-| 0.001 | 4/5 | 0/5 |
-| ≥0.005 | 0/5 | 0/5 |
+| Time codes (WWV, WWVB, DCF77, MSF, JJY) | `src/timecodes.py` | Per protocol: carrier; second epoch from the signal (fold + least-squares); per-second least-squares symbol classification; 60-s frame alignment on markers; **maximum likelihood over valid field values with parity as constraints** (DP over parity state); joint scoring of all complete frames. Detection p = P(≤ observed disagreements \| unrelated symbols) × distinct frames searchable, Bonferroni over catalogue, α = 0.01. **Every digit must beat every alternative by ≥ 100:1**, else SIGNAL_NO_CODE |
+| FSK text | `src/fsk.py` | Anti-correlated tone pair; shift from coherent periodograms; baud from transition phase coherence (1.5-stop half-bit grid resolved in framing); framing hypotheses (baud × polarity × data bits × parity × stop bits) accepted by exact binomial stop-bit test, Bonferroni. ITA2/ASCII; CHU packets |
+| AM | `src/broadcast.py` | Carrier offset by phase-slope fit, carrier-to-noise, coherent product detection, audio bandwidth; **one-sided receiver passbands detected and reported** instead of inventing modulation depth |
+| MW census | `server/live.py::spectrum_census` | Averaged waterfall; carriers kept if topographically prominent vs ±1.5 channels; snapped to 9-kHz raster; matched to the official Prasar Bharati transmitter list |
 
-This is consistent with published literature. The DRDO paper (Tamakuwala, Defence Science Journal, Vol. 69(3), 2019, DOI: 10.14429/dsj.69.13370) reports probability of detection = 1 for BER ≤ 10⁻⁴. The Hanyang University group (Choi & Yoon 2017; Jang et al. 2020, IEEE Access) has published extensively on improved rank-based methods for scant/noisy data, but all require very low BER. Swaminathan & Madhukumar (IEEE Trans Broadcasting, 2017, 78+ citations) addresses noisy classification but remains limited.
+**Independent checks, never used for the decision:** receiver GPS time vs decoded minute; RTTY text's own callsign/frequency; official AIR list.
 
-**Conclusion:** Catalogue-based identification via decode + consistency is the practical engineering solution and is the same approach used by commercial tools.
+## 17. Live Reception
 
----
-
-## 15. Runtime & Resource Baseline
-
-| Metric | Value |
-|---|---|
-| Mean runtime per file | ~8.6 seconds |
-| Maximum observed runtime | ~21 seconds (low-confidence QPSK) |
-| Full 30-file sealed run | ~4–5 minutes |
-| Viterbi inner-loop per decode | ~13 ms |
+- `server/kiwi.py`: stdlib websocket client for **public, volunteer-operated KiwiSDR receivers** (0–30 MHz, 12 kHz IQ, GPS block timestamps). Receivers ranked by distance to the transmitter from the public directory (deduplicated; follows HTTP redirects). IQ and waterfall streams.
+- `server/live.py`: `LiveProcessor` runs the same processing incrementally (amortised buffer; epoch refit every 5 s until locked) and streams Server-Sent Events: spectrum rows, one symbol per second, digits as they become established, final blind analysis; the capture is saved as a recording.
+- `server/stations.py`: station catalogue with official format references.
+- Offline replays (`frontend/public/live/`) are produced by **the same `LiveProcessor`** over committed recordings (`server/export_live_replays.py`) — replays are real engine output, not animation.
+- Time-code sessions capture ~3 minutes (single frames cannot meet the 100:1 digit rule).
 
 ---
 
-## 16. Baseline Preservation Rule
+# PART C — EVIDENCE
 
-Before introducing a new estimator or feedback mechanism: (1) baseline must be reproducible, (2) passing cases identifiable, (3) failure cases reproducible, (4) baseline metrics recorded, (5) new methods compared directly.
+Environment of record: Windows 11, Python 3.11.14, NumPy 2.4.2, SciPy 1.17.0, 8 logical cores. CI: Ubuntu, Python 3.11, Node 22.
 
----
+## 18. bench-v1 (regression tripwire)
 
-## 17. Baseline Status Summary
+Generator `src/generate.py` (unmodified): fs = 1 MHz, 400 random info bits, K7 (171,133), block interleaver, RRC, CFO ±0.01 cycles/sample, timing ±0.5 sample, random phase, AWGN.
 
-| Component | Status |
-|---|---|
-| Signal detection | **PROVEN** |
-| SNR estimation (M2M4) | **PROVEN** (crude/biased but functional) |
-| BPSK/QPSK support | **PROVEN** |
-| Symbol-rate estimation (|x|+|x|² spectral) | **PARTIALLY PROVEN** (fails at 2 dB QPSK) |
-| Carrier/phase estimation (M-power) | **PROVEN within validated scope** |
-| Soft-bit generation (LLR) | **PROVEN** |
-| Catalogue FEC identification | **PROVEN within catalogue** |
-| Block interleaver identification | **PROVEN within validated scope** |
-| Vectorized soft-decision Viterbi | **PROVEN** |
-| Re-encode consistency | **PROVEN** |
-| 30/30 sealed recovery | **PROVEN** (v2.1) |
-| Genie 100% recovery | **PROVEN** (upper-bound diagnostic) |
-| Modulation ID (lag-1 autocorr of s², replaced C20) | **PROVEN** (100% on sealed set) |
-| Rank-based blind FEC ID | **PARTIALLY PROVEN** (collapses ~0.1% BER) |
-| Frame sync / bit-stream correlation | **PLANNED** (stub only) |
-| SAGE-Lite feedback | **LOCKED — NOT YET PROVEN** |
-| Cyclic-CAF estimator | **LOCKED — NOT YET PROVEN** |
-| Train-set recovery | **60/100 — next target** |
+| Parameter | train (seed0 1000, n = 100) | sealed (seed0 99000, n = 30) |
+|---|---|---|
+| Per-sample SNR (dB) | {0, 3, 6, 10, 15} | {2, 5, 8, 12} |
+| sps | {4, 8} | {6} |
+| Interleaver | {4×8, 8×8, 8×16} | {6×10, 10×12} |
+| β | 0.35 | {0.25, 0.5} |
 
----
-
-## 18. Target Architecture — Three Tiers
-
-### 18.1 Current Verified Architecture (PROVEN)
-
-```
-Raw IQ → Signal Detection (M2M4) → Symbol-Rate Estimation (|x|+|x|² spectral)
-→ Modulation ID (cumulant C20) → Demodulation (RRC matched filter + M-power)
-→ Soft Bits (LLR) → Catalogue FEC Hypothesis → Block Interleaver Hypothesis
-→ Soft Viterbi Decode → Re-encode Consistency → Accept/Reject
-```
-
-### 18.2 Next Implementation Architecture (LOCKED)
-
-```
-Raw IQ → Signal Discovery → Initial Parameter Estimation (Cyclic-CAF)
-→ Hypothesis Generation → Demodulation → Soft Bits / LLRs
-→ FEC / Deinterleaving → Viterbi Decoding → Re-encode + Consistency
-  ├── Sufficient evidence → ACCEPT
-  └── Insufficient → SAGE-Lite Feedback → Parameter Refinement
-      → Demodulation Again → Decode Again (max 1–3 iterations)
-```
-
-### 18.3 Future Research Architecture
-
-Full factor-graph inference, BCJR soft decoding, conformal uncertainty, Signal Genome. **FUTURE** until experimentally validated.
-
----
-
-## 19. Phase 1 — Baseline Preservation
-
-Before modifying the pipeline: preserve benchmark results, protect DSP conventions (§12), maintain regression tests (6/6), retain FEC catalogue, protect consistency mechanism, record runtime, reproduce failure cases.
-
----
-
-## 20. Phase 2 — Cyclic-CAF Symbol-Rate Estimation
-
-### 20.1 Objective
-
-Improve symbol-rate estimation at low SNR. Primary target: 2 dB QPSK failures.
-
-### 20.2 Scientific Background (References Verified 2026-09-16)
-
-Linearly modulated signals exhibit second-order cyclostationarity at the symbol rate and its harmonics. The Cyclic Autocorrelation Function (CAF):
-
-```
-R_x^α[τ] = lim(N→∞) (1/N) Σ_{n=0}^{N-1} x[n+τ] · x*[n] · exp(-j2πα·n)
-```
-
-where α is the cyclic frequency. For symbol rate f_s = 1/T_s, peaks appear at α = k/T_s.
-
-**Key theoretical advantage (verified):** Unlike energy detection, cyclostationary detection has **no SNR wall** — noise is stationary and does not contribute at nonzero cyclic frequencies. Given sufficient observation time, detection is theoretically possible at arbitrarily low SNR. (Tandra & Sahai, ~2005-2008, established the SNR wall concept for energy detection and showed cyclostationary detectors avoid it.)
-
-**Foundational references (all verified):**
-- W.A. Gardner, "Exploitation of Spectral Redundancy in Cyclostationary Signals," *IEEE Signal Processing Magazine*, Vol. 8(2), pp. 14-36, April 1991
-- A.V. Dandawate & G.B. Giannakis, "Statistical tests for presence of cyclostationarity," *IEEE Trans. Signal Processing*, Vol. 42(9), pp. 2355-2369, 1994
-- W.A. Gardner, A. Napolitano, L. Paura, "Cyclostationarity: Half a century of research," *Signal Processing* (Elsevier), Vol. 86(4), pp. 639-697, April 2006
-- M. Oerder & H. Meyr, "Digital filter and square timing recovery," *IEEE Trans. Comms.*, Vol. COM-36, pp. 605-612, May 1988
-
-### 20.3 Proposed Implementation
-
-**Phase 2a — Improved spectral estimation with proper windowing:**
-Use Welch's method (segmented, windowed FFT averaging) on |x| and |x|² rather than raw FFT. This reduces spectral leakage and noise floor, improving peak detectability at low SNR.
-
-**Phase 2b — Statistical peak validation:**
-Apply Dandawate-Giannakis significance testing: compare peak magnitude against noise-floor distribution. Accept only statistically significant peaks rather than raw maximum.
-
-**Phase 2c — Multi-method fusion:**
-Combine evidence from |x|, |x|², and (if needed) conjugate products. Weight by estimated reliability.
-
-**Phase 2d — Constrained search:**
-Exploit known fs to constrain sps ∈ [2, 20], limiting the search to physically plausible rates.
-
-Start with 2a+2d (simplest viable). Add 2b and 2c only if needed.
-
-**Do NOT implement the full 2D Spectral Correlation Function** unless the 1D approaches prove insufficient — the full SCF is O(N · K_α · K_f) and may exceed the CPU budget.
-
-### 20.4 Open-Source Landscape (verified 2026-09-16)
-
-**No turnkey open-source CAF-based symbol-rate estimator exists.** The closest is SSTGroup/Cyclostationary-Signal-Processing (MATLAB, 37 stars) which implements detection but not parameter estimation. Chad Spooner's CSP Blog provides extensive implementation guidance but code is not public. SIH26147 would fill an actual open-source gap.
-
-### 20.5 Evaluation
-
-Compare using: symbol-rate absolute error, percentage error, within-2% rate, false peak rate, runtime, robustness across SNR, regression on passing cases.
-
-**Target:** ≥95% within-2% at 2 dB QPSK. This is a TARGET, not a guaranteed outcome.
-
----
-
-## 21. Phase 3 — SAGE-Lite / Decoding-Assisted Feedback
-
-### 21.1 Objective
-
-Determine whether FEC decoder output can improve upstream physical-layer parameter estimates.
-
-### 21.2 Theoretical Foundation (References Verified 2026-09-16)
-
-The established literature calls this **"code-aided synchronization"** or **"turbo synchronization"**:
-
-- N. Noels et al., "Turbo synchronization: an EM algorithm interpretation," *IEEE ICC '03*, vol. 4, pp. 2933-2937, 2003 — showed turbo sync is an instance of EM
-- C. Herzet, V. Ramon, L. Vandendorpe, "A theoretical framework for iterative synchronization based on the sum-product and the expectation-maximization algorithms," *IEEE Trans. Signal Processing*, vol. 55(5), pp. 1644-1658, May 2007 — unified framework
-- **C. Herzet et al., "Code-aided turbo synchronization," *Proceedings of the IEEE*, vol. 95(6), pp. 1255-1271, June 2007** — landmark survey (87+ citations)
-- N. Noels et al., "A theoretical framework for soft-information-based synchronization in iterative (turbo) receivers," *EURASIP J. Wireless Comms and Networking*, 2005 — foundational treatment (86+ citations)
-- J.A. Fessler & A.O. Hero, "Space-alternating generalized expectation-maximization algorithm," *IEEE Trans. Signal Processing*, vol. 42(10), pp. 2664-2677, 1994 — the SAGE algorithm itself (853+ citations)
-- B.H. Fleury et al., "Channel parameter estimation in mobile radio environments using the SAGE algorithm," *IEEE JSAC*, vol. 17(3), pp. 434-450, March 1999 — SAGE applied to radio channels
-- U. Mengali & A.N. D'Andrea, *Synchronization Techniques for Digital Receivers*, Plenum Press, 1997 — textbook reference (ISBN: 0306457253)
-
-### 21.3 Literature Gap (CRITICAL FINDING — verified 2026-09-16)
-
-**The turbo synchronization literature uniformly assumes the FEC code is KNOWN a priori.** The blind FEC identification literature (Filiol, Cluzeau, Barbier, Tamakuwala) assumes synchronization is already achieved.
-
-**The specific combination — blind FEC identification from a catalogue followed by decode-aided synchronization refinement — does not appear to have been explicitly treated in the open literature.**
-
-This is SIH26147's strongest novelty claim: not the individual algorithms (all established), but the closed-loop architecture where:
-1. The code is blindly identified via catalogue + consistency
-2. The decoded output feeds back to refine synchronization
-3. Both happen in a non-cooperative/blind context
-
-### 21.4 SAGE-Lite Definition
-
-For the MVP, SAGE-Lite is a constrained approximation. It is **NOT** a full SAGE/BCJR/factor-graph receiver.
-
-More precisely, it is **decision-directed synchronization refinement using FEC-corrected symbols from a blindly-identified code** — a specific instance of code-aided synchronization applied in a non-cooperative context.
-
-The MVP version: operates around the existing pipeline, reuses decoder outputs, makes bounded parameter updates, limits iterations (1–3), exposes measurements, remains CPU-compatible.
-
-### 21.5 Feedback Procedure
-
-For each candidate failing consistency:
-
-1. Preserve initial parameter estimates
-2. Demodulate with current estimates
-3. Generate LLRs
-4. Run Viterbi decode
-5. Reconstruct candidate transmitted symbols from decoded bits (re-modulate)
-6. **Estimate residual timing error:** cross-correlate received MF output with reconstructed symbol sequence; peak offset gives timing estimate
-7. **Estimate residual phase:** angle of cross-correlation provides phase residual
-8. **Estimate residual CFO:** linear phase slope across symbol sequence
-9. Apply bounded updates: |Δτ| ≤ 1.0 symbol period, |Δφ| ≤ π/2, |ΔΔf| ≤ 0.005 cyc/sample
-10. Re-demodulate and re-decode
-11. Stop when: consistency ≥ 0.98, OR max iterations, OR convergence (ΔConsistency < 0.005), OR divergence
-
-### 21.6 What SAGE-Lite Is NOT
-
-- Not a full continuous-time ML estimator
-- Not jointly optimizing all parameters simultaneously
-- Not using BCJR/forward-backward soft decoding (uses Viterbi hard/quasi-hard output)
-- Not implementing a factor graph
-- Not providing formal convergence guarantees
-
-### 21.7 Open-Source Landscape (verified 2026-09-16)
-
-**No open-source implementation of turbo synchronization or code-aided synchronization exists anywhere.** Not in GNU Radio, not in AFF3CT, not in CommPy, not in any GitHub repository found via search. This is an implementation gap that SIH26147 would fill.
-
----
-
-## 22. Feedback Safety Rules
-
-- Feedback is conditional (only when consistency < 0.98)
-- Iteration count bounded (initially 1–3)
-- Parameter updates bounded (§21.5)
-- Every iteration logged
-- Consistency measured each iteration
-- Degradation detectable
-- Best-consistency iteration preserved
-
----
-
-## 23. The 2 dB QPSK Rescue Experiment
-
-The defining MVP experiment. Full specification in `SIH26147_2DB_QPSK_RESCUE_EXPERIMENT.md`.
-
-**Primary success criteria (TARGETS, not guaranteed):**
-```
-Consistency ≥ 0.98
-Payload BER < 0.01
-```
-
-**Required ablation:** Baseline vs. feedback-with-decoded-symbols vs. feedback-with-raw-demod-symbols. Isolates whether FEC decoding contributes to improvement.
-
----
-
-## 24. Acceptance Gates
-
-**Gate 1 — Symbol-Rate Estimator:** Compare against baseline on failures + passing cases + runtime.
-
-**Gate 2 — SAGE-Lite:** Rescue ≥1 failure, no unexplained regression, bounded runtime, reproducible.
-
-**Gate 3 — Sealed Regression:** 30/30 must not regress; train-set score must not drop.
-
----
-
-## 25. MVP Definition
-
-1. Existing verified baseline pipeline
-2. Robust low-SNR symbol-rate estimation (Cyclic-CAF)
-3. Consistency-based hypothesis search
-4. SAGE-Lite decoding-assisted feedback
-5. BPSK/QPSK capability
-6. Convolutional FEC capability
-7. Re-encode consistency verification
-8. Reproducible benchmark + regression harness
-9. CPU-oriented, air-gapped execution
-
----
-
-## 26. Features Explicitly Outside MVP
-
-Full SAGE, BCJR, factor-graph inference, conformal prediction, generalized blind FEC reconstruction, arbitrary LDPC/pseudo-random interleaver discovery, multi-signal BSS, full protocol reconstruction, GUI systems, real-time SDR integration, generic CNN/ResNet classifiers, FSK/QAM/8PSK demod (P1), RS/concatenated FEC (P1).
-
----
-
-## 27. Core Evaluation Metrics
-
-### 27.1 Parameter Estimation Accuracy
-Absolute error, relative error, within-tolerance rate. Primary: ≤2% of true symbol rate.
-
-### 27.2 Decode Success
-Payload BER < 0.01 (complement-tolerant) AND consistency ≥ 0.98.
-
-### 27.3 Runtime
-Mean, median, maximum, total benchmark runtime.
-
-### 27.4 Failure Taxonomy
-F1 (Detection) through F12 (Runtime). Primary failure from logged evidence, not retrospective assignment.
-
----
-
-## 28. Benchmark Framework
-
-**Level 1 — Sealed Regression:** Original 30-file benchmark. Current: 30/30 (v2.1).
-
-**Level 2 — Controlled Synthetic:** Systematic variation of SNR, CFO, timing, modulation, roll-off, sps, FEC, interleaver.
-
-**Level 3 — Real-World Public IQ:** Legally accessible recordings. Required before any generalization claim. **NOT YET EXECUTED.**
-
----
-
-## 29. Experimental Discipline
-
-Every new algorithm must have: baseline, hypothesis, controlled variables, independent variable, ground truth, metrics, ablation, success criterion (defined BEFORE results), failure criterion, reproducible script, saved results, interpretation (SUPPORTED / NOT SUPPORTED / INCONCLUSIVE).
-
----
-
-## 30. Regression Protection
-
-No new algorithm may replace baseline based on one success. Test: original passing cases (28), original failures (test_020/025), edge cases, held-out. Net loss is unacceptable.
-
----
-
-## 31. Competitor Context (Verified 2026-09-16)
-
-| System | Type | Blind ID? | Full Decode? | License | Status |
+| Set | Pass | False accepts | UNKNOWN | SIGNAL_NO_CODE | Runtime |
 |---|---|---|---|---|---|
-| PROCITEC go2signals | Commercial SIGINT | Yes ("revolver principle") | Yes (250+ modes) | Proprietary | Active |
-| R&S SIGINT products | Commercial SIGINT | Yes | Yes | Proprietary | Active |
-| DeepSig OmniSIG | Commercial AI | Yes (classify) | No | Proprietary | Active |
-| GNU Radio | Open-source toolkit | No (blocks only) | Partial | GPL-3.0 | Active |
-| URH | Open-source tool | Partial (simple mods) | No | GPL-3.0 | **Archived March 2026** |
-| gr-satellites | Open-source decoders | No (protocol-specific) | Yes (known sats) | GPL-3.0 | Active |
-| liquid-dsp | Open-source C library | No (primitives) | No | MIT (without FFTW) | Active |
-| AFF3CT | Open-source FEC | No | FEC only | MIT | Active |
-| scikit-dsp-comm | Open-source Python | No (teaching) | No | BSD-2-Clause | Active |
-| NVIDIA Sionna | Research platform | No (simulation) | Simulation | Apache-2.0 | Active |
+| sealed (30) | **30** | **0** | 0 | 0 | ~1.5 s |
+| train (100) | **63** | **0** | 17 | 20 | ~4.4 s |
 
-**Confirmed gap:** No open-source tool performs the complete pipeline of blind IQ ingestion → automatic parameter identification → payload extraction. SIH26147 occupies this position.
+Train by block: 32 bits (4×8) **0/24** — structurally unprovable at α = 1% (ten parity checks give p ≥ 10⁻³); 64 bits 37/41; 128 bits 26/35.
+Pass = DECODED and BER < 0.01; DECODED with BER ≥ 0.01 is a false accept. CI gate: ≥ 28/30 and 0 false accepts.
 
-**Our differentiation is NOT capability breadth.** It is: open, offline/air-gapped, auditable, catalogue-driven, indigenous, with the cross-layer feedback architecture as the technical differentiator.
+## 19. Null Set and Wrong-Structure Null
 
----
+`eval/nullset.py` (seed0 500000, 1,350 files): sps ∈ {3,4,5,6,7,8,10,12}, β ~ U(0.2, 0.5), CFO ~ U(±0.01), timing ~ U(±0.5), Es/N0 ∈ {3,6,9,12} dB, coded lengths {30,60,120,240,384}. Classes: noise 500, uncoded BPSK 150, uncoded QPSK 150, 8PSK+K7 100 (out of family), K7/K5/K3 150 each.
 
-## 32. Dependency & Licensing Discipline
+| Metric (full null set, adopted rule) | Result |
+|---|---|
+| False accepts on 900 non-catalogue files | **0** (95% upper bound 0.43%) |
+| Wrong decodes on 450 coded files | **0** |
+| Correct decodes K7 / K5 / K3 | 61 / 37 / 31 of 150 each |
+| Noise → UNKNOWN | 475/500 (R0 figures; SIGNAL_NO_CODE 21/500 = 4.2% vs 1% target) |
+| Uncoded BPSK → SIGNAL_NO_CODE | 134/150 |
+| Uncoded QPSK → UNKNOWN | 121/150 (x⁴ line too weak) |
 
-| Dependency | License | Status |
+**Wrong-structure null** (450 runs, true interleaver removed so any accept is wrong), evaluation split:
+
+| Rule | Recall | Wrong-hypothesis accepts | Null false accepts | Wrong-structure accepts |
+|---|---|---|---|---|
+| R0 | 0.311 | 5/225 | 3/450 | 39/225 (17.3%) |
+| **R0+MC+BL+PM (adopted)** | **0.320** | **0/225** | **0/450** | **2/225 (0.9%, ≤ 3.2%)** |
+
+Mechanisms of R0's accepts: modulation × interleaver alias (8), partial coverage (5), barely significant (4).
+
+## 20. Scoring Comparison
+
+`python eval/nullset.py compare` — hypotheses decoded at the true front end, 180 coded vs 180 null files:
+
+| Score | AUC | TPR at 0 null FP | ID accuracy |
+|---|---|---|---|
+| Hard re-encode consistency | 0.834 | 0.000 | 0.967 |
+| **Soft path metric** | **0.994** | **0.939** | **0.989** |
+| MDL savings | 0.800 | 0.000 | 0.972 |
+| Sign test evidence (acceptance) | 0.960 | 0.844 | 0.900 |
+| Syndrome soft z | 0.966 | 0.889 | 0.944 |
+
+The path metric is the most powerful separator but has no analytic null; it is therefore used as a **calibrated floor on top of** the sign test, not instead of it.
+
+## 21. Oracle Ladder (failure attribution)
+
+`eval/ladder.py`: first oracle that makes each file pass (O0 blind … O7 interleaver).
+
+| Stage | sealed | train |
 |---|---|---|
-| numpy | BSD | Core — required |
-| scipy | BSD | Core — required |
-| scikit-learn | BSD | Core — minor utilities |
-| matplotlib | PSF/BSD | Core — visualization |
-| AFF3CT | MIT | Optional cross-check |
-| liquid-dsp | MIT (without FFTW!) | Optional C speed path |
+| O0 blind | 30 | 63 |
+| O1 +modulation | 0 | 0 |
+| O2 +sps | 0 | 5 |
+| O3 +CFO | 0 | 6 |
+| O4 +β | 0 | 0 |
+| O5 +fractional timing | 0 | 1 |
+| O6 +phase/rotation | 0 | 0 |
+| O7 +interleaver | 0 | 24 (23 are 32-bit files: the oracle lowers the Bonferroni bar, not an ID error) |
+| never | 0 | 1 |
 
-**Rules:** verify license at integration; prefer MIT/BSD; pin versions; offline wheels for air-gap. **Never embed GPL code** in deliverable. FFTW (GPL-2) must be excluded from liquid-dsp builds.
+## 22. Real Transmissions (received blind, independently checked)
+
+| Recording | Receiver | Engine answer | Evidence | Independent check |
+|---|---|---|---|---|
+| JJY 40 kHz (NICT) | Okegawa, 191 km, GPS | **DECODED** 2026-09-17 03:17 UTC | 2 frames, 0/120 disagree, p = 10^-32.3, all 9 digits | **+1.9 ms** vs GPS |
+| DCF77 77.5 kHz (PTB) | Trémolat, 839 km | **DECODED** 03:17 UTC | 0/88, p = 10^-14.7 | **+4.7 ms** |
+| MSF 60 kHz (NPL) | SW England, 466 km | **DECODED** 02:58 UTC | 11/120, p = 10^-15.0 | **+3.6 ms** |
+| WWV 10 MHz (NIST) | W. Montana, 976 km | **DECODED** 02:58 UTC | 3/109, p = 10^-23.4 | **+23.4 ms** (sky-wave + receiver filter) |
+| WWVB 60 kHz (NIST) | W. Montana | **SIGNAL_NO_CODE** — structure p = 10^-4.7, **time refused** | 25/119 disagree, no digit ≥ 100:1 | ML frame said 2066 — wrong; the digit rule prevented a false time |
+| DDH47 147.3 kHz (DWD) | Høll Strand, 219 km | **DECODED** ITA2 | 50 Bd, 85.0 Hz, 1.5 stop, 825/828 stop bits, p = 10^-241 | Text names its own callsign and frequency |
+| AIR Chennai 720 kHz (Prasar Bharati) | Bangalore, 287 km | **SIGNAL_NO_CODE** — AM | Carrier 53 dB above noise, 2.6 kHz audio; one sideband detected and reported | 720 kHz Chennai 200 kW in official list |
+| AIR MW band | Bangalore, 60-s waterfall | 5 carriers | Prominence-filtered, raster fit 1.0021 | **5/5** matched official list |
+
+Recordings: `recordings/real/` (IQ `.wav` + JSON sidecar with GPS start; MW band `.npz`). 21 tests in `tests/test_realsig.py` run them in CI. CHU decoder tested on synthetic packets only (not receivable during the session).
+
+## 23. Performance (decision-identical)
+
+| Set | Files | Before | After | Speed-up | Decision differences |
+|---|---|---|---|---|---|
+| sealed | 30 | 5.6 s | 1.5 s | 3.7× | 0 |
+| train | 100 | 16.9 s | 4.4 s | 3.8× | 0 |
+| null set | 1,350 | 734.6 s | 241.2 s | 3.0× | 0 (`syndrome_z` < 1e-9) |
+
+FSK tone-pair search: one STFT per shift class (30 s → 2.5 s on 125 s). RRC taps cached.
+
+## 24. Component Status (authoritative)
+
+| # | Component | Status | Evidence | Next |
+|---|---|---|---|---|
+| 1 | `.iq` ingestion | **PROVEN** | `load_iq`, tests | — |
+| 2 | `.wav` ingestion | **PROVEN on real signal** | All real recordings load via `load_wav`; CI | — |
+| 3 | Signal-presence test (x²/x⁴ line vs exponential null) | **PARTIALLY PROVEN** | Anti-conservative: noise → SIGNAL_NO_CODE 4.2% vs 1% | Calibrate empirically |
+| 4 | SNR / LLR scaling (symbol-domain M2M4) | **FUNCTIONAL** | Es/N0 formula vs genie median −0.64 dB sealed, −0.31 dB train | Measure estimator error |
+| 5 | Symbol-rate candidates | **PARTIALLY PROVEN** | True sps in candidates 30/30 sealed, 91/100 train; 5 train files wait on sps | Better ranking |
+| 6 | Modulation (BPSK/QPSK) | **PROVEN on bench-v1** | 0 files wait on modulation; MC check | Out-of-family class |
+| 7 | CFO candidates + M-power phase | **PARTIALLY PROVEN** | 6 train files wait on CFO (low-Es/N0 QPSK) | CFAR candidates, interpolation |
+| 8 | Demodulation (RRC MF, fixed delay) | **PROVEN on bench-v1** | Genie decodes | Fractional timing |
+| 9 | Soft bits (LLR) | **PROVEN** | Convention test | — |
+| 10 | Catalogue code ID (K7/K5/K3, sign test + Bonferroni + MC/BL/PM) | **PROVEN on null set** | 0/900 false accepts, 0/450 wrong decodes; wrong-structure 0.9% | Recalibrate PM for new channels |
+| 11 | Block interleaver ID (≤ 384 bits) | **PARTIALLY PROVEN** | 30/30 sealed; wrong-structure 2/225; ≤ 32-bit blocks unprovable | Multi-block (bench-v2) |
+| 12 | Vectorised soft Viterbi | **PROVEN (self-consistent)** | = exhaustive ML; standard conformance not verified (bit-reversed convention) | Reference vectors |
+| 13 | Re-encode consistency | **RETIRED as acceptance** | AUC 0.834, TPR 0 | Diagnostic only |
+| 14 | Structural acceptance (MC, BL, PM) | **PROVEN on null set** | §19 | Channel generalisation |
+| 15 | bench-v1 sealed | **30/30, 0 false accepts** | Tripwire only | bench-v2 |
+| 16 | bench-v1 train | **63/100, 0 false accepts** | §18 | Low Es/N0 recall |
+| 17 | Vectorised hypothesis search | **PROVEN** | 3.0–3.8×, 0 decision differences on 1,480 files | — |
+| 18 | Rank-based blind FEC ID | **PARTIALLY PROVEN** | Collapses at 0.1% BER | Clean-signal tool only |
+| 19 | Tests + CI | **PROVEN on GitHub** | 30 tests (9 core + 21 real-signal); CI green on PR #2 (tests, sealed gate, frontend build) | — |
+| 20 | Deterministic data generation | **PROVEN** | Byte-identical from seed | — |
+| 21 | Reject path (3 outcomes) | **PROVEN** | Null set; WWVB time refused | — |
+| 22 | Time-code receivers (5 protocols) | **PROVEN on real signal** | §22: 4 decoded ±1.9–23.4 ms, 1 correctly refused | Receiver delay calibration |
+| 23 | FSK start-stop (ITA2/ASCII) | **PROVEN on real signal** | DDH47 p = 10^-241 | Synchronous FSK (SITOR-B/NAVTEX) |
+| 24 | CHU packets | **IMPLEMENTED, tested synthetic** | Not received live | Receive CHU |
+| 25 | AM characterisation + one-sided passband detection | **PROVEN on real signal** | AIR Chennai | DRM (AIR digital MW) |
+| 26 | MW carrier census vs official list | **PROVEN on real signal** | 5/5 | Wider band, other cities |
+| 27 | Live reception (KiwiSDR, SSE) | **PROVEN** | Live DWD and WWV sessions; replays from same processor | Receiver delay calibration |
+| 28 | Operator console (ICHNOVA) | **FUNCTIONAL** | 16 routes, both themes, CI build (§27) | Usability testing with operators |
+| 29 | Evidence packs / reports / audit trail export | **FUNCTIONAL** | PDF (print), JSON, CSV | Signed packs |
+| 30 | Google sign-in | **FUNCTIONAL (prototype)** | Client-side token decode, not verified server-side | Server-side verification / on-prem IdP |
+| 31 | Signal genome similarity | **EXPERIMENTAL** | Shown with label | Validation study |
+| 32 | Monitoring network, incidents, occupancy | **SIMULATED** | `sim.ts` | Real station feeds |
+| 33 | Frame sync / bit-stream correlation | **FUTURE** | — | P1 |
+| 34 | QAM, 8PSK demodulation | **FUTURE** | 8PSK used only as null class | P1 |
+| 35 | Reed-Solomon, concatenated FEC | **FUTURE** | AFF3CT (MIT) as reference | P1 |
+| 36 | Convolutional/diagonal interleavers, catalogue LDPC | **FUTURE** | — | P2 |
+| 37 | Cyclic-CAF symbol-rate estimator | **BLOCKED** | Only 5/100 train failures wait on sps | §36.1 |
+| 38 | SAGE-Lite feedback | **BLOCKED** | Needs calibrated soft score, frame sync/CRC, bench-v2 | §36.3 |
+| 39 | 2 dB QPSK rescue experiment | **PREMISE CHANGED** | Sealed 2 dB QPSK files pass; test_020/025 failures don't reproduce | Re-target at stress set |
+| 40 | Conformal prediction / formal UNKNOWN | **FUTURE** | — | Research |
+| 41 | Adversarial benchmark, bench-v2 (full payload, CRC) | **FUTURE (next)** | — | §35 |
+| 42 | Real PSK/FEC modems on air | **FUTURE** | — | §35 |
+| 43 | Arbitrary blind LDPC, arbitrary pseudo-random interleaver | **REJECTED** | Rank collapse | — |
+| 44 | Generic CNN/ResNet acceptance | **REJECTED** | No per-decision error control | ML only for prioritisation (FUTURE) |
+| 45 | BSS/ICA multi-signal separation | **REJECTED for MVP** | Single-signal scope | — |
+| 46 | Local SDR hardware capture | **SUPERSEDED** | Public receivers used | Field hardware when authorised |
+| 47 | Full SAGE / BCJR / factor graph | **FUTURE** | Research-grade | After MVP |
+
+## 25. Known Limitations (must be disclosed when relevant)
+
+1. Low-Es/N0 recall: K7 correct 3/34 at 3 dB, 13/40 at 6 dB, 20/40 at 9 dB, 25/36 at 12 dB (Es/N0).
+2. Blocks ≤ 32 coded bits are unprovable at α = 1%.
+3. Signal-presence test is anti-conservative (4.2% vs 1%); uncoded QPSK usually UNKNOWN.
+4. BL assumes the burst starts at capture start; PM floor calibrated on one generator family (fading/phase noise need recalibration).
+5. Payload rotation resolved by assuming zero encoder start state; no frame sync.
+6. Viterbi convention bit-reversed vs MATLAB; standard conformance unverified.
+7. Real signals: the operator chooses where to listen; receiver filter delay uncalibrated (WWV +23 ms); Indian receivers deliver one sideband in IQ mode; availability depends on propagation and schedules.
+8. Web tier is `http.server`: no TLS, unauthenticated API, single process — demo grade.
+9. Console monitoring-network data is simulated.
 
 ---
 
-## 33. Security, Ethics, and Authorized-Use Boundaries
+# PART D — THE PRODUCT
 
-Testing uses project-provided synthetic datasets, publicly released datasets with appropriate rights, signals with explicit authorization. No unauthorized live interception. No claims of: arbitrary decryption, universal recognition, real-time interception, guaranteed attribution.
+## 26. ICHNOVA Brand
+
+| Element | Rule |
+|---|---|
+| Mark | Wave rising into a four-point star on a vertical line, a crescent, and a long gold tail. Drawn as SVG in `frontend/src/components/brand.tsx` (`BrandMark`, `Wordmark`, `Lockup`); PNG sources in `frontend/public/ichnova-*.png` |
+| Wordmark | "ICHNOVA", widely spaced; the A has no crossbar (Λ) |
+| Colour | Dark: gold `#f7dfb3 → #c78a4b` on near-black `#0c0b0a`. Light: ink `#17140f` on ivory `#f5f2eb` |
+| Favicon | Gold mark on a dark rounded tile (`favicon.svg`, `favicon.png`) |
+| Copy | Name, context, sponsor, taglines, restraint line and disclaimer only from `brand.ts` |
+| Disclaimer (always present in footers) | Independent SIH prototype; not an official Government of India system |
+| Forbidden | "THADAM"; government emblems (Ashoka emblem, Satyameva Jayate), ministry logos, `.gov.in` styling that implies official status |
+
+## 27. Operator Console
+
+React 19 + TypeScript + Vite 8 SPA (`frontend/`), served by `server/app.py` from `frontend/dist`.
+
+| Route | Page | Purpose | Data |
+|---|---|---|---|
+| `/` | Landing | One primary action, headline figures (measured), four service cards, real signals, how it works, coverage | BENCHMARK / LIVE |
+| `/signin` | Sign in | Role (Field / Regional / National) and station; Google or operator credentials; demo analyst | — |
+| `/app/command` | Home | Welcome, four task cards, four KPIs, station map, "Needs attention", verified real transmissions; trends folded | SIMULATED + LIVE |
+| `/app/analysis` | Analyse a capture | 7-step flow: Capture → Upload → Detect → Analyse → Classify → Verify → Report; samples in tabs (Real transmissions / Benchmark) | LIVE / BENCHMARK |
+| `/app/monitor` | Live signals | Stations by group; Replay or Receive live; minute dial, digits, GPS check, teleprinter, AIR census | LIVE |
+| `/app/review` | Review queue | Analyst decisions on non-decoded / flagged signals | Mixed |
+| `/app/signals`, `/app/signals/:id` | Signal library / record | Tabs; record header with facts; evidence chain, hypotheses | Mixed |
+| `/app/incidents`, `/app/incidents/:id` | Incidents | Patterns worth investigating; status, notes | SIMULATED |
+| `/app/reports` | Reports | Signal/incident evidence report; PDF, JSON pack, CSV audit | Mixed |
+| `/app/spectrum` | Spectrum map | Occupancy views | SIMULATED |
+| `/app/intelligence` | Intelligence | Regional/national aggregation (`?view=scale`) | SIMULATED |
+| `/app/genome` | Signal genome | Fingerprints, similarity | EXPERIMENTAL |
+| `/app/lab` | Evidence lab | Real transmissions, benchmark, oracle ladder, null test, acceptance rules, scoring, FEC vs Es/N0, runtime, performance, landscape | BENCHMARK / LIVE |
+| `/app/system` | System | Data flow, engine configuration (from evidence pack), coverage, data quality, audit trail | Mixed |
+
+Navigation groups: **Overview** (Home) · **Work** (Analyse a capture, Live signals, Review queue) · **Records** (Signal library, Incidents, Reports) · **Insights** (Spectrum map, Intelligence, Signal genome) · **About the engine** (Evidence lab, System). Top bar: breadcrumbs, View (Field station / Regional / National), engine status pill (online, or offline · replay), Guided tour (6 scenes), user menu. Without the server the console replays stored evidence and says so.
+
+## 28. Data Honesty in the Product
+
+- Every panel with numbers shows a provenance label (§8.2).
+- Stamps for outcomes: DECODED (green), SIGNAL · NO CODE (cyan), UNKNOWN (amber).
+- Refusal is presented as a result (e.g. WWVB "time refused" is a featured case).
+- The engine configuration on the System page is read from the evidence pack, not typed.
+- Regenerate the real-data layer with `server/export_frontend_data.py` and `server/export_live_replays.py`; never edit `frontend/public/evidence`, `benchmark.json` or `live/` by hand.
+
+## 29. UX, Accessibility and Themes
+
+**Reference model (similar-work Indian government portals only):** DoT **Tarang Sanchar** (EMF/spectrum information: accessibility bar, one primary action, overview statistics, learn cards, footer with last-updated) and DoT **Saral Sanchar** (WPC licensing: short service cards with icon + title + ≤ 25-word description, grouped menus); NTIA ITS spectrum-monitoring pages for breadcrumbs and problem → approach → tools structure. UX4G (NeGD) guidance on WCAG/GIGW informs accessibility. These are **design references only**; ICHNOVA is not affiliated with them and does not copy their branding.
+
+Rules:
+1. **One primary action per screen**; at most four task cards on Home.
+2. **Progressive disclosure:** secondary charts in "Show …" disclosures; long lists behind tabs; coverage details collapsed.
+3. **Utility bar on every screen:** skip to content, text size A− / A / A+ (0.9, 1, 1.12, 1.25), Light / Dark.
+4. **Themes:** all colours are CSS tokens (`:root[data-theme='light'|'dark']` in `styles.css`); canvases and waterfalls read the same tokens (`src/lib/theme.tsx`); choice stored in `localStorage` (`ichnova.theme`, `ichnova.textScale`) and applied before first paint.
+5. **Tables:** IDs, numbers and dates never wrap; wide tables scroll inside their panel; missing values show "—".
+6. **Layout checks before merge:** 1920, 1440, 1366×768 and 390 px wide, both themes, no horizontal page scroll, no console errors.
+7. Plain language: name things by what operators recognise ("Analyse a capture", "Review queue"), not by internals.
+
+## 30. Web Tier and API
+
+`server/app.py` — stdlib `ThreadingHTTPServer`, hand-rolled router, SPA fallback; default `127.0.0.1:8765` (`--host 0.0.0.0` for LAN demos).
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /api/health` | Engine version and status |
+| `POST /api/analyze` | Analyse an uploaded capture → evidence pack |
+| `GET /api/recordings/…` | Committed real recordings |
+| `GET /api/live/stations` | Station catalogue |
+| `POST /api/live/start`, `POST /api/live/stop` | Start/stop a live session |
+| `GET /api/live/events` | Server-Sent Events stream |
+| `GET /api/live/sessions`, `/api/live/session/…`, `/api/live/file/…` | Session list, detail, saved capture |
+
+The API is unauthenticated (demo scope, §25.8).
+
+## 31. Tech Stack, Dependencies and Licensing
+
+| Layer | Stack |
+|---|---|
+| Engine | Python 3.11; **numpy 2.4.2, scipy 1.17.0 — the entire `requirements.txt`**; no GNU Radio, no ML framework |
+| Web tier | Python stdlib only (`http.server`, SSE, websocket client) |
+| Console | React 19, TypeScript, Vite 8, react-router 7, framer-motion, d3-geo + topojson-client, IBM Plex (`@fontsource`), `@react-oauth/google`; hand-written CSS; oxlint |
+| Map data | DataMeet India boundaries, Survey of India depiction (CC BY 4.0) |
+| Tests / CI | pytest; GitHub Actions |
+
+Rules: prefer MIT/BSD/Apache; pin versions; offline wheels for air-gapped installs; **never embed GPL code** in the deliverable (FFTW excluded if liquid-dsp is ever used). Optional references: AFF3CT (MIT), liquid-dsp (MIT without FFTW).
+
+## 32. Quality Gates
+
+| Gate | Command | Must hold |
+|---|---|---|
+| Tests | `python -m pytest -q tests` | 30/30 |
+| Sealed tripwire | `python sealed_test.py data/sealed 30 --min-pass 28 --max-false-accept 0` | CI gate; reference machine 30/30, 0 FA |
+| Train | `python sealed_test.py data/train 100` | ≥ 63/100, 0 false accepts (no silent regression) |
+| Frontend | `cd frontend && npm ci && npm run build` | Type-check + build |
+| Decision-changing engine change | Null set + wrong-structure null + report | Criteria fixed before running |
+| Performance change | Decision-identity check on sealed + train + null set | 0 differences |
+| UI change | §29.6 screenshots | No overflow, both themes |
+
+A 4/30 commit once reached `main` unverified (v2.1); CI exists so that cannot recur.
+
+## 33. Repository Map
+
+| Path | Purpose |
+|---|---|
+| `src/pipeline.py` | `analyze_file()` / `analyze_iq()`, search domain, acceptance |
+| `src/blind_id.py` | Catalogue, interleaver domain, syndrome scan, sign test, hypothesis decode |
+| `src/analyze.py` | Symbol-rate spectrum, matched filter, M-power, M2M4, LLRs |
+| `src/fec.py` | Encoder, vectorised soft Viterbi, block interleaver |
+| `src/modem.py` | Modulation, RRC, channel, IQ/WAV I/O |
+| `src/generate.py` | Deterministic bench-v1 generator (**do not modify**) |
+| `src/timecodes.py`, `src/fsk.py`, `src/broadcast.py`, `src/realsig.py` | Real-signal receivers |
+| `server/app.py`, `server/evidence.py` | API, evidence packs |
+| `server/kiwi.py`, `server/live.py`, `server/stations.py` | Public receivers, live sessions, station catalogue |
+| `server/make_recording.py`, `server/record_band.py` | Capture → recording fixture; band waterfall |
+| `server/export_frontend_data.py`, `server/export_live_replays.py` | Console data layer |
+| `eval/snr.py`, `eval/ladder.py`, `eval/nullset.py`, `eval/acceptance.py` | Evaluation |
+| `tests/test_core.py` (9), `tests/test_realsig.py` (21) | Regression |
+| `recordings/real/`, `recordings/reference/air_mw_transmitters.json` | Government transmissions (IQ + GPS sidecars); official AIR transmitter list |
+| `frontend/` | ICHNOVA console |
+| `reports/` | Measured reports and raw evidence |
+| `sealed_test.py` | Benchmark harness |
+| `.github/workflows/ci.yml` | CI |
+
+## 34. Workflows
+
+```bash
+# Reproduce everything (from repo root)
+pip install -r requirements.txt pytest
+python src/generate.py sealed && python src/generate.py train
+python -m pytest -q tests
+python sealed_test.py && python sealed_test.py data/train 100
+python eval/snr.py
+python eval/ladder.py data/sealed 30 data/train 100
+python eval/nullset.py generate && python eval/nullset.py run && python eval/nullset.py report && python eval/nullset.py compare
+
+# Real signal → regression fixture
+python server/kiwi.py --freq-khz 40 --seconds 185 --near 37.37,140.85 --out jjy.npz
+python server/make_recording.py jjy.npz --id my-jjy --station JJY --out-rate 1500
+python -m pytest -q tests/test_realsig.py
+
+# Console
+python server/export_frontend_data.py && python server/export_live_replays.py
+cd frontend && npm install && npm run build && cd ..
+python server/app.py            # http://127.0.0.1:8765
+```
+
+Branching: work on a feature branch (currently `baseline-hardening`, PR #2), CI-gated, fast-forward to `main`. No force pushes. Commits by Claude end with the Co-Authored-By line; PR bodies with the Claude Code line.
 
 ---
 
-## 34. India-First Application Framing
+# PART E — DIRECTION
 
-Potential application domains (NOT deployment claims): spectrum monitoring, interference analysis, disaster communications, satellite communication analysis, telecom diagnostics, authorized defence research.
+## 35. Critical Path and Priorities
 
-**DRDO context (verified):** DLRL (Defence Electronics Research Laboratory), Hyderabad handles COMINT/ELINT. No publicly available DRDO signal analysis tools were found. SIH26147's problem space aligns with DLRL's mission.
+The v2.0 plan (freeze 28/30 → Cyclic-CAF → SAGE-Lite → 2 dB QPSK rescue) is **historical**: the 28/30 failures do not reproduce, consistency acceptance is retired, and the oracle ladder shows sps is not the main bottleneck.
 
----
+**Current critical path (engine):**
+```
+bench-v2 (full 400-bit payload, CRC, multi-block, fading/phase-noise channels)
+→ detection-test calibration (4.2% → 1%)
+→ Es/N0 waterfall per code and block length
+→ frame sync / CRC-based payload confirmation
+→ only then Cyclic-CAF (if sps misses grow) and SAGE-Lite (§36)
+```
 
-## 35. Novelty Discipline (Research-Verified)
+| Priority | Item |
+|---|---|
+| **P0** | bench-v2; detection calibration; recalibrate PM on new channels; keep 0 false accepts |
+| **P0 (product)** | Operator usability test; keep every figure provenance-labelled |
+| **P1** | Frame sync; synchronous FSK (SITOR-B/NAVTEX); real PSK/FEC modems on air; receiver delay calibration; QAM/8PSK; Reed-Solomon; server-side auth for LAN deployments |
+| **P2** | Convolutional/diagonal interleavers; catalogue LDPC; DRM characterisation; genome validation |
+| **Research** | SAGE-Lite; conformal UNKNOWN; full BCJR/factor graph; adversarial benchmark |
 
-### 35.1 Established Methods (NOT our invention)
-SAGE/EM estimation, cyclostationary analysis, Viterbi decoding, convolutional coding, FEC-based consistency checks, M-power carrier estimation, cumulant modulation classification, catalogue-based hypothesis testing ("revolver principle" — PROCITEC, 2003).
+## 36. Research Frontier (references verified 2026-09-16)
 
-### 35.2 Engineering Combination (defensible position)
-The constrained combination of blind catalogue-based FEC identification with decode-assisted synchronization refinement under CPU/air-gap constraints. Re-encode consistency as the blind selector.
+### 36.1 Cyclic-CAF symbol-rate estimation — BLOCKED
+Cyclostationary features at the symbol rate have **no SNR wall** (unlike energy detection; Tandra & Sahai). Start with Welch-averaged |x|/|x|² spectra + constrained sps search; add Dandawate–Giannakis significance testing only if needed; avoid the full 2-D SCF on CPU budget. Unblock when sps misses exceed a measured share of failures on bench-v2.
+- W.A. Gardner, "Exploitation of Spectral Redundancy in Cyclostationary Signals," IEEE SP Magazine 8(2):14–36, 1991
+- A.V. Dandawate & G.B. Giannakis, "Statistical tests for presence of cyclostationarity," IEEE Trans. SP 42(9):2355–2369, 1994
+- W.A. Gardner, A. Napolitano, L. Paura, "Cyclostationarity: Half a century of research," Signal Processing 86(4):639–697, 2006
+- M. Oerder & H. Meyr, "Digital filter and square timing recovery," IEEE Trans. Comms COM-36:605–612, 1988
 
-### 35.3 Literature Gap (strongest claim — verified)
-The specific combination of blind code identification + decode-aided synchronization refinement is not treated in open literature. Turbo-sync assumes known codes; blind FEC assumes achieved sync. SIH26147 bridges this gap.
+### 36.2 Code-aided synchronisation (literature)
+- N. Noels et al., "Turbo synchronization: an EM algorithm interpretation," IEEE ICC 2003, 4:2933–2937
+- C. Herzet, V. Ramon, L. Vandendorpe, "A theoretical framework for iterative synchronization based on the sum-product and the EM algorithms," IEEE Trans. SP 55(5):1644–1658, 2007
+- C. Herzet et al., "Code-aided turbo synchronization," Proc. IEEE 95(6):1255–1271, 2007
+- N. Noels et al., "A theoretical framework for soft-information-based synchronization in iterative (turbo) receivers," EURASIP JWCN, 2005
+- J.A. Fessler & A.O. Hero, "Space-alternating generalized expectation-maximization algorithm," IEEE Trans. SP 42(10):2664–2677, 1994
+- B.H. Fleury et al., "Channel parameter estimation in mobile radio environments using the SAGE algorithm," IEEE JSAC 17(3):434–450, 1999
+- U. Mengali & A.N. D'Andrea, *Synchronization Techniques for Digital Receivers*, Plenum, 1997
 
-### 35.4 Novel Framing (verified)
-"Decoding as a Sensor" does not appear in IEEE/Scholar/arXiv. The closest established terms are "code-aided synchronization" and "turbo synchronization."
+**Literature gap (v2.0 finding, still a hypothesis-level claim):** turbo-sync work assumes the code is known; blind FEC identification assumes synchronisation is achieved. Blind catalogue identification followed by decode-aided refinement was not found treated in the open literature.
 
-Full audit in `SIH26147_NOVELTY_AUDIT.md`.
+### 36.3 SAGE-Lite — BLOCKED
+Definition: decision-directed synchronisation refinement using FEC-corrected symbols from a **blindly identified** code; bounded updates (|Δτ| ≤ 1 symbol, |Δφ| ≤ π/2, |ΔΔf| ≤ 0.005 cycles/sample), 1–3 iterations, best iteration kept, every iteration logged. Not full SAGE, BCJR or a factor graph.
+**Why blocked:** feedback would reinforce wrong-structure accepts unless acceptance is calibrated on the target channel; no frame sync or CRC to confirm a refined payload; bench-v1 leaves too few feedback-rescuable failures to measure benefit. Unblock after bench-v2 + frame sync. Required ablation when run: baseline vs feedback with decoded symbols vs feedback with raw decisions.
 
----
+### 36.4 Other directions
+Conformal prediction for formal UNKNOWN (Vovk et al. 2005; Bates et al. 2021); signal genome fingerprinting (currently EXPERIMENTAL in UI); BCJR (Bahl et al. 1974); factor graphs (Kschischang, Frey & Loeliger, IEEE Trans. IT 2001); adversarial benchmark.
 
-## 36. Risk Register
+## 37. Novelty and Claims
+
+### 37.1 Established (not our invention)
+Cyclostationary analysis, cumulant/M-power methods, Viterbi, convolutional codes, catalogue hypothesis testing (PROCITEC "revolver principle", 2003), syndrome-based recognition (Moosavi & Larsson, IEEE Trans. Commun. 62(5), 2014), interleaver detection (Sicot, Houcke & Barbier, Signal Processing 89(4), 2009), convolutional code reconstruction (Côte & Sendrier, ISIT 2009), GF(2) rank methods (Marazin et al. EURASIP JWCN 2011; Tamakuwala, DSJ 69(3):274–279, 2019, DOI 10.14429/dsj.69.13370).
+
+### 37.2 Our defensible contributions (measured)
+1. **Exact, family-wise error-controlled acceptance over the joint front-end × code × interleaver search, with structural checks against wrong-structure accepts** — 0/900 false accepts, 0/450 wrong decodes, wrong-structure 0.9%.
+2. **Refusal as a measured output**, carried into every screen and report.
+3. **Checked against the world:** blind decodes of government transmissions compared with GPS time, the transmission's own content and India's official transmitter list.
+4. **Measured before claimed:** oracle ladder, null sets, held-out calibration, decision-identical performance work.
+5. **Two-dependency, air-gap-compatible, fully auditable implementation** (engineering, not scientific, novelty).
+
+### 37.3 May say
+- "Accepts a decode only when an exact test, corrected for every hypothesis it tried, supports it — and says UNKNOWN otherwise."
+- "0 false accepts on 900 non-catalogue test files (95% upper bound 0.43%)."
+- "Decoded real time signals from NIST, PTB, NPL and NICT blind; decoded minute agreed with receiver GPS clocks to within 1.9–23.4 ms; refused a weak WWVB time it could not prove."
+- "Matched 5/5 medium-wave carriers to Prasar Bharati's official transmitter list."
+- "3–4× faster with zero decision changes on 1,480 files."
+- "'Decoding as a Sensor' is our research framing; the phrase was not found in the literature."
+
+### 37.4 Must not say
+- "Held-out 30/30" or "93% on held-out data" (sealed is contaminated; that v2.0 sentence is withdrawn).
+- "AI-powered", "uses deep learning" (no ML in acceptance).
+- "Decodes any signal", "universal", "guaranteed", "real-time interception", "decryption".
+- "Superior to commercial systems" (go2signals, W-CODE, R&S cover hundreds of modes).
+- "First of its kind", "patented", "novel algorithms".
+- "Official", "Government of India system", "deployed by DoT/NTRO/WPC".
+- "Live monitoring network" for the simulated station layer.
+
+## 38. Landscape
+
+| System | Type | Blind ID | Full decode | Licence |
+|---|---|---|---|---|
+| PROCITEC go2signals (go2MONITOR, go2DECODE) | Commercial | Yes (revolver principle) | Yes (hundreds of modes) | Proprietary |
+| Rohde & Schwarz CA120 / CA100 | Commercial | Yes | Yes | Proprietary |
+| WAVECOM W-CODE | Commercial | Yes (300+ modes) | Yes | Proprietary |
+| DeepSig OmniSIG | Commercial AI | Classification | No | Proprietary |
+| GNU Radio | Open toolkit | No | Partial | GPL-3.0 |
+| Universal Radio Hacker | Open tool | Partial, analyst-driven | No | GPL-3.0 (archived Mar 2026) |
+| gr-satellites | Open decoders | No | Known satellites | GPL-3.0 |
+| liquid-dsp / AFF3CT / scikit-dsp-comm / Sionna | Libraries | No | Primitives / FEC / teaching / GPU simulation | MIT / MIT / BSD-2 / Apache-2.0 |
+
+India context: the Wireless Monitoring Organisation (DoT/WPC) runs monitoring stations nationwide; DLRL (DRDO, Hyderabad) works in COMINT/ELINT. No public Indian tool of this kind was found.
+**Differentiation is not breadth.** It is error-controlled acceptance, measured refusal, real-world verification, auditability and air-gap simplicity.
+
+## 39. Security, Ethics and Authorised Use
+
+- Data sources: project-generated synthetic sets; public, lawfully receivable broadcast/standard-time/weather transmissions via public listen-only receivers; captures with explicit authorisation.
+- No decryption, no interception of private communications, no targeting of individuals.
+- Public receivers are used politely (one session at a time, short captures).
+- Identity in the prototype stays in the browser; a real deployment replaces Google sign-in with the organisation's on-premises identity provider and verifies tokens server-side.
+- No secrets in the repository (`.env.local` is ignored; `VITE_GOOGLE_CLIENT_ID` documented in `.env.example`).
+
+## 40. India-First Framing
+
+Possible application areas (**not deployment claims**): spectrum monitoring and interference analysis, verification of licensed/broadcast transmitters against official lists, disaster communications, telecom diagnostics, authorised defence research. The Field / Regional / National views model how evidence could flow from monitoring stations to regional and national analysts without moving raw spectrum.
+
+## 41. Risk Register
 
 | Risk | Consequence | Response |
 |---|---|---|
-| CAF fails at 2 dB | Core target not solved | Multi-method fusion; characterize limits |
-| SAGE-Lite fails to rescue | Hypothesis weakened | Diagnose; retain baseline |
-| Feedback diverges | Bad parameter refinement | Bounded updates and iterations |
-| Regression | Net reliability loss | Gate before adoption |
-| Runtime excessive | Impractical | Profile early; constrain search |
-| CAF compute cost too high | Exceeds CPU budget | Start simplest; benchmark early |
-| SAGE-Lite can't converge from 3× error | Only helps "approximately right" cases | CAF must provide reasonable initial estimate |
+| PM floor does not transfer to real channels | False accepts in the field | Recalibrate on bench-v2 channels; keep sign test as primary |
+| bench-v1 overfitting perception | Credibility loss | Always call sealed a tripwire; lead with null set + real signals |
+| Real-signal availability during a demo | Live demo fails | Offline replays from the same processor; committed recordings |
+| Public receiver changes/outages | Live sessions fail | Ranked fallback receivers; redirect handling |
+| Simulated layer mistaken for real | Honesty breach | Mandatory labels; disclaimer |
+| Low-Es/N0 recall judged weak | "It refuses too much" | Show refusal as correct behaviour; Es/N0 waterfall; roadmap |
+| Web tier exposed on LAN | Unauthenticated API | Localhost default; server-side auth before any deployment |
+| Brand misread as official | Legal/ethical issue | No emblems, disclaimer everywhere |
+| Low memory on demo machine | Server killed | Close other apps; run built console only |
+| Scope creep (features over evidence) | Unproven claims | §6.4, §9.11, change control §46 |
 
----
+## 42. Open Questions
 
-## 37. Open Technical Questions
+1. Sampling-rate and format semantics of NTRO's own evaluation data.
+2. Does PM calibration hold under fading and phase noise?
+3. Minimum Es/N0 per code and block length for a decode at α = 0.01 (bench-v2 waterfall).
+4. Frame sync approach that preserves error control.
+5. Per-receiver delay calibration for GPS agreement.
+6. SAGE-Lite convergence radius once unblocked.
+7. Can ML prioritise the hypothesis search without touching acceptance?
 
-1. **Sampling-frequency semantics** for real NTRO data
-2. **Phase ambiguity** — frame-sync needed (currently complement-tolerant workaround)
-3. **SAGE-Lite update rule** — starting-point equations in §21.5, must be validated experimentally
-4. **Low-SNR estimator limits** — minimum viable SNR must be measured
-5. **Generalization** — performance outside sealed corpus untested
-6. **SAGE-Lite convergence radius** — can it recover from grossly wrong initial estimate (3× off in test_025)?
+## 43. Rejected and Retired
 
----
+| Item | Status | Reason |
+|---|---|---|
+| Consistency ≥ 0.98 acceptance, 0.12 coded bonus | RETIRED | Noise reaches 1.00; no known null |
+| sps=6 forcing, dataset sps/β lists | REMOVED | Leakage |
+| Arbitrary blind LDPC / pseudo-random interleavers | REJECTED | Rank collapse at realistic BER |
+| CNN/ResNet acceptance | REJECTED | No per-decision error control |
+| Full 2-D SCF on CPU | REJECTED for now | Cost |
+| NVIDIA Sionna integration | REJECTED | GPU dependency |
+| Local SDR hardware for MVP | SUPERSEDED | Public receivers |
+| Name "THADAM" | REJECTED | Team decision |
 
-## 38. Immediate Execution Order
+## 44. Version History
 
-```
-1. Freeze baseline → Reproduce 28/30
-2. Reproduce and isolate test_020/test_025 failures
-3. Implement Cyclic-CAF estimator (simplest viable)
-4. Benchmark symbol-rate estimation (baseline vs CAF)
-5. Implement SAGE-Lite feedback loop
-6. Run 2 dB QPSK rescue experiment
-7. Run regression gate (full sealed benchmark)
-8. Build adversarial synthetic benchmark
-9. Validate on public IQ
-10. Add advanced features only if justified
-```
+| Version | Date | Summary |
+|---|---|---|
+| 1.0 | 2026-09-11 | Initial constitution (Gemini audit) |
+| 2.0 | 2026-09-16 | Research-verified: references checked, literature gap, competitors |
+| 2.1 | 2026-09-16 | Code-verified: 30/30 sealed, truncated codeword, v2.0 failures do not reproduce |
+| 2.2 | 2026-09-16 | Evidence-first hardening: leakage removed, sign test + Bonferroni, null set, oracle ladder, 63/100 train |
+| 2.3 | 2026-09-17 | Structural acceptance (0/900), real government transmissions, live monitor, 3–4× faster |
+| **2.4** | **2026-09-17** | **Consolidated single source of truth; ICHNOVA brand; console, themes and UX rules; claims corrected; plan documents marked historical** |
 
----
+Details: `SIH26147_CONSTITUTION_CHANGELOG.md`.
 
-## 39. Research Frontier Summary
-
-Full details in `SIH26147_RESEARCH_FRONTIER.md`. Key directions:
-
-- **Conformal prediction** for formal UNKNOWN (Vovk et al. 2005; Bates et al. 2021)
-- **Signal Genome** fingerprinting (FUTURE)
-- **Full SAGE / BCJR** (Fessler & Hero 1994; Bahl et al. 1974, 9173+ citations)
-- **Factor-graph inference** (Kschischang, Frey & Loeliger 2001, IEEE Trans IT)
-- **Adversarial testing** framework
-
----
-
-## 40. Final Project Doctrine
+## 45. Doctrine
 
 > **Do not guess when structure can provide evidence.**
 > **Do not claim what has not been measured.**
 > **Do not add complexity before proving necessity.**
 > **Do not discard a working baseline without comparison.**
 > **Do not confuse research literature with project results.**
-> **When evidence is insufficient, UNKNOWN is a valid scientific answer.**
+> **Do not show a number without saying where it came from.**
+> **When evidence is insufficient, UNKNOWN is a valid answer.**
 
-The central organizing principle:
+The system succeeds not when it produces an answer, but when it can show why that answer is consistent with the observed signal — and when it can show why it refused.
 
-> **DECODING AS A SENSOR.**
+## 46. Change Control
 
-The system is successful not when it produces an answer, but when it can demonstrate why that answer is consistent with the observed signal.
-
----
-
-## 41. Constitutional Authority
-
-This document is the project's Single Source of Truth. When implementation, presentation, or discussion conflicts with this Constitution, the Constitution governs until new evidence is produced and the Constitution is explicitly updated.
-
-Only implementation plus reproducible evidence can promote a capability through the evidence-status system.
+1. Any change to behaviour, evidence, claims, brand or product structure updates this document **in the same pull request**.
+2. Amendments bump the version (minor for additions/corrections, major for a change of thesis or scope), add a §44 row and a changelog entry.
+3. `SIH26147_CURRENT_STATE.md`, READMEs and UI copy are then brought into agreement.
+4. New capabilities enter §24 as LOCKED/FUTURE and move up only with committed evidence.
 
 ---
 
-**SIH26147 PROJECT CONSTITUTION v2.0 (Research-Verified) — COMPLETE**
+**ICHNOVA · SIH26147 PROJECT CONSTITUTION v2.4 — COMPLETE**

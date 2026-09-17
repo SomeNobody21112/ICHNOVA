@@ -1,0 +1,58 @@
+[
+ {
+  "name": "bench-qpsk-k7.iq",
+  "format": "iq",
+  "fs_hz": 1000000.0,
+  "bytes": 3360,
+  "description": "DECODED QPSK capture: K=7 code and 10\u00d712 interleaver accepted.",
+  "evidence_id": "BENCH-QPSK-K7"
+ },
+ {
+  "name": "bench-bpsk-k5.iq",
+  "format": "iq",
+  "fs_hz": 1000000.0,
+  "bytes": 8320,
+  "description": "DECODED capture with a K=5 code, identified from the catalogue.",
+  "evidence_id": "BENCH-BPSK-K5"
+ },
+ {
+  "name": "bench-uncoded.iq",
+  "format": "iq",
+  "fs_hz": 1000000.0,
+  "bytes": 4160,
+  "description": "Uncoded BPSK: signal detected, no catalogue code established.",
+  "evidence_id": "BENCH-UNCODED"
+ },
+ {
+  "name": "bench-short-k7.iq",
+  "format": "iq",
+  "fs_hz": 1000000.0,
+  "bytes": 1664,
+  "description": "A real K=7 transmission too short to prove (32 coded bits): refused.",
+  "evidence_id": "BENCH-SHORT-K7"
+ },
+ {
+  "name": "bench-wrongstruct.iq",
+  "format": "iq",
+  "fs_hz": 1000000.0,
+  "bytes": 15760,
+  "description": "K=3 capture where a structurally inconsistent interleaver was significant and rejected.",
+  "evidence_id": "BENCH-WRONGSTRUCT"
+ },
+ {
+  "name": "bench-noise.iq",
+  "format": "iq",
+  "fs_hz": 1000000.0,
+  "bytes": 6720,
+  "description": "Receiver noise only: no evidence of a signal.",
+  "evidence_id": "BENCH-NOISE"
+ },
+ {
+  "name": "bench-qpsk-k7.wav",
+  "format": "wav",
+  "fs_hz": 1000000.0,
+  "bytes": 1724,
+  "description": "Same QPSK capture stored as int16 stereo I/Q .wav (exercises .wav ingestion).",
+  "evidence_id": "BENCH-QPSK-K7"
+ }
+]

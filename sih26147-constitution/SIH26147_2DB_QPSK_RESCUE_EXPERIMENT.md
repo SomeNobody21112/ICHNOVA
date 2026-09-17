@@ -1,5 +1,7 @@
 # SIH26147 — 2 dB QPSK RESCUE EXPERIMENT SPECIFICATION
 
+> **HISTORICAL (Constitution v2.4, 2026-09-17).** Written for the v2.0 plan (28/30 baseline, consistency acceptance). Its premise has changed; `SIH26147_PROJECT_CONSTITUTION.md` governs priorities (§35) and claims (§37). Kept for history.
+
 **Document:** Experiment Protocol
 **Status:** LOCKED — Ready for execution
 **Date:** 2026-09-16

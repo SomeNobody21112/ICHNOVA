@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="alternate icon" type="image/png" href="/favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f5f2eb" />
+    <script>
+      // Apply the saved or system theme before the first paint (no flash of the wrong theme).
+      (function () {
+        try {
+          var t = JSON.parse(localStorage.getItem('ichnova.theme') || 'null');
+          var s = JSON.parse(localStorage.getItem('ichnova.textScale') || '1');
+          if (t !== 'light' && t !== 'dark') t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+          document.documentElement.dataset.theme = t;
+          document.documentElement.style.setProperty('--ui-scale', String(s));
+        } catch (e) { document.documentElement.dataset.theme = 'light'; }
+      })();
+    </script>
+    <meta name="description" content="ICHNOVA — blind analysis of .IQ and .wav signal captures with an auditable evidence trail. From noise to harmony." />
+    <title>ICHNOVA — RF evidence platform</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

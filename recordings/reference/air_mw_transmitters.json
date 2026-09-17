@@ -1,0 +1,830 @@
+{
+ "source": {
+  "title": "Prasar Bharati — Existing AIR Stations and Transmitters (list dated 31 May 2024)",
+  "url": "https://prasarbharati.gov.in/wp-content/uploads/2025/03/19-LIST-OF-EXISTING-STATIONS-AND-TRANSMITTERS-310524.pdf",
+  "retrieved": "2026-09-17",
+  "publisher": "Prasar Bharati (Government of India public service broadcaster)",
+  "extraction": "MW rows parsed from the PDF text (power, DRM flag, frequency); 117 of the 122 MW transmitters stated in the header were recognised."
+ },
+ "transmitters": [
+  {
+   "station": "Cuddapah",
+   "state": "Andhra Pradesh",
+   "power_kw": 100.0,
+   "drm": false,
+   "frequency_khz": 900.0
+  },
+  {
+   "station": "Vijayawada",
+   "state": "Andhra Pradesh",
+   "power_kw": 100.0,
+   "drm": true,
+   "frequency_khz": 837.0
+  },
+  {
+   "station": "Vishakhapatnam",
+   "state": "Andhra Pradesh",
+   "power_kw": 100.0,
+   "drm": true,
+   "frequency_khz": 927.0
+  },
+  {
+   "station": "Itanagar",
+   "state": "Arunanchal Pradesh",
+   "power_kw": 200.0,
+   "drm": true,
+   "frequency_khz": 675.0
+  },
+  {
+   "station": "Passighat",
+   "state": "Arunanchal Pradesh",
+   "power_kw": 100.0,
+   "drm": true,
+   "frequency_khz": 1062.0
+  },
+  {
+   "station": "Tawang",
+   "state": "Arunanchal Pradesh",
+   "power_kw": 20.0,
+   "drm": true,
+   "frequency_khz": 1521.0
+  },
+  {
+   "station": "Tezu",
+   "state": "Arunanchal Pradesh",
+   "power_kw": 10.0,
+   "drm": false,
+   "frequency_khz": 1332.0
+  },
+  {
+   "station": "Ziro",
+   "state": "Arunanchal Pradesh",
+   "power_kw": 1.0,
+   "drm": false,
+   "frequency_khz": 1602.0
+  },
+  {
+   "station": "Dibrugarh",
+   "state": "Assam",
+   "power_kw": 300.0,
+   "drm": true,
+   "frequency_khz": 567.0
+  },
+  {
+   "station": "Diphu",
+   "state": "Assam",
+   "power_kw": 1.0,
+   "drm": false,
+   "frequency_khz": 1485.0
+  },
+  {
+   "station": "Guwahati",
+   "state": "Assam",
+   "power_kw": 20.0,
+   "drm": true,
+   "frequency_khz": 1035.0
+  },
+  {
+   "station": "Guwahati",
+   "state": "Assam",
+   "power_kw": 100.0,
+   "drm": false,
+   "frequency_khz": 729.0
+  },
+  {
+   "station": "Kokrajhar",
+   "state": "Assam",
+   "power_kw": 20.0,
+   "drm": false,
+   "frequency_khz": 1512.0
+  },
+  {
+   "station": "Silchar",
+   "state": "Assam",
+   "power_kw": 20.0,
+   "drm": false,
+   "frequency_khz": 828.0
+  },
+  {
+   "station": "Tezpur",
+   "state": "Assam",
+   "power_kw": 20.0,
+   "drm": false,
+   "frequency_khz": 1125.0
+  },
+  {
+   "station": "Bhagalpur",
+   "state": "Bihar",
+   "power_kw": 20.0,
+   "drm": false,
+   "frequency_khz": 1458.0
+  },
+  {
+   "station": "Darbhanga",
+   "state": "Bihar",
+   "power_kw": 20.0,
+   "drm": false,
+   "frequency_khz": 1296.0
+  },
+  {
+   "station": "Patna",
+   "state": "Bihar",
+   "power_kw": 100.0,
+   "drm": true,
+   "frequency_khz": 621.0
+  },
+  {
+   "station": "Ambikapur",
+   "state": "Chhattisgarh",
+   "power_kw": 20.0,
+   "drm": false,
+   "frequency_khz": 1260.0
+  },
+  {
+   "station": "Jagdalpur",
+   "state": "Chhattisgarh",
+   "power_kw": 100.0,
+   "drm": true,
+   "frequency_khz": 756.0
+  },
+  {
+   "station": "Raipur",
+   "state": "Chhattisgarh",
+   "power_kw": 100.0,
+   "drm": false,
+   "frequency_khz": 981.0
+  },
+  {
+   "station": "Panaji",
+   "state": "Goa",
+   "power_kw": 100.0,
+   "drm": true,
+   "frequency_khz": 1287.0
+  },
+  {
+   "station": "Panaji",
+   "state": "Goa",
+   "power_kw": 20.0,
+   "drm": false,
+   "frequency_khz": 828.0
+  },
+  {
+   "station": "Ahmedabad",
+   "state": "Gujarat",
+   "power_kw": 200.0,
+   "drm": true,
+   "frequency_khz": 846.0
+  },
+  {
+   "station": "Ahwa",
+   "state": "Gujarat",
+   "power_kw": 1.0,
+   "drm": false,
+   "frequency_khz": 1485.0
+  },
+  {
+   "station": "Bhuj",
+   "state": "Gujarat",
+   "power_kw": 20.0,
+   "drm": false,
+   "frequency_khz": 1314.0
+  },
+  {
+   "station": "Rajkot",
+   "state": "Gujarat",
+   "power_kw": 300.0,
+   "drm": true,
+   "frequency_khz": 810.0
+  },
+  {
+   "station": "Rajkot",
+   "state": "Gujarat",
+   "power_kw": 1000.0,
+   "drm": true,
+   "frequency_khz": 1071.0
+  },
+  {
+   "station": "Himmatnagar",
+   "state": "Gujarat",
+   "power_kw": 1.0,
+   "drm": false,
+   "frequency_khz": 1584.0
+  },
+  {
+   "station": "Rohtak",
+   "state": "Haryana",
+   "power_kw": 20.0,
+   "drm": false,
+   "frequency_khz": 1143.0
+  },
+  {
+   "station": "Shimla",
+   "state": "Himachal Pradesh",
+   "power_kw": 100.0,
+   "drm": false,
+   "frequency_khz": 774.0
+  },
+  {
+   "station": "Ranchi",
+   "state": "Jharkhand",
+   "power_kw": 100.0,
+   "drm": true,
+   "frequency_khz": 549.0
+  },
+  {
+   "station": "Bangalore",
+   "state": "Karnataka",
+   "power_kw": 200.0,
+   "drm": true,
+   "frequency_khz": 612.0
+  },
+  {
+   "station": "Bhadrawati",
+   "state": "Karnataka",
+   "power_kw": 20.0,
+   "drm": false,
+   "frequency_khz": 675.0
+  },
+  {
+   "station": "Dharwad",
+   "state": "Karnataka",
+   "power_kw": 200.0,
+   "drm": true,
+   "frequency_khz": 765.0
+  },
+  {
+   "station": "Gulbarga",
+   "state": "Karnataka",
+   "power_kw": 20.0,
+   "drm": false,
+   "frequency_khz": 1107.0
+  },
+  {
+   "station": "Mangalore/Udipi",
+   "state": "Karnataka",
+   "power_kw": 20.0,
+   "drm": false,
+   "frequency_khz": 1089.0
+  },
+  {
+   "station": "Calicut (Kozhikode)",
+   "state": "Kerala",
+   "power_kw": 100.0,
+   "drm": false,
+   "frequency_khz": 684.0
+  },
+  {
+   "station": "Trichur (Thrissur)",
+   "state": "Kerala",
+   "power_kw": 100.0,
+   "drm": false,
+   "frequency_khz": 630.0
+  },
+  {
+   "station": "Thiruvananthapuram",
+   "state": "Kerala",
+   "power_kw": 20.0,
+   "drm": false,
+   "frequency_khz": 1161.0
+  },
+  {
+   "station": "Bhopal",
+   "state": "Madhya Pradesh",
+   "power_kw": 10.0,
+   "drm": false,
+   "frequency_khz": 1593.0
+  },
+  {
+   "station": "Chhatarpur",
+   "state": "Madhya Pradesh",
+   "power_kw": 20.0,
+   "drm": false,
+   "frequency_khz": 675.0
+  },
+  {
+   "station": "Gawalior",
+   "state": "Madhya Pradesh",
+   "power_kw": 20.0,
+   "drm": false,
+   "frequency_khz": 1386.0
+  },
+  {
+   "station": "Indore",
+   "state": "Madhya Pradesh",
+   "power_kw": 200.0,
+   "drm": false,
+   "frequency_khz": 648.0
+  },
+  {
+   "station": "Jabalpur",
+   "state": "Madhya Pradesh",
+   "power_kw": 200.0,
+   "drm": true,
+   "frequency_khz": 801.0
+  },
+  {
+   "station": "Rewa",
+   "state": "Madhya Pradesh",
+   "power_kw": 20.0,
+   "drm": false,
+   "frequency_khz": 1179.0
+  },
+  {
+   "station": "Jalgaon",
+   "state": "Maharashtra",
+   "power_kw": 20.0,
+   "drm": false,
+   "frequency_khz": 963.0
+  },
+  {
+   "station": "Nagpur",
+   "state": "Maharashtra",
+   "power_kw": 300.0,
+   "drm": false,
+   "frequency_khz": 585.0
+  },
+  {
+   "station": "Parbhani",
+   "state": "Maharashtra",
+   "power_kw": 20.0,
+   "drm": false,
+   "frequency_khz": 1305.0
+  },
+  {
+   "station": "Pune",
+   "state": "Maharashtra",
+   "power_kw": 100.0,
+   "drm": true,
+   "frequency_khz": 792.0
+  },
+  {
+   "station": "Ratnagiri",
+   "state": "Maharashtra",
+   "power_kw": 20.0,
+   "drm": false,
+   "frequency_khz": 1143.0
+  },
+  {
+   "station": "Sangli",
+   "state": "Maharashtra",
+   "power_kw": 20.0,
+   "drm": false,
+   "frequency_khz": 1251.0
+  },
+  {
+   "station": "Imphal",
+   "state": "Manipur",
+   "power_kw": 300.0,
+   "drm": false,
+   "frequency_khz": 882.0
+  },
+  {
+   "station": "Nongstoin",
+   "state": "Meghalaya",
+   "power_kw": 1.0,
+   "drm": false,
+   "frequency_khz": 1485.0
+  },
+  {
+   "station": "Shillong",
+   "state": "Meghalaya",
+   "power_kw": 100.0,
+   "drm": false,
+   "frequency_khz": 864.0
+  },
+  {
+   "station": "Tura",
+   "state": "Meghalaya",
+   "power_kw": 20.0,
+   "drm": false,
+   "frequency_khz": 1233.0
+  },
+  {
+   "station": "Williamnagar",
+   "state": "Meghalaya",
+   "power_kw": 1.0,
+   "drm": false,
+   "frequency_khz": 1602.0
+  },
+  {
+   "station": "Aizawl",
+   "state": "Mizoram",
+   "power_kw": 20.0,
+   "drm": false,
+   "frequency_khz": 540.0
+  },
+  {
+   "station": "Saiha",
+   "state": "Mizoram",
+   "power_kw": 1.0,
+   "drm": false,
+   "frequency_khz": 1602.0
+  },
+  {
+   "station": "Kohima",
+   "state": "Nagaland",
+   "power_kw": 100.0,
+   "drm": false,
+   "frequency_khz": 639.0
+  },
+  {
+   "station": "Tuensang",
+   "state": "Nagaland",
+   "power_kw": 1.0,
+   "drm": false,
+   "frequency_khz": 1602.0
+  },
+  {
+   "station": "Bhawanipatna",
+   "state": "Odisha",
+   "power_kw": 200.0,
+   "drm": false,
+   "frequency_khz": 1206.0
+  },
+  {
+   "station": "Cuttack",
+   "state": "Odisha",
+   "power_kw": 300.0,
+   "drm": false,
+   "frequency_khz": 972.0
+  },
+  {
+   "station": "Jeypore",
+   "state": "Odisha",
+   "power_kw": 100.0,
+   "drm": false,
+   "frequency_khz": 1467.0
+  },
+  {
+   "station": "Sambalpur",
+   "state": "Odisha",
+   "power_kw": 100.0,
+   "drm": false,
+   "frequency_khz": 945.0
+  },
+  {
+   "station": "Jallandhar",
+   "state": "Punjab",
+   "power_kw": 300.0,
+   "drm": true,
+   "frequency_khz": 873.0
+  },
+  {
+   "station": "Ajmer",
+   "state": "Rajasthan",
+   "power_kw": 200.0,
+   "drm": true,
+   "frequency_khz": 603.0
+  },
+  {
+   "station": "Barmer",
+   "state": "Rajasthan",
+   "power_kw": 20.0,
+   "drm": true,
+   "frequency_khz": 1458.0
+  },
+  {
+   "station": "Bikaner",
+   "state": "Rajasthan",
+   "power_kw": 20.0,
+   "drm": true,
+   "frequency_khz": 1395.0
+  },
+  {
+   "station": "Jodhpur",
+   "state": "Rajasthan",
+   "power_kw": 300.0,
+   "drm": false,
+   "frequency_khz": 531.0
+  },
+  {
+   "station": "Kota",
+   "state": "Rajasthan",
+   "power_kw": 20.0,
+   "drm": false,
+   "frequency_khz": 1413.0
+  },
+  {
+   "station": "Suratgarh",
+   "state": "Rajasthan",
+   "power_kw": 300.0,
+   "drm": true,
+   "frequency_khz": 918.0
+  },
+  {
+   "station": "Udaipur",
+   "state": "Rajasthan",
+   "power_kw": 20.0,
+   "drm": false,
+   "frequency_khz": 1125.0
+  },
+  {
+   "station": "Dungarpur",
+   "state": "Rajasthan",
+   "power_kw": 1.0,
+   "drm": false,
+   "frequency_khz": 1485.0
+  },
+  {
+   "station": "Gangtok",
+   "state": "Rajasthan",
+   "power_kw": 20.0,
+   "drm": false,
+   "frequency_khz": 1404.0
+  },
+  {
+   "station": "Chennai",
+   "state": "Tamilnadu",
+   "power_kw": 200.0,
+   "drm": true,
+   "frequency_khz": 720.0
+  },
+  {
+   "station": "Chennai",
+   "state": "Tamilnadu",
+   "power_kw": 20.0,
+   "drm": true,
+   "frequency_khz": 783.0
+  },
+  {
+   "station": "Coimbatore",
+   "state": "Tamilnadu",
+   "power_kw": 20.0,
+   "drm": false,
+   "frequency_khz": 999.0
+  },
+  {
+   "station": "Madurai",
+   "state": "Tamilnadu",
+   "power_kw": 20.0,
+   "drm": false,
+   "frequency_khz": 1269.0
+  },
+  {
+   "station": "Tiruchirapalli",
+   "state": "Tamilnadu",
+   "power_kw": 100.0,
+   "drm": true,
+   "frequency_khz": 936.0
+  },
+  {
+   "station": "Tirunelveli",
+   "state": "Tamilnadu",
+   "power_kw": 20.0,
+   "drm": false,
+   "frequency_khz": 1197.0
+  },
+  {
+   "station": "Hyderabad",
+   "state": "Telangana",
+   "power_kw": 200.0,
+   "drm": true,
+   "frequency_khz": 738.0
+  },
+  {
+   "station": "Agartala",
+   "state": "Tripura",
+   "power_kw": 20.0,
+   "drm": false,
+   "frequency_khz": 1269.0
+  },
+  {
+   "station": "Dharmanagar",
+   "state": "Tripura",
+   "power_kw": 1.0,
+   "drm": false,
+   "frequency_khz": 1584.0
+  },
+  {
+   "station": "Agra",
+   "state": "Uttar Pradesh",
+   "power_kw": 20.0,
+   "drm": false,
+   "frequency_khz": 1530.0
+  },
+  {
+   "station": "Prayagraj",
+   "state": "Uttar Pradesh",
+   "power_kw": 20.0,
+   "drm": false,
+   "frequency_khz": 1026.0
+  },
+  {
+   "station": "Gorakhpur",
+   "state": "Uttar Pradesh",
+   "power_kw": 10.0,
+   "drm": false,
+   "frequency_khz": 909.0
+  },
+  {
+   "station": "Lucknow",
+   "state": "Uttar Pradesh",
+   "power_kw": 300.0,
+   "drm": true,
+   "frequency_khz": 747.0
+  },
+  {
+   "station": "Najibabad",
+   "state": "Uttar Pradesh",
+   "power_kw": 200.0,
+   "drm": false,
+   "frequency_khz": 954.0
+  },
+  {
+   "station": "Rampur",
+   "state": "Uttar Pradesh",
+   "power_kw": 20.0,
+   "drm": false,
+   "frequency_khz": 891.0
+  },
+  {
+   "station": "Varanasi",
+   "state": "Uttar Pradesh",
+   "power_kw": 100.0,
+   "drm": true,
+   "frequency_khz": 1242.0
+  },
+  {
+   "station": "Almora",
+   "state": "Uttarakhand",
+   "power_kw": 1.0,
+   "drm": false,
+   "frequency_khz": 999.0
+  },
+  {
+   "station": "Gopeshwar(Chamoli)",
+   "state": "Uttarakhand",
+   "power_kw": 1.0,
+   "drm": false,
+   "frequency_khz": 1485.0
+  },
+  {
+   "station": "Pauri",
+   "state": "Uttarakhand",
+   "power_kw": 1.0,
+   "drm": false,
+   "frequency_khz": 1602.0
+  },
+  {
+   "station": "Pithoragarh",
+   "state": "Uttarakhand",
+   "power_kw": 1.0,
+   "drm": false,
+   "frequency_khz": 1602.0
+  },
+  {
+   "station": "Uttarkashi",
+   "state": "Uttarakhand",
+   "power_kw": 1.0,
+   "drm": false,
+   "frequency_khz": 1602.0
+  },
+  {
+   "station": "Kolkata",
+   "state": "West Bengal",
+   "power_kw": 200.0,
+   "drm": true,
+   "frequency_khz": 657.0
+  },
+  {
+   "station": "Kolkata",
+   "state": "West Bengal",
+   "power_kw": 100.0,
+   "drm": true,
+   "frequency_khz": 1008.0
+  },
+  {
+   "station": "Siliguri",
+   "state": "West Bengal",
+   "power_kw": 200.0,
+   "drm": true,
+   "frequency_khz": 711.0
+  },
+  {
+   "station": "Port Blair A&N",
+   "state": "A & N Island",
+   "power_kw": 100.0,
+   "drm": false,
+   "frequency_khz": 684.0
+  },
+  {
+   "station": "Delhi [1]",
+   "state": "Delhi",
+   "power_kw": 200.0,
+   "drm": true,
+   "frequency_khz": 819.0
+  },
+  {
+   "station": "Delhi [1]",
+   "state": "Delhi",
+   "power_kw": 20.0,
+   "drm": true,
+   "frequency_khz": 1368.0
+  },
+  {
+   "station": "Jammu",
+   "state": "Jammu & Kashmir",
+   "power_kw": 300.0,
+   "drm": true,
+   "frequency_khz": 990.0
+  },
+  {
+   "station": "Srinagar",
+   "state": "Jammu & Kashmir",
+   "power_kw": 300.0,
+   "drm": false,
+   "frequency_khz": 1116.0
+  },
+  {
+   "station": "Kupwara",
+   "state": "Jammu & Kashmir",
+   "power_kw": 20.0,
+   "drm": false,
+   "frequency_khz": 1350.0
+  },
+  {
+   "station": "Naushera",
+   "state": "Jammu & Kashmir",
+   "power_kw": 20.0,
+   "drm": false,
+   "frequency_khz": 1089.0
+  },
+  {
+   "station": "Kargil",
+   "state": "Ladakh",
+   "power_kw": 1.0,
+   "drm": false,
+   "frequency_khz": 1584.0
+  },
+  {
+   "station": "Kargil",
+   "state": "Ladakh",
+   "power_kw": 200.0,
+   "drm": false,
+   "frequency_khz": 684.0
+  },
+  {
+   "station": "Leh",
+   "state": "Ladakh",
+   "power_kw": 20.0,
+   "drm": false,
+   "frequency_khz": 1053.0
+  },
+  {
+   "station": "Khalsi",
+   "state": "Ladakh",
+   "power_kw": 1.0,
+   "drm": false,
+   "frequency_khz": 1485.0
+  },
+  {
+   "station": "Drass",
+   "state": "Ladakh",
+   "power_kw": 1.0,
+   "drm": false,
+   "frequency_khz": 1485.0
+  },
+  {
+   "station": "Tiesuru",
+   "state": "Ladakh",
+   "power_kw": 1.0,
+   "drm": false,
+   "frequency_khz": 1602.0
+  },
+  {
+   "station": "Nyoma",
+   "state": "Ladakh",
+   "power_kw": 1.0,
+   "drm": false,
+   "frequency_khz": 1485.0
+  },
+  {
+   "station": "Diskit",
+   "state": "Ladakh",
+   "power_kw": 1.0,
+   "drm": false,
+   "frequency_khz": 1602.0
+  },
+  {
+   "station": "Padum",
+   "state": "Ladakh",
+   "power_kw": 1.0,
+   "drm": false,
+   "frequency_khz": 1584.0
+  },
+  {
+   "station": "Kavaratti",
+   "state": "Lakshadweep",
+   "power_kw": 10.0,
+   "drm": false,
+   "frequency_khz": 1152.0
+  },
+  {
+   "station": "Puducherry",
+   "state": "Puducherry",
+   "power_kw": 20.0,
+   "drm": false,
+   "frequency_khz": 1215.0
+  }
+ ]
+}

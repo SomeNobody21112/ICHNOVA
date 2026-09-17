@@ -1,0 +1,50 @@
+{
+ "id": "dcf77-france-2026-09-17",
+ "station_key": "DCF77",
+ "station": {
+  "name": "DCF77",
+  "operator": "PTB \u2014 Physikalisch-Technische Bundesanstalt (Germany)",
+  "country": "Germany",
+  "frequency_khz": 77.5,
+  "service": "Legal time of Germany (LF 77.5 kHz)",
+  "site": {
+   "name": "Mainflingen",
+   "lat": 50.0156,
+   "lon": 9.0106
+  },
+  "references": [
+   {
+    "title": "PTB: DCF77",
+    "url": "https://www.ptb.de/cms/en/ptb/fachabteilungen/abt4/fb-44/ag-442/dissemination-of-legal-time/dcf77.html"
+   }
+  ]
+ },
+ "receiver": {
+  "url": "http://sdr.autreradioautreculture.com:8073",
+  "name": "AutreRadioAutreCulture 1",
+  "location": "TREMOLAT (24), FRANCE",
+  "gps": [
+   44.869416,
+   0.835143
+  ],
+  "distance_km": 839,
+  "gps_timed": true,
+  "software": "KiwiSDR v1.902"
+ },
+ "capture": {
+  "t0_unix": 1789614981.9516664,
+  "t0_utc": "2026-09-17T03:16:21.951+00:00",
+  "timing": "gps",
+  "gps_stamp_spread_s": 4.76837158203125e-07,
+  "tuned_khz": 78.5,
+  "receiver_fs_hz": 11998.992792,
+  "baseband_shift_hz": -1000.0,
+  "decimation": 8,
+  "fs_hz": 1499.874099,
+  "wav_header_fs_hz": 1500,
+  "duration_s": 185.018,
+  "rssi_dbm": -69.8,
+  "adc_overflow_blocks": 0
+ },
+ "note": ""
+}

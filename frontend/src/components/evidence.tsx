@@ -1,0 +1,529 @@
+import { motion } from 'framer-motion'
+import { useCallback, useMemo, useState, type ReactNode } from 'react'
+import { CODE_FULL, CODE_SHORT, fmtDateTime, fmtInt, fmtP, fmtRate, pct } from '../lib/format'
+import type { AuditEvent, EvidencePack, Hyp, Provenance } from '../lib/types'
+import { Constellation, HBars, Landscape, LinePlot, Spectrogram } from './charts'
+import { Drawer, Icon, Meter, Panel, Tag } from './ui'
+
+export const provOf = (p: EvidencePack): Provenance => (p.source.kind === 'UPLOAD' ? 'LIVE' : p.source.kind)
+const LOG_ALPHA = (p: EvidencePack) => Math.log10(p.accept.alpha)
+const codeKey = (c: string) => CODE_SHORT(c).replace('=', '')
+
+export type Topic = 'detection' | 'sps' | 'modulation' | 'cfo' | 'fec' | 'interleaver' | 'validation'
+const TOPIC_TITLE: Record<Topic, string> = {
+  detection: 'Signal detection', sps: 'Symbol structure', modulation: 'Modulation', cfo: 'Carrier frequency offset',
+  fec: 'FEC hypotheses', interleaver: 'Interleaver & coverage', validation: 'Statistical validation',
+}
+
+function Check({ ok, children, na }: { ok: boolean; children: ReactNode; na?: boolean }) {
+  return (
+    <li>
+      <span className={na ? 'na' : ok ? 'ok' : 'no'}><Icon name={na ? 'dash' : ok ? 'check' : 'cross'} size={15} /></span>
+      <span>{children}</span>
+    </li>
+  )
+}
+
+// ---------------------------------------------------------------- topic renderers
+export function TopicDetail({ pack, topic }: { pack: EvidencePack; topic: Topic }) {
+  const d = pack.diagnostics
+  const acc = pack.accept.accepted_hypothesis
+  const best = acc ?? d.top_hypotheses[0]
+  const la = LOG_ALPHA(pack)
+  if (topic === 'detection') {
+    return (
+      <div className="col" style={{ gap: 12 }}>
+        <p className="dim" style={{ margin: 0 }}>
+          A PSK signal leaves a spectral line in x² (BPSK) or x⁴ (BPSK and QPSK). Each peak is tested against the
+          exponential-periodogram null; the strongest line is the signal-presence test.
+        </p>
+        <dl className="kv">
+          <dt>Strongest line p-value</dt><dd>{fmtP(d.detection_log10_p)}</dd>
+          <dt>Presence threshold α</dt><dd>{pack.accept.alpha}</dd>
+          <dt>Decision</dt><dd style={{ color: d.detection_log10_p <= la ? 'var(--green)' : 'var(--amber)' }}>{d.detection_log10_p <= la ? 'SIGNAL PRESENT' : 'NOT ESTABLISHED'}</dd>
+        </dl>
+        <table className="tbl"><thead><tr><th>Line</th><th className="num">CFO (cyc/sample)</th><th className="num">Peak/floor</th><th className="num">p-value</th></tr></thead>
+          <tbody>{d.cfo_candidates.map((c, i) => (
+            <tr key={i}><td className="mono">x{c.order === 2 ? '²' : '⁴'}</td><td className="num">{c.cfo.toFixed(5)}</td><td className="num">{c.peak_to_floor_db.toFixed(1)} dB</td><td className="num">{fmtP(c.log10_p)}</td></tr>
+          ))}</tbody></table>
+      </div>
+    )
+  }
+  if (topic === 'sps' || topic === 'cfo') {
+    if (topic === 'cfo') {
+      return (
+        <div className="col" style={{ gap: 12 }}>
+          <p className="dim" style={{ margin: 0 }}>Every CFO candidate is carried forward; the code test, not the spectrum, decides which one explains the data.</p>
+          <HBars items={d.cfo_candidates.map((c) => ({ label: `${c.cfo >= 0 ? '+' : ''}${c.cfo.toFixed(5)} (x${c.order === 2 ? '²' : '⁴'})`, value: Math.max(0, c.peak_to_floor_db), color: best && Math.abs(best.cfo - c.cfo) < 1e-9 ? 'var(--green)' : 'var(--cyan)' }))} fmt={(v) => `${v.toFixed(1)} dB`} />
+          <dl className="kv"><dt>Chosen CFO</dt><dd>{best ? best.cfo.toFixed(5) : '—'}</dd><dt>Search bound</dt><dd>±{pack.engine.cfo_max} fs</dd></dl>
+        </div>
+      )
+    }
+    const cands = new Set(d.sps_candidates)
+    return (
+      <div className="col" style={{ gap: 12 }}>
+        <p className="dim" style={{ margin: 0 }}>
+          Lag-1 correlation of y⁴ at every samples-per-symbol in the search domain {pack.engine.sps_range.join('–')}. Integer multiples of the true
+          rate also score high, so divisors are always tested; the code test resolves them.
+        </p>
+        <HBars items={d.sps_table.map((r) => ({ label: `sps ${r.sps}${cands.has(r.sps) ? '  · candidate' : ''}`, value: r.q4, color: best && r.sps === best.sps ? 'var(--green)' : cands.has(r.sps) ? 'var(--cyan)' : 'var(--line-3)' }))} max={1} fmt={(v) => v.toFixed(3)} />
+        <dl className="kv">
+          <dt>Raw spectral estimate</dt><dd>{d.raw_sps_estimate.toFixed(2)} sps</dd>
+          <dt>Candidates tested</dt><dd>{d.sps_candidates.join(', ')}</dd>
+          <dt>Front-ends searched / rejected (serial dependence)</dt><dd>{d.n_front_ends} / {d.front_ends_rejected_serial_dependence}</dd>
+          <dt>Established</dt><dd>{acc ? `${acc.sps} sps · ${fmtRate(pack.capture.fs_hz / acc.sps)}` : 'NOT ESTABLISHED'}</dd>
+        </dl>
+      </div>
+    )
+  }
+  if (topic === 'modulation') {
+    return (
+      <div className="col" style={{ gap: 12 }}>
+        <p className="dim" style={{ margin: 0 }}>
+          BPSK and QPSK are both tested at every candidate rate. y² is data-free for BPSK and random for QPSK, giving a
+          per-candidate statistic and two exact binomial consistency tests on the accepted hypothesis.
+        </p>
+        <table className="tbl"><thead><tr><th>sps</th><th className="num">q2/q4</th><th>Statistic says</th><th className="num">Margin</th></tr></thead>
+          <tbody>{d.modulation_stats.map((m) => (
+            <tr key={m.sps}><td className="mono">{m.sps}</td><td className="num">{m.bpsk_ratio.toFixed(3)}</td><td className="mono">{m.decision}</td><td className="num">{m.margin.toFixed(2)}</td></tr>
+          ))}</tbody></table>
+        {best && (
+          <dl className="kv">
+            <dt>Hypothesis modulation</dt><dd>{best.modulation}</dd>
+            <dt>BPSK signature present (p)</dt><dd>{fmtP(best.bpsk_presence_log10p)}</dd>
+            <dt>Inconsistent with BPSK (p)</dt><dd>{fmtP(best.bpsk_contradiction_log10p)}</dd>
+            <dt>Modulation check</dt><dd style={{ color: best.structural_rejection?.startsWith('modulation') ? 'var(--orange)' : 'var(--green)' }}>{best.structural_rejection?.startsWith('modulation') ? 'CONTRADICTED' : 'CONSISTENT'}</dd>
+          </dl>
+        )}
+      </div>
+    )
+  }
+  if (topic === 'fec') {
+    return (
+      <div className="col" style={{ gap: 12 }}>
+        <p className="dim" style={{ margin: 0 }}>
+          Each rate-½ convolutional code satisfies g₂(D)·c₁ + g₁(D)·c₂ = 0. Every trellis step gives one parity check; under
+          noise or a wrong hypothesis each check's sign is a fair coin, so the count of satisfied checks has an exact binomial null.
+        </p>
+        <HypTable pack={pack} rows={d.top_hypotheses.slice(0, 12)} compact />
+      </div>
+    )
+  }
+  if (topic === 'interleaver') {
+    const h = best
+    return h ? (
+      <div className="col" style={{ gap: 12 }}>
+        <dl className="kv">
+          <dt>Interleaver</dt><dd>{h.interleaver[0]} × {h.interleaver[1]} = {h.interleaver[0] * h.interleaver[1]} bits</dd>
+          <dt>Covered / observed bits</dt><dd>{h.covered_bits} / {h.total_observed_bits}</dd>
+          <dt>Covered symbols vs transmission span</dt><dd>{h.covered_symbols.toFixed(0)} / {h.active_symbols}</dd>
+          <dt>Block-length tolerance</dt><dd>{pack.accept.rules.bl_delta_symbols} symbols</dd>
+          <dt>Search domain</dt><dd>{pack.engine.interleaver_domain}</dd>
+        </dl>
+        <div><div className="row muted" style={{ fontSize: 11.5, marginBottom: 4 }}><span className="grow">Coverage of transmission span</span><span className="mono">{pct(h.covered_symbols / Math.max(1, h.active_symbols))}</span></div>
+          <Meter value={h.covered_symbols / Math.max(1, h.active_symbols)} tone={h.covered_symbols >= h.active_symbols - pack.accept.rules.bl_delta_symbols ? 'green' : 'orange'} /></div>
+      </div>
+    ) : <div className="empty">No interleaver hypothesis was examined.</div>
+  }
+  const M = pack.accept.n_hypotheses
+  const thr = pack.accept.log10_threshold
+  const bestLog = pack.accept.log10_p
+  const checks = acc ?? d.top_hypotheses[0]
+  return (
+    <div className="col" style={{ gap: 12 }}>
+      <p className="dim" style={{ margin: 0 }}>
+        With M hypotheses tested, the best one must reach p ≤ α / M (Bonferroni). The first significant hypothesis must then pass three
+        structural checks before anything is accepted.
+      </p>
+      <dl className="kv">
+        <dt>Hypotheses tested (M)</dt><dd>{fmtInt(M)}</dd>
+        <dt>Family-wise α</dt><dd>{pack.accept.alpha}</dd>
+        <dt>Acceptance bar α / M</dt><dd>{fmtP(thr)}</dd>
+        <dt>Best p-value</dt><dd>{fmtP(bestLog)}</dd>
+        <dt>Adjusted p (p · M)</dt><dd>{fmtP(bestLog + Math.log10(M))}</dd>
+        <dt>Significant?</dt><dd style={{ color: bestLog <= thr ? 'var(--green)' : 'var(--amber)' }}>{bestLog <= thr ? 'YES' : 'NO'}</dd>
+      </dl>
+      {checks && (
+        <ul className="why-list">
+          <Check ok={!checks.structural_rejection?.startsWith('modulation')}>Modulation consistency (exact binomial, α = {pack.accept.alpha})</Check>
+          <Check ok={checks.covered_symbols >= checks.active_symbols - pack.accept.rules.bl_delta_symbols}>Block length: covers {checks.covered_symbols.toFixed(0)} of ~{checks.active_symbols} symbols</Check>
+          <Check ok={checks.path_metric >= pack.accept.rules.pm_floor}>Soft path metric {checks.path_metric.toFixed(3)} {checks.path_metric >= pack.accept.rules.pm_floor ? '≥' : '<'} floor {pack.accept.rules.pm_floor}</Check>
+        </ul>
+      )}
+      {pack.accept.significant_but_rejected.length > 0 && (
+        <div className="banner amber">
+          <Icon name="info" />
+          <div><b>Significant but rejected</b>
+            {pack.accept.significant_but_rejected.slice(0, 4).map((r, i) => (
+              <div key={i} className="mono" style={{ fontSize: 12 }}>{CODE_SHORT(r.code)} {r.interleaver.join('×')} {r.modulation} sps {r.sps} · p {fmtP(r.log10_p)} · {r.structural_rejection}</div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+export function HypTable({ pack, rows, compact }: { pack: EvidencePack; rows: Hyp[]; compact?: boolean }) {
+  const acc = pack.accept.accepted_hypothesis
+  const same = (h: Hyp) => acc && h.code === acc.code && h.interleaver.join() === acc.interleaver.join()
+  return (
+    <div className="table-wrap" style={{ maxHeight: compact ? 360 : undefined }}>
+      <table className="tbl">
+        <thead><tr><th>#</th><th>Code</th><th>Interleaver</th><th>Mod</th><th className="num">sps</th><th className="num">Checks</th><th className="num">p-value</th><th>Status</th></tr></thead>
+        <tbody>{rows.map((h, i) => {
+          const sig = h.log10_p <= pack.accept.log10_threshold
+          const status = same(h) && !h.structural_rejection ? 'ACCEPTED' : h.structural_rejection && sig ? 'REJECTED' : sig ? 'SIGNIFICANT' : 'NOT SIGNIFICANT'
+          const color = status === 'ACCEPTED' ? 'var(--green)' : status === 'REJECTED' ? 'var(--orange)' : status === 'SIGNIFICANT' ? 'var(--amber)' : 'var(--muted)'
+          return (
+            <tr key={i} title={h.structural_rejection ?? undefined}>
+              <td className="mono muted">{String(i + 1).padStart(2, '0')}</td>
+              <td className="mono">{CODE_SHORT(h.code)}</td>
+              <td className="mono">{h.interleaver[0]}×{h.interleaver[1]}</td>
+              <td className="mono">{h.modulation}</td>
+              <td className="num">{h.sps}</td>
+              <td className="num">{h.n_positive}/{h.n_checks}</td>
+              <td className="num">{fmtP(h.log10_p)}</td>
+              <td><span className="mono" style={{ color, fontSize: 11.5 }}>{status}</span>{status === 'REJECTED' && !compact && <div className="muted" style={{ fontSize: 11 }}>{h.structural_rejection}</div>}</td>
+            </tr>
+          )
+        })}</tbody>
+      </table>
+    </div>
+  )
+}
+
+export function EvidenceDrawer({ pack, topic, onClose }: { pack: EvidencePack; topic: Topic | null; onClose: () => void }) {
+  return (
+    <Drawer open={!!topic} onClose={onClose} right={<Tag kind={provOf(pack)} />}
+      title={<><div className="eyebrow">Evidence · {pack.id}</div><div className="panel-title" style={{ fontSize: 15 }}>{topic ? TOPIC_TITLE[topic] : ''}</div></>}>
+      {topic && <TopicDetail pack={pack} topic={topic} />}
+    </Drawer>
+  )
+}
+
+// ---------------------------------------------------------------- characteristics
+export function Characteristics({ pack }: { pack: EvidencePack }) {
+  const [topic, setTopic] = useState<Topic | null>(null)
+  const r = pack.result
+  const acc = pack.accept.accepted_hypothesis
+  const best = acc ?? pack.diagnostics.top_hypotheses[0]
+  const rows: { label: string; value: string; topic: Topic; established: boolean }[] = [
+    { label: 'Signal presence', value: pack.diagnostics.detection_log10_p <= LOG_ALPHA(pack) ? 'Detected' : 'Not established', topic: 'detection', established: pack.diagnostics.detection_log10_p <= LOG_ALPHA(pack) },
+    { label: 'Modulation', value: r.modulation ?? (best ? `${best.modulation} (candidate)` : '—'), topic: 'modulation', established: !!r.modulation },
+    { label: 'Symbol rate', value: r.sps ? `${r.sps} sps · ${fmtRate(r.symbol_rate_est)}` : best ? `${best.sps} sps (candidate)` : '—', topic: 'sps', established: !!r.sps },
+    { label: 'CFO', value: r.cfo != null ? `${r.cfo >= 0 ? '+' : ''}${r.cfo.toFixed(5)} cyc/sample` : '—', topic: 'cfo', established: r.cfo != null },
+    { label: 'FEC', value: r.code ? CODE_FULL[r.code] ?? r.code : 'Not established', topic: 'fec', established: !!r.code },
+    { label: 'Interleaver', value: r.interleaver ? `Block ${r.interleaver[0]}×${r.interleaver[1]} · ${r.interleaver[0] * r.interleaver[1]} bits` : 'Not established', topic: 'interleaver', established: !!r.interleaver },
+    { label: 'Coverage', value: acc ? pct(acc.covered_symbols / Math.max(1, acc.active_symbols)) : '—', topic: 'interleaver', established: !!acc },
+    { label: 'Hypotheses evaluated', value: fmtInt(pack.accept.n_hypotheses), topic: 'validation', established: true },
+  ]
+  return (
+    <Panel title="Signal characteristics" right={<Tag kind={provOf(pack)} />} flush>
+      <div className="list">
+        {rows.map((row) => (
+          <div key={row.label} className="list-item" style={{ gridTemplateColumns: '150px 1fr auto', cursor: 'default' }}>
+            <span className="muted" style={{ fontSize: 12 }}>{row.label}</span>
+            <span className="mono" style={{ color: row.established ? 'var(--text)' : 'var(--amber)' }}>{row.value}</span>
+            <button className="btn btn-ghost btn-sm" onClick={() => setTopic(row.topic)}><Icon name="eye" size={13} /> View evidence</button>
+          </div>
+        ))}
+      </div>
+      <EvidenceDrawer pack={pack} topic={topic} onClose={() => setTopic(null)} />
+    </Panel>
+  )
+}
+
+// ---------------------------------------------------------------- why panel
+export function WhyPanel({ pack }: { pack: EvidencePack }) {
+  const r = pack.result, d = pack.diagnostics, a = pack.accept
+  const la = LOG_ALPHA(pack)
+  const acc = a.accepted_hypothesis
+  const best = acc ?? d.top_hypotheses[0]
+  const detected = d.detection_log10_p <= la
+  const sig = a.log10_p <= a.log10_threshold
+  const title = r.status === 'DECODED' ? 'Why was this signal accepted?' : r.status === 'SIGNAL_NO_CODE' ? 'Why signal, but no code?' : 'Why UNKNOWN?'
+  return (
+    <Panel title={title} right={<Tag kind={provOf(pack)} />}>
+      <ul className="why-list">
+        <Check ok={detected}>Signal presence {detected ? 'established' : 'not established'} (spectral line p {fmtP(d.detection_log10_p)})</Check>
+        <Check ok={!!best} na={!best}>{best ? `Symbol structure candidates found (${d.sps_candidates.length} rates, ${d.n_front_ends} front-ends)` : 'No usable symbol structure'}</Check>
+        {r.status === 'DECODED' && acc ? (
+          <>
+            <Check ok>Modulation hypothesis {acc.modulation} consistent with the symbols</Check>
+            <Check ok>CFO candidate {acc.cfo.toFixed(5)} supports the decode</Check>
+            <Check ok>{CODE_SHORT(acc.code)} parity evidence: {acc.n_positive} of {acc.n_checks} checks satisfied</Check>
+            <Check ok>Multiple-hypothesis correction passed (p·M = {fmtP(acc.log10_p + Math.log10(a.n_hypotheses))} ≤ α = {a.alpha})</Check>
+            <Check ok>Structural checks passed: modulation, block length, soft path metric</Check>
+          </>
+        ) : (
+          <>
+            <Check ok={!!best} na={!best}>{best ? `Best candidate ${CODE_SHORT(best.code)} / ${best.interleaver[0] * best.interleaver[1]}-bit, ${best.modulation}` : 'No candidate hypothesis'}</Check>
+            <Check ok={false}>{sig ? 'A hypothesis was significant but failed a structural check' : 'No FEC hypothesis passed statistical acceptance after correcting for multiple testing'}</Check>
+            {a.significant_but_rejected.slice(0, 2).map((x, i) => <Check key={i} ok={false}>Rejected {CODE_SHORT(x.code)} {x.interleaver.join('×')}: {x.structural_rejection}</Check>)}
+          </>
+        )}
+      </ul>
+      <div className="hr" />
+      <dl className="kv">
+        <dt>Hypotheses tested</dt><dd>{fmtInt(a.n_hypotheses)}</dd>
+        <dt>Best p-value</dt><dd>{fmtP(a.log10_p)}</dd>
+        <dt>Adjusted p-value (p·M)</dt><dd>{fmtP(Math.min(0, a.log10_p + Math.log10(a.n_hypotheses)))}</dd>
+        <dt>Acceptance threshold</dt><dd>{a.alpha.toFixed(4)}</dd>
+        <dt>Coverage</dt><dd>{acc ? pct(acc.covered_symbols / Math.max(1, acc.active_symbols)) : '—'}</dd>
+      </dl>
+      {r.status !== 'DECODED' && (
+        <motion.div className="refusal" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}>
+          <strong>THE SYSTEM REFUSED TO GUESS.</strong>
+          <span className="dim">{r.status === 'SIGNAL_NO_CODE' ? 'A signal is present, but no code could be established. No payload is asserted.' : 'The evidence does not support any interpretation. No payload is asserted.'}</span>
+        </motion.div>
+      )}
+    </Panel>
+  )
+}
+
+// ---------------------------------------------------------------- evidence chain
+type NodeId = 'raw' | 'detect' | 'structure' | 'fec' | 'validation' | 'decision'
+
+export function EvidenceChain({ pack }: { pack: EvidencePack }) {
+  const [sel, setSel] = useState<NodeId>('validation')
+  const d = pack.diagnostics, a = pack.accept, r = pack.result
+  const la = LOG_ALPHA(pack)
+  const detected = d.detection_log10_p <= la
+  const codeCounts = useMemo(() => {
+    const c: Record<string, number> = { K7: 0, K5: 0, K3: 0 }
+    d.all_hypotheses?.code.forEach((k) => (c[k] = (c[k] ?? 0) + 1))
+    return c
+  }, [d.all_hypotheses])
+  const nodes: { id: NodeId; icon: string; title: string; sum: string; tone: string }[] = [
+    { id: 'raw', icon: 'raw', title: 'Raw IQ', sum: `${fmtInt(pack.capture.samples)} samples · ${(pack.capture.fs_hz / 1e6).toFixed(3)} Msps · ${(pack.capture.format ?? 'iq').toUpperCase()}`, tone: 'info' },
+    { id: 'detect', icon: 'detect', title: 'Signal detected', sum: detected ? `Spectral line p ${fmtP(d.detection_log10_p)}` : 'Presence not established', tone: detected ? 'ok' : 'warn' },
+    { id: 'structure', icon: 'structure', title: 'Symbol structure', sum: `${d.sps_candidates.length} rate · ${d.cfo_candidates.length} CFO · 2 modulation candidates`, tone: 'info' },
+    { id: 'fec', icon: 'fec', title: 'FEC hypotheses', sum: `${fmtInt(a.n_hypotheses)} tested · K7 ${fmtInt(codeCounts.K7)} · K5 ${fmtInt(codeCounts.K5)} · K3 ${fmtInt(codeCounts.K3)}`, tone: 'info' },
+    { id: 'validation', icon: 'stats', title: 'Statistical validation', sum: `bar ${fmtP(a.log10_threshold)} · best ${fmtP(a.log10_p)}${a.significant_but_rejected.length ? ` · ${a.significant_but_rejected.length} rejected` : ''}`, tone: r.status === 'DECODED' ? 'ok' : a.significant_but_rejected.length ? 'fail' : 'warn' },
+    { id: 'decision', icon: 'decision', title: 'Decision', sum: r.status === 'DECODED' ? `${CODE_SHORT(r.code)} · ${r.interleaver?.join('×')} · ${r.modulation}` : r.status === 'SIGNAL_NO_CODE' ? 'Signal, no code established' : 'Unknown: no interpretation asserted', tone: r.status === 'DECODED' ? 'ok' : 'warn' },
+  ]
+  const detail: Record<NodeId, ReactNode> = {
+    raw: <ViewsPanel pack={pack} />,
+    detect: <TopicDetail pack={pack} topic="detection" />,
+    structure: <div className="grid g-2"><div><div className="panel-title" style={{ marginBottom: 8 }}>SPS candidates</div><TopicDetail pack={pack} topic="sps" /></div><div className="col" style={{ gap: 18 }}><div><div className="panel-title" style={{ marginBottom: 8 }}>Modulation candidates</div><TopicDetail pack={pack} topic="modulation" /></div><div><div className="panel-title" style={{ marginBottom: 8 }}>CFO candidates</div><TopicDetail pack={pack} topic="cfo" /></div></div></div>,
+    fec: <TopicDetail pack={pack} topic="fec" />,
+    validation: <TopicDetail pack={pack} topic="validation" />,
+    decision: <WhyPanel pack={pack} />,
+  }
+  return (
+    <div className="grid" style={{ gridTemplateColumns: 'minmax(300px, 380px) minmax(0, 1fr)', alignItems: 'start' }}>
+      <div className="chain">
+        {nodes.map((n, i) => (
+          <motion.div key={n.id} initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.09 }}>
+            {i > 0 && <div className="chain-link" />}
+            {n.id === 'fec' && (
+              <div className="chain-branches" style={{ marginBottom: 0 }}>
+                {['K7', 'K5', 'K3'].map((k) => (
+                  <div key={k} className="chain-branch mono dim" style={{ fontSize: 11.5 }}>{k} · {fmtInt(codeCounts[k])} hypotheses{r.code && codeKey(r.code) === k ? ' · accepted' : ''}</div>
+                ))}
+              </div>
+            )}
+            {n.id === 'fec' && <div className="chain-link" />}
+            <button className={`chain-node${sel === n.id ? ' on' : ''}`} onClick={() => setSel(n.id)}>
+              <span className={`chain-icon ${n.tone}`}><Icon name={n.icon} /></span>
+              <span><div className="chain-title">{n.title}</div><div className="chain-sum">{n.sum}</div></span>
+              <Icon name="chevron" size={14} />
+            </button>
+            {n.id === 'structure' && (
+              <div className="chain-branches">
+                <div className="chain-branch mono dim" style={{ fontSize: 11.5 }}>SPS: {d.sps_candidates.join(', ')}</div>
+                <div className="chain-branch mono dim" style={{ fontSize: 11.5 }}>Modulation: BPSK, QPSK</div>
+                <div className="chain-branch mono dim" style={{ fontSize: 11.5 }}>CFO: {d.cfo_candidates.map((c) => c.cfo.toFixed(4)).join(', ')}</div>
+              </div>
+            )}
+          </motion.div>
+        ))}
+      </div>
+      <motion.div key={sel} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}>
+        <Panel title={nodes.find((n) => n.id === sel)?.title} right={<Tag kind={provOf(pack)} />}>{detail[sel]}</Panel>
+      </motion.div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------- hypothesis explorer
+type StatusFilter = 'ALL' | 'ACCEPTED' | 'REJECTED' | 'SIGNIFICANT' | 'NOT SIGNIFICANT'
+
+export function HypothesisExplorer({ pack }: { pack: EvidencePack }) {
+  const all = pack.diagnostics.all_hypotheses
+  const a = pack.accept
+  const [codes, setCodes] = useState<Record<string, boolean>>({ K7: true, K5: true, K3: true })
+  const [mods, setMods] = useState<Record<string, boolean>>({ BPSK: true, QPSK: true })
+  const [minBits, setMinBits] = useState(0)
+  const [status, setStatus] = useState<StatusFilter>('ALL')
+  const [page, setPage] = useState(0)
+  const acc = a.accepted_hypothesis
+  const accKey = acc ? `${codeKey(acc.code)}|${acc.interleaver.join('x')}|${acc.sps}|${acc.modulation}` : ''
+  const rejKeys = useMemo(() => new Set(a.significant_but_rejected.map((x) => `${codeKey(x.code)}|${x.interleaver.join('x')}|${x.sps}|${x.modulation}`)), [a.significant_but_rejected])
+  const keyOf = useCallback((i: number) => all ? `${all.code[i]}|${all.rows[i]}x${all.cols[i]}|${all.sps[i]}|${all.modulation[i]}` : '', [all])
+  const statusOf = useCallback((i: number): StatusFilter => {
+    if (!all) return 'NOT SIGNIFICANT'
+    const k = keyOf(i)
+    if (k === accKey && all.log10_p[i] <= a.log10_threshold) return 'ACCEPTED'
+    if (rejKeys.has(k) && all.log10_p[i] <= a.log10_threshold) return 'REJECTED'
+    return all.log10_p[i] <= a.log10_threshold ? 'SIGNIFICANT' : 'NOT SIGNIFICANT'
+  }, [all, keyOf, accKey, rejKeys, a.log10_threshold])
+  const filter = useCallback((i: number) => !!all && codes[all.code[i]] && mods[all.modulation[i]] && all.rows[i] * all.cols[i] >= minBits && (status === 'ALL' || statusOf(i) === status),
+    [all, codes, mods, minBits, status, statusOf])
+  const isAcc = useCallback((i: number) => statusOf(i) === 'ACCEPTED', [statusOf])
+  const isRej = useCallback((i: number) => statusOf(i) === 'REJECTED', [statusOf])
+  const ranked = useMemo(() => {
+    if (!all) return []
+    return Array.from({ length: all.log10_p.length }, (_, i) => i).filter(filter).sort((x, y) => all.log10_p[x] - all.log10_p[y])
+  }, [all, filter])
+  if (!all) return <div className="empty">Hypothesis list not recorded for this capture.</div>
+  const PAGE = 50
+  const counts = { K7: 0, K5: 0, K3: 0 } as Record<string, number>
+  all.code.forEach((c) => (counts[c] = (counts[c] ?? 0) + 1))
+  return (
+    <div className="col" style={{ gap: 14 }}>
+      <div className="grid" style={{ gridTemplateColumns: 'minmax(0, 1fr) 320px', alignItems: 'stretch' }}>
+        <Panel title={<span><span className="mono" style={{ fontSize: 22, color: 'var(--cyan)', marginRight: 10 }}>{fmtInt(a.n_hypotheses)}</span>hypotheses evaluated</span>}
+          sub="Each point is one (CFO × symbol rate × modulation × rotation × code × interleaver) hypothesis. Height = evidence (−log10 p)."
+          right={<Tag kind={provOf(pack)} />}>
+          <Landscape all={all} threshold={a.log10_threshold} isAccepted={isAcc} isRejected={isRej} filter={filter} height={270} />
+          <div className="legend" style={{ marginTop: 8 }}>
+            <span><i style={{ background: 'var(--cyan)' }} />K7</span><span><i style={{ background: 'var(--violet)' }} />K5</span><span><i style={{ background: 'var(--green)' }} />K3</span>
+            <span><i style={{ background: 'var(--amber)' }} />Significant</span><span><i style={{ background: 'var(--orange)' }} />Rejected by structure check</span><span><i style={{ background: 'var(--green)', borderRadius: 5 }} />Accepted</span>
+          </div>
+        </Panel>
+        <Panel title="Filters">
+          <div className="col" style={{ gap: 12 }}>
+            <div className="field"><label>Code</label><div className="row-wrap">{['K7', 'K5', 'K3'].map((c) => <button key={c} className={`chip${codes[c] ? ' on' : ''}`} onClick={() => { setCodes({ ...codes, [c]: !codes[c] }); setPage(0) }}>{c} · {fmtInt(counts[c])}</button>)}</div></div>
+            <div className="field"><label>Modulation</label><div className="row-wrap">{['BPSK', 'QPSK'].map((m) => <button key={m} className={`chip${mods[m] ? ' on' : ''}`} onClick={() => { setMods({ ...mods, [m]: !mods[m] }); setPage(0) }}>{m}</button>)}</div></div>
+            <div className="field"><label>Minimum interleaver coverage: {minBits} bits</label><input type="range" min={0} max={384} step={8} value={minBits} onChange={(e) => { setMinBits(Number(e.target.value)); setPage(0) }} /></div>
+            <div className="field"><label>Status</label>
+              <select className="select" value={status} onChange={(e) => { setStatus(e.target.value as StatusFilter); setPage(0) }}>
+                {(['ALL', 'ACCEPTED', 'REJECTED', 'SIGNIFICANT', 'NOT SIGNIFICANT'] as StatusFilter[]).map((s) => <option key={s}>{s}</option>)}
+              </select></div>
+            <div className="banner muted" style={{ fontSize: 12 }}><Icon name="info" /><span>The system searches a structured hypothesis space and accepts only what the evidence supports; it never picks a single answer by default.</span></div>
+          </div>
+        </Panel>
+      </div>
+      <Panel title="Ranked hypotheses" sub={`${fmtInt(ranked.length)} match the filters`} flush
+        right={<div className="row"><button className="btn btn-sm" disabled={page === 0} onClick={() => setPage(page - 1)}><Icon name="back" size={12} /></button><span className="mono muted" style={{ fontSize: 12 }}>{page * PAGE + 1}–{Math.min(ranked.length, (page + 1) * PAGE)}</span><button className="btn btn-sm" disabled={(page + 1) * PAGE >= ranked.length} onClick={() => setPage(page + 1)}><Icon name="chevron" size={12} /></button></div>}>
+        <div className="table-wrap" style={{ maxHeight: 460 }}>
+          <table className="tbl">
+            <thead><tr><th>Rank</th><th>Code</th><th>Interleaver</th><th className="num">Coverage</th><th>Mod</th><th className="num">sps</th><th className="num">Checks</th><th className="num">p-value</th><th>Status</th></tr></thead>
+            <tbody>{ranked.slice(page * PAGE, (page + 1) * PAGE).map((i, k) => {
+              const st = statusOf(i)
+              const color = st === 'ACCEPTED' ? 'var(--green)' : st === 'REJECTED' ? 'var(--orange)' : st === 'SIGNIFICANT' ? 'var(--amber)' : 'var(--muted)'
+              const rej = st === 'REJECTED' ? a.significant_but_rejected.find((x) => `${codeKey(x.code)}|${x.interleaver.join('x')}|${x.sps}|${x.modulation}` === keyOf(i)) : undefined
+              return (
+                <tr key={i} className={st === 'ACCEPTED' ? 'sel' : ''}>
+                  <td className="mono muted">{String(page * PAGE + k + 1).padStart(2, '0')}</td>
+                  <td className="mono">{all.code[i]}</td>
+                  <td className="mono">{all.rows[i]}×{all.cols[i]}</td>
+                  <td className="num">{all.rows[i] * all.cols[i]} bits</td>
+                  <td className="mono">{all.modulation[i]}</td>
+                  <td className="num">{all.sps[i]}</td>
+                  <td className="num">{all.n_positive[i]}/{all.n_checks[i]}</td>
+                  <td className="num">{fmtP(all.log10_p[i])}</td>
+                  <td><span className="mono" style={{ color, fontSize: 11.5 }}>{st}</span>{rej && <div className="muted" style={{ fontSize: 11 }}>{rej.structural_rejection}</div>}</td>
+                </tr>
+              )
+            })}</tbody>
+          </table>
+        </div>
+      </Panel>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------- views
+export function ViewsPanel({ pack }: { pack: EvidencePack }) {
+  const v = pack.views
+  const r = pack.result
+  const ideal = r.modulation ?? pack.diagnostics.top_hypotheses[0]?.modulation ?? null
+  return (
+    <div className="grid g-2">
+      <div><div className="panel-title" style={{ marginBottom: 6 }}>Waterfall (time–frequency)</div><Spectrogram db={v.spectrogram.db} f={v.spectrogram.f_hz} t={v.spectrogram.t_s} height={200} /></div>
+      <div><div className="panel-title" style={{ marginBottom: 6 }}>Constellation {r.status === 'DECODED' ? '(accepted front-end)' : '(best candidate front-end)'}</div><Constellation points={v.constellation} ideal={ideal} height={214} /></div>
+      <div><div className="panel-title" style={{ marginBottom: 6 }}>Power spectral density</div><LinePlot series={[{ x: v.psd.f_hz.map((f) => f / 1e3), y: v.psd.db, color: 'var(--cyan)', fill: true }]} yLabel="dB" xLabel="kHz" height={170} /></div>
+      <div><div className="panel-title" style={{ marginBottom: 6 }}>IQ samples</div><LinePlot series={[{ x: v.timeseries.i.map((_, i) => i), y: v.timeseries.i, color: 'var(--cyan)', width: 1 }, { x: v.timeseries.q.map((_, i) => i), y: v.timeseries.q, color: 'var(--violet)', width: 1 }]} xLabel="sample" height={170} /></div>
+      {r.payload_len > 0 && (
+        <div style={{ gridColumn: '1 / -1' }}>
+          <div className="row" style={{ marginBottom: 6 }}><span className="panel-title grow">{r.status === 'DECODED' ? 'Decoded payload bits' : 'Hard-decision bits (not decoded)'}</span><span className="mono muted" style={{ fontSize: 11.5 }}>{r.payload_len} bits · polarity unresolved without frame sync</span></div>
+          <div className="bits">{r.payload_bits.map((b, i) => <span key={i}>{i % 8 === 0 && i ? ' ' : ''}{b ? <b>1</b> : '0'}</span>)}</div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------- audit & decision record
+export function AuditTrail({ pack, extra }: { pack: EvidencePack; extra: AuditEvent[] }) {
+  const t0 = new Date(pack.analysed_at).getTime()
+  const tm = pack.diagnostics.timers_s
+  let acc = 0
+  const step = (s: number) => (acc += s * 1000)
+  const d = pack.diagnostics, a = pack.accept
+  const events = [
+    { t: t0, label: 'Capture received', detail: `${fmtInt(pack.capture.samples)} samples (${pack.source.kind})` },
+    { t: t0 + step(tm.cfo ?? 0), label: d.detection_log10_p <= LOG_ALPHA(pack) ? 'Signal detected' : 'Signal presence not established', detail: `${d.cfo_candidates.length} spectral-line candidates` },
+    { t: t0 + step(tm.sps ?? 0), label: `${d.sps_candidates.length} SPS candidates generated`, detail: d.sps_candidates.join(', ') },
+    { t: t0 + step((tm.matched_filter ?? 0) + (tm.syndrome_search ?? 0)), label: `${fmtInt(a.n_hypotheses)} FEC hypotheses evaluated`, detail: `${d.n_front_ends} front-ends` },
+    { t: t0 + step(tm.scoring ?? 0), label: a.log10_p <= a.log10_threshold ? 'Statistical test passed' : 'Statistical test not passed', detail: `best p ${fmtP(a.log10_p)} vs bar ${fmtP(a.log10_threshold)}` },
+    { t: t0 + step(tm.viterbi ?? 0), label: pack.result.status.replace('_', ' '), detail: pack.result.code ? `${CODE_SHORT(pack.result.code)} ${pack.result.interleaver?.join('×')}` : 'no interpretation asserted' },
+    ...extra.map((e) => ({ t: e.t, label: e.action, detail: e.actor })),
+  ].sort((x, y) => x.t - y.t)
+  return (
+    <div className="list">
+      {events.map((e, i) => (
+        <div key={i} className="list-item" style={{ gridTemplateColumns: '170px 1fr auto', cursor: 'default' }}>
+          <span className="mono muted" style={{ fontSize: 12 }}>{new Date(e.t).toLocaleTimeString('en-GB', { timeZone: 'Asia/Kolkata', hour12: false })}.{String(new Date(e.t).getMilliseconds()).padStart(3, '0')}</span>
+          <span>{e.label}</span>
+          <span className="muted" style={{ fontSize: 12 }}>{e.detail}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+export function DecisionRecord({ pack, operatorAction }: { pack: EvidencePack; operatorAction?: string }) {
+  const e = pack.engine
+  return (
+    <dl className="kv">
+      <dt>Signal ID</dt><dd>{pack.id}</dd>
+      <dt>Analysed</dt><dd>{fmtDateTime(new Date(pack.analysed_at).getTime())}</dd>
+      <dt>Software version</dt><dd>engine {e.version} · {e.commit}</dd>
+      <dt>Model version</dt><dd>none: deterministic DSP + statistical test</dd>
+      <dt>DSP configuration</dt><dd>α={e.alpha} · sps {e.sps_range.join('–')} · |CFO|≤{e.cfo_max} · β_rx={e.rx_beta} · BL Δ={e.bl_delta_symbols} · PM≥{e.pm_floor}</dd>
+      <dt>Code catalogue</dt><dd>{e.codes.map((c) => CODE_SHORT(c)).join(', ')}</dd>
+      <dt>Hypotheses tested</dt><dd>{fmtInt(pack.accept.n_hypotheses)}</dd>
+      <dt>Decision</dt><dd>{pack.result.status}</dd>
+      <dt>Evidence</dt><dd>p {fmtP(pack.accept.log10_p)} vs bar {fmtP(pack.accept.log10_threshold)}</dd>
+      <dt>Operator action</dt><dd>{operatorAction ?? 'none recorded'}</dd>
+    </dl>
+  )
+}
+
+export function DataQuality({ pack, stationClock }: { pack: EvidencePack; stationClock?: string }) {
+  const c = pack.capture
+  const metaFields = ['station', 'center_freq_hz', 'bandwidth_hz', 'antenna', 'captured_at', 'format', 'name']
+  const present = metaFields.filter((k) => (c as Record<string, unknown>)[k] != null && (c as Record<string, unknown>)[k] !== '').length
+  const snr = (pack.accept.accepted_hypothesis ?? pack.diagnostics.top_hypotheses[0])?.symbol_snr_db
+  const rows: { k: string; v: string; tag: Provenance; tone?: string }[] = [
+    { k: 'Capture length', v: `${fmtInt(c.samples)} samples · ${(c.duration_s * 1e3).toFixed(2)} ms`, tag: provOf(pack) },
+    { k: 'Signal quality (symbol SNR, M2M4)', v: snr != null ? `${snr.toFixed(1)} dB · ${snr > 10 ? 'GOOD' : snr > 5 ? 'FAIR' : 'POOR'}` : '—', tag: provOf(pack) },
+    { k: 'Metadata completeness', v: `${Math.round((present / metaFields.length) * 100)}% (${present}/${metaFields.length} fields)`, tag: provOf(pack) },
+    { k: 'Duplicate captures', v: 'NOT ESTABLISHED', tag: 'NOT ESTABLISHED' },
+    { k: 'Clock synchronisation', v: stationClock ?? 'NOT RECORDED', tag: stationClock ? 'SIMULATED' : 'NOT ESTABLISHED' },
+    { k: 'Analysis confidence', v: pack.result.status === 'DECODED' ? 'VERIFIED (accepted)' : 'RESTRAINED (not asserted)', tag: provOf(pack) },
+  ]
+  return (
+    <div className="list">
+      {rows.map((r) => (
+        <div key={r.k} className="list-item" style={{ gridTemplateColumns: '1fr auto auto', cursor: 'default' }}>
+          <span className="muted" style={{ fontSize: 12.5 }}>{r.k}</span><span className="mono">{r.v}</span><Tag kind={r.tag} />
+        </div>
+      ))}
+    </div>
+  )
+}

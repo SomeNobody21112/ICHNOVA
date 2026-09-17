@@ -1,4 +1,7 @@
 # SIH26147 — RESEARCH FRONTIER
+
+> **REFERENCE (Constitution v2.4, 2026-09-17).** v2.0 research material. Priorities are set by `SIH26147_PROJECT_CONSTITUTION.md` §35–§36 and permitted claims by §37 (e.g. the "93% on sealed held-out" wording is withdrawn). The Constitution governs.
+
 **Date:** 2026-09-16 · **Version:** 2.0 (Research-Verified)
 
 Ranked by **development priority** (MVP-relevance × feasibility × expected impact).

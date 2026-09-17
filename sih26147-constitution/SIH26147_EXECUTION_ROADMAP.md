@@ -1,4 +1,7 @@
 # SIH26147 — EXECUTION ROADMAP
+
+> **HISTORICAL (Constitution v2.4, 2026-09-17).** Written for the v2.0 plan (28/30 baseline, consistency acceptance). Its premise has changed; `SIH26147_PROJECT_CONSTITUTION.md` governs priorities (§35) and claims (§37). Kept for history.
+
 **Date:** 2026-09-16 · **Version:** 2.0 (Research-Verified)
 
 ---

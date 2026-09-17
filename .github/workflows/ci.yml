@@ -1,0 +1,39 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r requirements.txt pytest
+      - name: Tests (core engine; real-signal receivers incl. regression on recorded government transmissions)
+        run: python -m pytest -q tests
+      - name: Generate bench-v1 sealed set (deterministic, seed0 99000)
+        run: python src/generate.py sealed
+      - name: bench-v1 regression tripwire
+        # Measured on the reference machine: 30/30 passes, 0 false accepts (structural acceptance). The gate leaves a 2-file margin for
+        # cross-platform floating-point differences; any false accept fails the build.
+        run: python sealed_test.py data/sealed 30 --min-pass 28 --max-false-accept 0
+
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci
+      - name: Type-check and build
+        run: npm run build

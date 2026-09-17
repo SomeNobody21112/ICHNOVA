@@ -1,5 +1,42 @@
 # SIH26147 — CONSTITUTION CHANGELOG
 
+## v2.4 (consolidated single source of truth, 2026-09-17)
+
+The Constitution was rewritten so that it alone describes the whole project. Nothing measured changed; everything stale was corrected.
+
+| Item | v2.0/v2.1 text | v2.4 |
+|---|---|---|
+| Authority | Constitution + roadmap + rescue spec + current state in parallel | Constitution governs everything; document map (§3); CURRENT_STATE is a derived snapshot; roadmap and rescue spec marked HISTORICAL |
+| Identity | "SIH26147" only | **ICHNOVA** brand, taglines, disclaimer, forbidden name/emblems (§1, §26) |
+| Thesis | Decoding as a sensor (SAGE-Lite next) | **Evidence first** is operative; decoding as a sensor kept as a BLOCKED research direction with reasons (§5, §36.3) |
+| Acceptance | Re-encode consistency ≥ 0.98 | Sign test + Bonferroni + MC/BL/PM; consistency RETIRED (§13) |
+| Baseline | 28/30 → 30/30, 60/100 | 30/30 and 63/100 with 0 false accepts; sealed renamed a tripwire (§8.3, §18) |
+| Evidence | Sealed set only; real IQ "not yet executed" | Null set, wrong-structure null, scoring comparison, oracle ladder, 8 real transmissions, performance (§19–§23) |
+| Status table | 17 rows in constitution, 40 in current state | 47 rows, authoritative, in the constitution (§24) |
+| Product | "GUI — outside MVP" | Operator console, routes, data honesty, UX/accessibility/theme rules modelled on DoT Tarang Sanchar / Saral Sanchar (§27–§29) |
+| Runtime | ~8.6 s per file | Sealed 1.5 s, train 4.4 s (§23) |
+| Environment | Python 3.12.3, numpy 2.4.4, scikit-learn, matplotlib | Python 3.11, numpy 2.4.2 + scipy 1.17.0 only (§31) |
+| Claims | "93% blind payload recovery on sealed held-out" allowed | **Withdrawn**; may-say / must-not-say lists rewritten (§37) |
+| Governance | — | Quality gates (§32), workflows (§34), risk register and change control (§41, §46) |
+
+---
+
+## v2.3 (2026-09-17) — structural acceptance, real transmissions, performance
+
+- Wrong-structure null exposed 17.3% wrong accepts under the syndrome-only rule; adopted MC + BL + PM checks: 0/900 false accepts, 0/450 wrong decodes, 0.9% wrong-structure (held-out split). `reports/STRUCTURAL_ACCEPTANCE_REPORT.md`
+- Government transmissions received blind through public KiwiSDR receivers: JJY, DCF77, MSF, WWV decoded (GPS +1.9…+23.4 ms), WWVB time refused, DWD DDH47 ITA2 text, AIR MW 5/5. `reports/REAL_SIGNAL_VALIDATION.md`
+- Live monitor (SSE) and replays from the same processor; tests 9 → 30.
+- Vectorised syndrome search, 3–4× faster, decision-identical on 1,480 files. `reports/PERFORMANCE_REPORT.md`
+
+## v2.2 (2026-09-16) — evidence-first baseline hardening
+
+- Dataset leakage removed (sps=6 forcing, sps/β lists, 0.12 bonus, K7-only search).
+- Acceptance replaced by dual-code syndrome sign test with Bonferroni α = 0.01; three outcomes DECODED / SIGNAL_NO_CODE / UNKNOWN.
+- Viterbi proven equal to exhaustive ML (terminated traceback bug fixed); 1,350-file null set; scoring comparison; oracle ladder; train 60 → 63/100 with 0 false accepts.
+- CI added. `reports/BASELINE_HARDENING_REPORT.md`
+
+---
+
 ## v2.1 (code-verified, 2026-09-16)
 
 | Item | v2.0 claim | v2.1 (measured) |

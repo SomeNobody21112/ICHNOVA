@@ -1,0 +1,50 @@
+{
+ "id": "air-chennai-720-bangalore-2026-09-17",
+ "station_key": "AIR-MW",
+ "station": {
+  "name": "All India Radio (medium wave)",
+  "operator": "Prasar Bharati \u2014 Government of India public broadcaster",
+  "country": "India",
+  "frequency_khz": 720.0,
+  "service": "AM broadcasting 531\u20131602 kHz",
+  "site": {
+   "name": "Chennai (720 kHz, 200 kW)",
+   "lat": 13.0827,
+   "lon": 80.2707
+  },
+  "references": [
+   {
+    "title": "Prasar Bharati: existing AIR stations and transmitters (31 May 2024)",
+    "url": "https://prasarbharati.gov.in/wp-content/uploads/2025/03/19-LIST-OF-EXISTING-STATIONS-AND-TRANSMITTERS-310524.pdf"
+   }
+  ]
+ },
+ "receiver": {
+  "url": "http://vu2cpl.ddns.net:8073",
+  "name": "VU2CPL KiwiSDR",
+  "location": "Bangalore, India",
+  "gps": [
+   13.187169,
+   77.622421
+  ],
+  "distance_km": 287,
+  "gps_timed": false,
+  "software": "KiwiSDR v?.840"
+ },
+ "capture": {
+  "t0_unix": 1789616173.750496,
+  "t0_utc": "2026-09-17T03:36:13.750+00:00",
+  "timing": "arrival",
+  "gps_stamp_spread_s": null,
+  "tuned_khz": 720.0,
+  "receiver_fs_hz": 12000.0,
+  "baseband_shift_hz": 0.0,
+  "decimation": 2,
+  "fs_hz": 6000.0,
+  "wav_header_fs_hz": 6000,
+  "duration_s": 30.0,
+  "rssi_dbm": -51.4,
+  "adc_overflow_blocks": 0
+ },
+ "note": ""
+}

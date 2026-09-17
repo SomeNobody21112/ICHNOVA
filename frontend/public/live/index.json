@@ -1,0 +1,179 @@
+[
+ {
+  "id": "air-chennai-720-bangalore-2026-09-17",
+  "mode": "iq",
+  "station_key": "AIR-MW",
+  "station": "All India Radio (medium wave)",
+  "operator": "Prasar Bharati \u2014 Government of India public broadcaster",
+  "country": "India",
+  "frequency_khz": 720.0,
+  "t0_utc": "2026-09-17T03:36:13.750+00:00",
+  "duration_s": 30.0,
+  "receiver": "Bangalore, India",
+  "answer": {
+   "status": "SIGNAL_NO_CODE",
+   "receiver": "am",
+   "protocol": "AM broadcast",
+   "summary": "AM (receiver delivered one sideband), carrier 53.2 dB above noise"
+  }
+ },
+ {
+  "id": "air-mw-band-bangalore-2026-09-17",
+  "mode": "band",
+  "station_key": "AIR-MW",
+  "station": "All India Radio (medium wave)",
+  "operator": "Prasar Bharati \u2014 Government of India public broadcaster",
+  "country": "India",
+  "frequency_khz": 720.0,
+  "t0_utc": "2026-09-17T03:48:23+00:00",
+  "duration_s": 60.08,
+  "receiver": "Bangalore, India",
+  "answer": {
+   "status": "SIGNAL_NO_CODE",
+   "receiver": "census",
+   "protocol": "AM broadcast census",
+   "summary": "5 medium-wave carriers; 5 match transmitters in the official AIR list"
+  }
+ },
+ {
+  "id": "dcf77-france-2026-09-17",
+  "mode": "iq",
+  "station_key": "DCF77",
+  "station": "DCF77",
+  "operator": "PTB \u2014 Physikalisch-Technische Bundesanstalt (Germany)",
+  "country": "Germany",
+  "frequency_khz": 77.5,
+  "t0_utc": "2026-09-17T03:16:21.951+00:00",
+  "duration_s": 185.018,
+  "receiver": "TREMOLAT (24), FRANCE",
+  "answer": {
+   "status": "DECODED",
+   "receiver": "timecode",
+   "protocol": "DCF77",
+   "operator": "PTB (Physikalisch-Technische Bundesanstalt, Germany)",
+   "summary": "DCF77 time code: 2026-09-17T03:17:00+00:00 UTC",
+   "log10_p": -14.65,
+   "verification": {
+    "timing": "gps",
+    "capture_t0_unix": 1789614981.9516664,
+    "arrival_minus_decoded_ms": 4.67,
+    "agrees": true
+   }
+  }
+ },
+ {
+  "id": "ddh47-denmark-2026-09-17",
+  "mode": "iq",
+  "station_key": "DDH47",
+  "station": "DDH47",
+  "operator": "DWD \u2014 Deutscher Wetterdienst (German Meteorological Service)",
+  "country": "Germany",
+  "frequency_khz": 147.3,
+  "t0_utc": "2026-09-17T02:58:04.573+00:00",
+  "duration_s": 125.025,
+  "receiver": "OZ5OD Hoell Strand. Denmak",
+  "answer": {
+   "status": "DECODED",
+   "receiver": "fsk",
+   "protocol": "ITA2 50 Bd FSK",
+   "summary": "YRYRYRY\r\r\nCQ CQ CQ DE DDH47 DDH9 DDH8\r\r\nFREQUENCIES   147.3 KHZ   11039 KHZ   14467.3 KHZ\r\r\nRYRYRYRYRYRYRYRYRYRYRYRYRYRYRYRYRYFUJRYRYRYRYRYRYRYRYRYRYRYRYRY\r\r\nCQ",
+   "log10_p": -241.28
+  }
+ },
+ {
+  "id": "jjy40-japan-2026-09-17",
+  "mode": "iq",
+  "station_key": "JJY",
+  "station": "JJY (40 kHz)",
+  "operator": "NICT \u2014 National Institute of Information and Communications Technology (Japan)",
+  "country": "Japan",
+  "frequency_khz": 40.0,
+  "t0_utc": "2026-09-17T03:16:22.756+00:00",
+  "duration_s": 185.019,
+  "receiver": "Okegawa Saitama JAPAN",
+  "answer": {
+   "status": "DECODED",
+   "receiver": "timecode",
+   "protocol": "JJY",
+   "operator": "NICT (National Institute of Information and Communications Technology, Japan)",
+   "summary": "JJY time code: 2026-09-17T03:17:00+00:00 UTC",
+   "log10_p": -32.33,
+   "verification": {
+    "timing": "gps",
+    "capture_t0_unix": 1789614982.756864,
+    "arrival_minus_decoded_ms": 1.86,
+    "agrees": true
+   }
+  }
+ },
+ {
+  "id": "msf-uk-2026-09-17",
+  "mode": "iq",
+  "station_key": "MSF",
+  "station": "MSF",
+  "operator": "NPL \u2014 National Physical Laboratory (UK)",
+  "country": "United Kingdom",
+  "frequency_khz": 60.0,
+  "t0_utc": "2026-09-17T02:57:55.327+00:00",
+  "duration_s": 125.025,
+  "receiver": "South West England, UK",
+  "answer": {
+   "status": "DECODED",
+   "receiver": "timecode",
+   "protocol": "MSF",
+   "operator": "NPL (National Physical Laboratory, UK)",
+   "summary": "MSF time code: 2026-09-17T02:58:00+00:00 UTC",
+   "log10_p": -15.0,
+   "verification": {
+    "timing": "gps",
+    "capture_t0_unix": 1789613875.327593,
+    "arrival_minus_decoded_ms": 3.59,
+    "agrees": true
+   }
+  }
+ },
+ {
+  "id": "wwv-10mhz-montana-2026-09-17",
+  "mode": "iq",
+  "station_key": "WWV",
+  "station": "WWV",
+  "operator": "NIST \u2014 U.S. Department of Commerce",
+  "country": "United States",
+  "frequency_khz": 10000.0,
+  "t0_utc": "2026-09-17T02:57:56.141+00:00",
+  "duration_s": 125.025,
+  "receiver": "W. Montana, USA",
+  "answer": {
+   "status": "DECODED",
+   "receiver": "timecode",
+   "protocol": "WWV",
+   "operator": "NIST (U.S. Department of Commerce)",
+   "summary": "WWV time code: 2026-09-17T02:58:00+00:00 UTC",
+   "log10_p": -23.39,
+   "verification": {
+    "timing": "gps",
+    "capture_t0_unix": 1789613876.141364,
+    "arrival_minus_decoded_ms": 23.36,
+    "agrees": true
+   }
+  }
+ },
+ {
+  "id": "wwvb-montana-2026-09-17",
+  "mode": "iq",
+  "station_key": "WWVB",
+  "station": "WWVB",
+  "operator": "NIST \u2014 U.S. Department of Commerce",
+  "country": "United States",
+  "frequency_khz": 60.0,
+  "t0_utc": "2026-09-17T03:16:22.739+00:00",
+  "duration_s": 185.02,
+  "receiver": "W. Montana, USA",
+  "answer": {
+   "status": "SIGNAL_NO_CODE",
+   "receiver": "timecode",
+   "protocol": "WWVB",
+   "summary": "WWVB frame structure is significant but time digits are not established: year_tens, year_units, day_hundreds, day_tens, day_units, hour_tens, hour_units, minute_tens, minute_units"
+  }
+ }
+]
