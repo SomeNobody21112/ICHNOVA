@@ -65,6 +65,67 @@ def test_f2_refuses_noise_and_uncoded_stream():
         assert r['stream_code']['best_log10_p'] > r['stream_code']['log10_threshold']
 
 
+def _asm_frames(n_frames, rng, period=512):
+    """Frames of ASM + a 16-bit counter + random payload (a non-catalogue but framed format)."""
+    import framing
+    asm = framing.MARKERS['ASM_1ACFFC1D']
+    out = []
+    for i in range(n_frames):
+        hdr = np.array([int(b) for b in f'{i:016b}'], np.uint8)
+        out.append(np.concatenate([asm, hdr,
+                                   rng.randint(0, 2, period - len(asm) - len(hdr)).astype(np.uint8)]))
+    return np.concatenate(out).astype(np.uint8)
+
+
+def test_f3_finds_asm_frames_without_a_code_and_reports_the_map():
+    rng = np.random.RandomState(21)
+    r = pipeline.analyze_iq(_bpsk(_asm_frames(12, rng), rng, snr_db=8.0))
+    f3, acc = r['frame'], r['frame']['accepted_hypothesis']
+    assert r['status'] == 'SIGNAL_NO_CODE' and f3['accepted']          # a frame is not a code
+    assert acc['kind'] == 'catalogue_marker' and acc['marker'] == 'ASM_1ACFFC1D'
+    assert acc['period_bits'] == 512 and acc['offset_bits'] == 0 and acc['n_frames'] == 12
+    assert f3['best_log10_p'] <= f3['log10_threshold']
+    # M3 covers the whole declared domain, not just the evaluated hypotheses.
+    import framing
+    assert f3['tested_hypotheses'] == sum(framing.family_domain(s['bits']) for s in f3['streams_tested'])
+    m = f3['map']
+    assert m['period_bits'] == 512 and m['header_bits'][0] == 0 and m['header_bits'][1] >= 32
+    assert m['undetermined_columns'] + m['proven_constant_columns'] + m['proven_alternating_columns'] == 512
+    assert m['frames_needed_per_column'] > 12                          # honest about what 12 frames prove
+
+
+def test_f3_on_concatenated_stream_runs_on_the_f2_output():
+    """Inner K7 over ASM frames: F2 accepts the stream, then the frame is found in its Viterbi output."""
+    rng = np.random.RandomState(1000)
+    info = _asm_frames(10, rng)
+    r = pipeline.analyze_iq(_bpsk(conv_encode(info, stream.CODE['generators'], 7), rng, snr_db=8.0))
+    assert r['status'] == 'DECODED' and r['code'] == stream.CODE_NAME
+    assert _ber(r['payload_bits'], info) < 0.01
+    acc = r['frame']['accepted_hypothesis']
+    assert acc is not None and acc['source'] == 'f2_viterbi_output'
+    assert acc['kind'] == 'catalogue_marker' and acc['period_bits'] == 512
+
+
+def test_f3_refuses_noise_and_a_constant_carrier():
+    rng = np.random.RandomState(22)
+    noise = (rng.standard_normal(8000) + 1j * rng.standard_normal(8000)) / np.sqrt(2)
+    idle = _bpsk(np.zeros(3000, np.uint8), rng, snr_db=12.0)
+    for iq in (noise, idle):
+        r = pipeline.analyze_iq(iq)
+        assert not r['frame']['accepted'] and r['status'] != 'DECODED'
+
+
+def test_serial_gate_keeps_the_coherent_front_end_of_a_framed_stream():
+    """A repeating sync marker makes neighbouring decisions mildly dependent; the gate must target
+    oversampled front ends (~75% agreement), not that."""
+    rng = np.random.RandomState(1000)
+    coded = conv_encode(_asm_frames(10, rng), stream.CODE['generators'], 7)
+    r = pipeline.analyze_iq(_bpsk(coded, rng, snr_db=8.0))
+    best = r['stream_code']['accepted_hypothesis']
+    assert best is not None and best['agreement'] > 0.99      # the coherent front end, not a flipping one
+    assert pipeline.SERIAL_AGREEMENT_MAX == 0.60
+
+
 def test_family_bars_are_the_pre_registered_weights():
     """The weights are pre-registered (§13.1) and the bars must follow α·w/M, not a tuned constant."""
     assert pipeline.FAMILY_WEIGHTS == {'F1_burst_code': 0.50, 'F2_stream_code': 0.10,

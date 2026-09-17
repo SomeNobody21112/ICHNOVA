@@ -212,3 +212,75 @@ amendment (§13, §46), and re-fitting it here would tune on data the rule is be
 `start='zero'` cannot; a continuous K7 stream is accepted and decoded at BER 0 with and without G2
 inversion; noise and an uncoded stream are refused with the family bar shown; every family's bar
 equals α·w/M with the pre-registered weights. Full suite: **55 passed**.
+
+## Phase 10 (step 3) — F3 frame family wired in; two engine defects found and fixed
+
+**Criteria, fixed before running anything** (§32): sealed ≥ 28/30 and 0 FA; train ≥ 63/100 and 0 FA;
+null-set false accepts 0/900 and wrong decodes 0/450; noise → SIGNAL_NO_CODE not above 21/500;
+wrong-structure accepts (adopted rule, evaluation split) not above 2/225; and on a 12-seed
+concatenated sweep, ≥ 11/12 F2 accepts with BER < 0.01.
+
+**Added**
+- `pipeline._frame_family` / `_frame_streams` — family F3 over the streams described below.
+  M₃ = Σ `framing.family_domain(n)` over every stream tested (the whole declared domain of periods,
+  offsets, markers, widths and polarities, not only the hypotheses evaluated), bar α·0.20/M₃.
+  Candidates are walked in p-value order and the first that passes `framing.structural_rejection` is
+  accepted; the accepted frame carries `framing.frame_map`.
+- Among candidates that clear the bar, a **catalogue marker is preferred** over a blind constant
+  field. A blind window overlapping the same ASM can reach a smaller p-value merely by being wider,
+  which hid a present ASM behind an anonymous "constant field" claim in 12 of 12 sweep runs.
+- Verdict: an accepted F3 with no accepted code gives **SIGNAL_NO_CODE with the frame map**, as
+  §13.1 note 6 requires. F3 never produces DECODED on its own.
+- `result.frame` holds the family evidence: bar, best p, accepted hypothesis, map, the streams
+  tested with their domains, the top candidates, and anything structurally rejected.
+
+**Defect 1 — the front-end serial-dependence gate discarded the coherent front end of a framed
+stream.** The gate rejected any front end whose neighbouring hard decisions agree significantly more
+often than half the time. Its target is an oversampled front end (sps too small), which repeats every
+symbol and so agrees on ≈75% of pairs (≈83% at 3×). But real framed data repeats a sync marker every
+frame, which biases the rate to ≈0.515 — and over a 6,000-bit stream that is overwhelmingly
+significant against ½. The gate therefore threw away the *coherent* front end and kept a front end
+with a small carrier error, whose polarity flips in segments. Fix: the gate now tests against the
+composite null "agreement ≤ `SERIAL_AGREEMENT_MAX` = 0.60", a declared receiver spec with a physical
+basis (the 0.75 duplicate-symbol floor), not a fitted constant.
+
+**Defect 2 — a tie at the p-value floor chose a segment-flipping front end.** `sign_test_log10p`
+clips at 1e-300, so on a long stream every strong F2 hypothesis reports exactly −300 and the winner
+was decided by list order. A front end with residual carrier offset satisfies the parity check inside
+each polarity segment (the catalogue generators have odd weight, so a complemented codeword is a
+codeword) and fails only at the boundaries, so it is accepted with p = −300 and a check agreement of
+0.94, and it decodes to a segment-wise complemented, useless payload — a confident wrong decode. Fix:
+`stream.rank` orders F2 hypotheses by (p-value, then check-agreement ratio), exactly as F1 breaks the
+same tie with the syndrome z. The coherent front end (agreement > 0.999) now wins.
+
+**Defect 3 — F3 stream selection by symbol SNR is not discriminating.** The M2M4 symbol SNR measures
+power, not coherence, so the sps = 4 BPSK front ends at five different CFO candidates all measured
+13.82 dB while only one carried a detectable ASM (p = 10⁻¹¹⁵·⁶ against 10⁻⁹·⁷ for its neighbours).
+Taking "the 3 best front ends by SNR" therefore tested an arbitrary one. Fix: keep the
+`F3_FRONT_ENDS` = 3 best (sps, modulation) **classes** and test every CFO/rotation front end within
+them, capped at `F3_MAX_STREAMS` = 12 streams. Only streams actually tested enter M₃.
+
+**Measured after the fixes**
+
+| Gate | Before this step | After |
+|---|---|---|
+| bench-v1 sealed | 30/30, 0 FA | **30/30, 0 FA** |
+| bench-v1 train | 63/100, 0 FA | **63/100, 0 FA** |
+| Null set false accepts | 0/900 | **0/900** (≤ 0.43%) |
+| Null set wrong decodes | 0/450 | **0/450** |
+| Null set correct K7/K5/K3 | 61/37/31 | **61/36/31** (one K5 file lost) |
+| Noise → SIGNAL_NO_CODE | 21/500 | **21/500** |
+| Wrong-structure accepts (adopted rule) | 0/225 | **0/225** (≤ 1.7%) |
+| Recall on the wrong-structure run | 0.320 | 0.316 |
+| Concatenated 12-seed sweep | 11/12 accepted, 1 garbage payload | **12/12 accepted, 12/12 BER < 0.01, 12/12 ASM found** |
+| Null-set runtime | 35 s | 37 s |
+
+Every pre-fixed criterion holds. **The one-file losses are real and reported, not tuned away:** with
+the relaxed serial gate more front ends survive, so M₁ grows and the F1 bar tightens; one K5 null
+file (and 0.004 of wrong-structure recall) fell below it. Nothing was adjusted afterwards.
+
+**Tests** — `tests/test_families.py` grows to 8: the ASM frame stream is SIGNAL_NO_CODE with a map
+whose columns add up and which states how many frames a per-column proof would need; the
+concatenated stream is DECODED via F2 with the frame found in the Viterbi output; noise and an idle
+carrier are refused; the serial gate keeps the coherent front end of a framed stream; M₃ equals the
+declared domain of the streams tested. Full suite: **59 passed**.

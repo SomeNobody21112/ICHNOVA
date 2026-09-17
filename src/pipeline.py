@@ -30,6 +30,7 @@ from scipy.special import bdtr, bdtrc, ndtr
 from blind_id import CODE_CATALOGUE, syndrome_scan, sign_test_log10p, decode_hypothesis, as_spec
 import interleavers
 import stream
+import framing
 
 # ---- Receiver search domain: a front-end specification, independent of any dataset ----
 SPS_RANGE = (2, 20)     # integer samples/symbol → symbol rates fs/20 … fs/2
@@ -51,6 +52,13 @@ INTERLEAVER_TYPES = interleavers.TYPES   # block, diagonal, Forney convolutional
 # union bound still gives P(any false structural claim on a file) <= ALPHA.
 FAMILY_WEIGHTS = {'F1_burst_code': 0.50, 'F2_stream_code': 0.10,
                   'F3_frame': 0.20, 'F4_block_code': 0.20}
+F3_FRONT_ENDS = 3       # compute budget: (sps, modulation) classes by symbol SNR entering the frame search
+F3_MAX_STREAMS = 12     # compute budget: bit streams the frame search may test in one analysis
+# Front-end serial-dependence gate: the agreement rate of neighbouring hard decisions that a front
+# end may not significantly exceed. 0.60 is a declared receiver spec with a physical basis, not a
+# fitted value: a 2x oversampled front end repeats every symbol and so agrees on ~75% of pairs (~83%
+# at 3x), while genuinely framed data biases the rate by only a few percent.
+SERIAL_AGREEMENT_MAX = 0.60
 
 
 FS_SOURCES = ('declared', 'wav_header', 'inferred', 'relative_only', 'unavailable')
@@ -90,7 +98,7 @@ def analyze_iq(iq, fs=None, _oracle=None, _top_k=5, _keep_bits=False, _all_hypot
     if fs_source not in FS_SOURCES:
         raise ValueError(f'fs_source must be one of {FS_SOURCES}')
     timers = dict.fromkeys(['cfo', 'sps', 'matched_filter', 'syndrome_search',
-                            'viterbi', 'scoring', 'stream_search'], 0.0)
+                            'viterbi', 'scoring', 'stream_search', 'frame_search'], 0.0)
     t_start = time.perf_counter()
     iq = np.asarray(iq, dtype=complex)
     if 'timing_offset' in o:   # undo the generator's fractional delay exp(-j2πfτ)
@@ -135,14 +143,22 @@ def analyze_iq(iq, fs=None, _oracle=None, _top_k=5, _keep_bits=False, _all_hypot
                 for rot in rots:
                     t = time.perf_counter()
                     llrs = psk_llrs(ys * np.exp(-1j * rot), mod, S, N)
-                    # The syndrome null needs serially independent hard decisions. Random,
-                    # interleaved payload at the true symbol rate gives that; a front-end that
-                    # oversamples the signal (sps too small) repeats each symbol, which biases
-                    # short parity checks. Reject front-ends whose neighbouring decisions agree
-                    # significantly more than half the time (exact one-sided sign test).
+                    # The syndrome null needs serially independent hard decisions. A front end that
+                    # oversamples the signal (sps too small) repeats each symbol, which biases short
+                    # parity checks: at 2x oversampling every second neighbouring pair is the same
+                    # symbol, so about 75% of pairs agree (83% at 3x). Reject a front end only when
+                    # its neighbouring decisions agree significantly more often than
+                    # SERIAL_AGREEMENT_MAX — a composite null, not "more than half the time".
+                    # Real framed data (a sync marker repeating every frame) gives a small genuine
+                    # dependence of a few percent; over a long stream that is highly significant
+                    # against 1/2, and testing against 1/2 therefore discarded the *coherent* front
+                    # end of a framed stream and kept an off-frequency one (whose polarity flips in
+                    # segments). Measured in reports/SIH_READINESS_EXECUTION.md (Phase 10 step 3).
                     step = 1 if mod == 'BPSK' else 2
                     same = np.count_nonzero((llrs[step:] < 0) == (llrs[:-step] < 0))
-                    if float(sign_test_log10p(same, len(llrs) - step)) <= np.log10(ALPHA):
+                    n_pairs = len(llrs) - step
+                    if float(np.log10(max(bdtrc(same - 1, n_pairs, SERIAL_AGREEMENT_MAX), 1e-300))
+                             if same > 0 else 0.0) <= np.log10(ALPHA):
                         rejected_serial += 1
                         timers['syndrome_search'] += time.perf_counter() - t
                         continue
@@ -242,6 +258,17 @@ def analyze_iq(iq, fs=None, _oracle=None, _top_k=5, _keep_bits=False, _all_hypot
     f2 = _stream_family(fronts)
     timers['stream_search'] += time.perf_counter() - t
 
+    t = time.perf_counter()
+    f2_bits = None
+    if f2['accepted']:
+        b2 = f2['accepted_hypothesis']
+        f2_decode = stream.decode(fronts[b2['front']]['llrs'], b2['offset'], b2['g2_inverted'])
+        b2.update({k: f2_decode[k] for k in ('covered_bits', 'path_metric', 'consistency',
+                                             'polarity_flipped')})
+        f2_bits = f2_decode['decoded_bits']
+    f3 = _frame_family(fronts, f2_bits)
+    timers['frame_search'] += time.perf_counter() - t
+
     signal_front = _signal_front(cfo_cands, sps_table, o)
     result = {
         'status': 'UNKNOWN', 'payload_bits': np.array([], dtype=np.uint8), 'code': None,
@@ -277,14 +304,21 @@ def analyze_iq(iq, fs=None, _oracle=None, _top_k=5, _keep_bits=False, _all_hypot
                       rotation=b['rotation'])
     elif f2['accepted']:
         b = f2['accepted_hypothesis']
-        fr = fronts[b['front']]
-        dec = stream.decode(fr['llrs'], b['offset'], b['g2_inverted'])
-        b.update({k: dec[k] for k in ('covered_bits', 'path_metric', 'consistency', 'polarity_flipped')})
-        result.update(status='DECODED', payload_bits=dec['decoded_bits'], code=stream.CODE_NAME,
+        fr = fronts[int(b['front'])]
+        result.update(status='DECODED', payload_bits=f2_bits, code=stream.CODE_NAME,
                       modulation=fr['modulation'], sps=fr['sps'],
                       symbol_rate_est=_rate_hz(fs, fr['sps']), symbol_rate_norm=1.0 / fr['sps'],
                       cfo=fr['cfo'], phase=fr['phase'],
-                      rotation=fr['rotation'] + (np.pi if dec['polarity_flipped'] else 0.0))
+                      rotation=fr['rotation'] + (np.pi if b['polarity_flipped'] else 0.0))
+    elif f3['accepted']:
+        # A proven frame structure with no accepted code: the frame map is the evidence (13.1 note 6).
+        fi = f3['accepted_hypothesis']['front']
+        fr = fronts[fi] if fi is not None else None
+        result.update(status='SIGNAL_NO_CODE', payload_bits=f3['accepted_bits'])
+        if fr is not None:
+            result.update(modulation=fr['modulation'], sps=fr['sps'], cfo=fr['cfo'],
+                          phase=fr['phase'], rotation=fr['rotation'],
+                          symbol_rate_est=_rate_hz(fs, fr['sps']), symbol_rate_norm=1.0 / fr['sps'])
     elif detection_log10p <= np.log10(ALPHA) and signal_front:
         result.update(status='SIGNAL_NO_CODE', symbol_rate_est=_rate_hz(fs, signal_front['sps']),
                       symbol_rate_norm=1.0 / signal_front['sps'],
@@ -308,9 +342,16 @@ def analyze_iq(iq, fs=None, _oracle=None, _top_k=5, _keep_bits=False, _all_hypot
                                       'tested_hypotheses': f2['tested_hypotheses'],
                                       'log10_threshold': f2['log10_threshold'],
                                       'best_log10_p': f2['best_log10_p'],
-                                      'accepted': f2['accepted']}],
+                                      'accepted': f2['accepted']},
+                                     {'name': 'F3_frame',
+                                      'weight': FAMILY_WEIGHTS['F3_frame'],
+                                      'tested_hypotheses': f3['tested_hypotheses'],
+                                      'log10_threshold': f3['log10_threshold'],
+                                      'best_log10_p': f3['best_log10_p'],
+                                      'accepted': f3['accepted']}],
                         'interleaver_types': list(INTERLEAVER_TYPES)}
     result['stream_code'] = {k: v for k, v in f2.items() if k != 'rows'}
+    result['frame'] = {k: v for k, v in f3.items() if k != 'accepted_bits'}
     result['diagnostics'] = {
         'cfo_candidates': cfo_cands, 'detection_log10_p': float(detection_log10p),
         'raw_sps_estimate': float(raw_sps), 'sps_table': sps_table,
@@ -350,12 +391,93 @@ def _stream_family(fronts):
                          'modulation': fr['modulation'], **row})
     M2 = len(rows)
     bar = float(np.log10(ALPHA * FAMILY_WEIGHTS['F2_stream_code'] / max(M2, 1)))
-    best = min(rows, key=lambda r: r['log10_p']) if rows else None
+    best = min(rows, key=stream.rank) if rows else None
     acc = best if best is not None and best['log10_p'] <= bar else None
     return {'code': stream.CODE_NAME, 'tested_hypotheses': M2, 'log10_threshold': bar,
             'best_log10_p': best['log10_p'] if best else 0.0, 'accepted': acc is not None,
             'accepted_hypothesis': acc,
-            'top': sorted(rows, key=lambda r: r['log10_p'])[:5], 'rows': rows}
+            'top': sorted(rows, key=stream.rank)[:5], 'rows': rows}
+
+
+def _frame_streams(fronts, f2_bits):
+    """Bit streams the frame family is tested on (13.1 note 4, hierarchical front-end selection).
+
+    The Viterbi output of an accepted F2 stream hypothesis (a CCSDS chain frames the decoded bits),
+    plus the hard decisions of the front ends of the F3_FRONT_ENDS best (sps, modulation) classes by
+    symbol SNR, capped at F3_MAX_STREAMS streams.
+
+    Every CFO candidate of a kept class is tested, not just the best by SNR: the M2M4 symbol SNR of a
+    front end whose carrier offset is slightly wrong is the same to two decimals as the coherent one
+    (it measures power, not coherence), so SNR cannot order them, while a frame marker only survives
+    on the coherent one. Selecting by SNR alone tested an off-carrier front end of a framed stream
+    and missed an ASM that was present at p = 10^-115.6. Only streams actually tested enter M3."""
+    streams = []
+    if f2_bits is not None and len(f2_bits):
+        streams.append({'source': 'f2_viterbi_output', 'front': None,
+                        'bits': np.asarray(f2_bits, dtype=np.uint8)})
+    order = sorted(range(len(fronts)), key=lambda i: -fronts[i]['symbol_snr_db'])
+    classes = []
+    for i in order:
+        key = (fronts[i]['sps'], fronts[i]['modulation'])
+        if key not in classes:
+            classes.append(key)
+    keep = classes[:F3_FRONT_ENDS]
+    for i in order:
+        if len(streams) >= F3_MAX_STREAMS:
+            break
+        fr = fronts[i]
+        if (fr['sps'], fr['modulation']) in keep:
+            streams.append({'source': 'front_end_hard_bits', 'front': i,
+                            'bits': (fr['llrs'] < 0).astype(np.uint8)})
+    return streams
+
+
+def _frame_family(fronts, f2_bits):
+    """Family F3: catalogue markers and blind constant fields over the declared frame domain.
+
+    M3 sums framing.family_domain(n) over every stream tested, so the bar covers the whole declared
+    domain (period x offset x marker/width x polarity), not only the hypotheses that were evaluated.
+    Candidates are walked in p-value order and the first that also passes framing.structural_rejection
+    is accepted."""
+    streams = _frame_streams(fronts, f2_bits)
+    M3 = sum(framing.family_domain(len(st['bits'])) for st in streams)
+    bar = float(np.log10(ALPHA * FAMILY_WEIGHTS['F3_frame'] / max(M3, 1)))
+    cands = []
+    for si, st in enumerate(streams):
+        found = [framing.marker_search(st['bits'], name) for name in framing.MARKERS]
+        found.append(framing.blind_search(st['bits']))
+        for c in found:
+            if c is not None:
+                cands.append({**c, 'stream': si, 'source': st['source'], 'front': st['front']})
+    cands.sort(key=lambda c: (c['log10_p'], c['period_bits']))
+    acc, rejected = None, []
+    # Among candidates that clear the bar, a catalogue marker is preferred over a blind constant
+    # field: it is the more specific claim (it names the standard and its polarity), and a blind
+    # window overlapping the same marker can reach a smaller p-value simply by being wider.
+    for c in sorted((c for c in cands if c['log10_p'] <= bar),
+                    key=lambda c: (c['kind'] != 'catalogue_marker', c['log10_p'], c['period_bits'])):
+        why = framing.structural_rejection(c, streams[c['stream']]['bits'])
+        if why is None:
+            acc = c
+            break
+        rejected.append({**{k: c[k] for k in ('kind', 'marker', 'period_bits', 'offset_bits',
+                                              'n_frames', 'log10_p', 'source')},
+                         'structural_rejection': why})
+    out = {'tested_hypotheses': M3, 'log10_threshold': bar,
+           'best_log10_p': cands[0]['log10_p'] if cands else 0.0,
+           'accepted': acc is not None, 'accepted_hypothesis': acc,
+           'significant_but_rejected': rejected,
+           'candidates': [{k: c[k] for k in ('kind', 'marker', 'period_bits', 'offset_bits',
+                                             'polarity', 'n_frames', 'log10_p', 'source')}
+                          for c in cands[:5]],
+           'streams_tested': [{'source': st['source'], 'front': st['front'], 'bits': len(st['bits']),
+                               'domain': framing.family_domain(len(st['bits']))} for st in streams],
+           'map': None, 'accepted_bits': np.array([], dtype=np.uint8)}
+    if acc is not None:
+        bits = streams[acc['stream']]['bits']
+        out['map'] = framing.frame_map(bits, acc['period_bits'], acc['offset_bits'], acc['marker_bits'])
+        out['accepted_bits'] = bits
+    return out
 
 
 def _rate_hz(fs, sps):

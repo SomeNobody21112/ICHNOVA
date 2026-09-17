@@ -44,8 +44,21 @@ def scan(th, modulation):
         for inverted in (False, True):
             k = len(chk) - pos if inverted else pos
             rows.append({'offset': o, 'g2_inverted': inverted, 'n_checks': len(chk),
-                         'n_positive': k, 'log10_p': float(sign_test_log10p(k, len(chk)))})
+                         'n_positive': k, 'agreement': k / len(chk),
+                         'log10_p': float(sign_test_log10p(k, len(chk)))})
     return rows
+
+
+def rank(row):
+    """Sort key over F2 hypotheses: p-value first, then the check-agreement ratio.
+
+    On a long stream many hypotheses reach the 1e-300 floor of the p-value, so the tail probability
+    alone cannot order them (F1 breaks the same tie with the syndrome z). The ratio does: a front end
+    with residual carrier offset flips polarity in segments, which still satisfies the parity check
+    inside each segment (the catalogue generators have odd weight, so a complemented codeword is a
+    codeword) but fails it at every boundary. Such a front end decodes to a segment-wise complemented,
+    useless payload, and it always has a lower agreement ratio than the coherent front end."""
+    return (row['log10_p'], -row['agreement'])
 
 
 def _g2_sign(n, offset):
