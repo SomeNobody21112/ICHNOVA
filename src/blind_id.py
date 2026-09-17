@@ -77,9 +77,10 @@ def syndrome_checks(th, code):
 
 
 @lru_cache(maxsize=64)
-def _scan_index(specs, n_obs):
+def _scan_index(specs, n_obs, n_conv=None):
     """Stacked deinterleave indices for a tuple of specs; padding (-1) points at a neutral 1.0."""
-    rows = [interleavers.deinterleave_index(s, n_obs) for s in specs]
+    rows = [interleavers.deinterleave_index(s, n_conv if (s[0] == 'conv' and n_conv) else n_obs)
+            for s in specs]
     idx = np.full((len(specs), max(len(r) for r in rows)), -1, dtype=np.int64)
     for i, r in enumerate(rows):
         idx[i, :len(r)] = r
@@ -92,7 +93,7 @@ def _fits(spec, n_obs):
     return len(idx) > 0 and int(idx.max()) < n_obs
 
 
-def syndrome_scan(th, specs, codes=CODE_CATALOGUE):
+def syndrome_scan(th, specs, codes=CODE_CATALOGUE, n_conv=None):
     """syndrome_checks() for every (interleaver, code) pair at once.
 
     `specs` are interleaver specs (interleavers.py) or bare (rows, cols) block pairs. All candidate
@@ -102,13 +103,14 @@ def syndrome_scan(th, specs, codes=CODE_CATALOGUE):
     'specs' tuple), code, n, pos, sum, sq in (spec, code) order, skipping pairs without checks and
     specs that do not fit in th."""
     n_obs = len(th)
-    specs = tuple(s for s in map(as_spec, specs) if _fits(s, n_obs))
+    n_conv = n_obs if n_conv is None else min(int(n_conv), n_obs)
+    specs = tuple(s for s in map(as_spec, specs) if _fits(s, n_conv if s[0] == 'conv' else n_obs))
     keys = ('spec', 'code', 'n', 'pos', 'sum', 'sq')
     empty = {k: np.zeros(0, dtype=float if k in ('sum', 'sq') else np.int64) for k in keys}
     empty['specs'] = specs
     if not specs:
         return empty
-    idx, T = _scan_index(specs, n_obs)
+    idx, T = _scan_index(specs, n_obs, n_conv)
     D = np.append(th, 1.0)[idx]
     Tmax = idx.shape[1] // 2
     c1, c2 = D[:, 0:2 * Tmax:2], D[:, 1:2 * Tmax:2]
@@ -150,7 +152,7 @@ def sign_test_log10p(n_positive, n_checks):
     return np.log10(np.where(n_positive > 0, np.maximum(p, 1e-300), 1.0))
 
 
-def decode_hypothesis(llrs, code, interleaver):
+def decode_hypothesis(llrs, code, interleaver, n_conv=None):
     """Viterbi-decode one hypothesis and compute the comparison scores for it.
 
     `interleaver` is a spec (interleavers.py) or a bare (rows, cols) block pair.
@@ -158,7 +160,9 @@ def decode_hypothesis(llrs, code, interleaver):
     Σ L·(1-2c)/Σ|L|, and soft disagreement D = Σ_mismatch |L| (nats, for MDL). Covered bits are
     scored in stream order, so the sums add the same terms in the same order for every spec type."""
     stream = np.asarray(llrs, dtype=float)
-    idx = interleavers.deinterleave_index(as_spec(interleaver), len(stream))
+    spec = as_spec(interleaver)
+    n_obs = len(stream) if (spec[0] != 'conv' or not n_conv) else min(int(n_conv), len(stream))
+    idx = interleavers.deinterleave_index(spec, n_obs)
     T = len(idx) // 2
     decoded = viterbi_decode(stream[idx[:2 * T]], code['generators'], code['K'], terminated=False)
     reenc = conv_encode(decoded, code['generators'], code['K'])[:2 * T]

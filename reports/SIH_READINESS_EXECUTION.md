@@ -421,3 +421,101 @@ condition so weakness cannot open it).
 and 36b move from LOCKED to IMPLEMENTED with the measured evidence above; row 34 becomes
 EXPERIMENTAL with its measured cost; §12.1 marks the higher modulations as not in the default path;
 §44 and the changelog record the amendment.
+
+## Phase 3 — bench-v2: catalogue families, non-catalogue nulls, channel impairments
+
+**Built** (`eval/bench2_gen.py`, `eval/bench2.py`; `src/generate.py` untouched as §18.1 requires):
+
+- **Splits** from disjoint seed ranges — calibration 200000+, train 300000+, sealed 400000+ — 430
+  files each, the file list a pure function of the split.
+- **Catalogue classes:** bursts over {BPSK, QPSK, 8PSK, 16-QAM} × {K7, K5, K3} × {block, diagonal,
+  convolutional, QPP} (240 files); continuous K7 with and without G2 inversion; the CCSDS
+  concatenated chain (RS E ∈ {8,16}, I ∈ {1,2,4,5} + randomizer + ASM + inner K7); framed RS without
+  an inner code; TC LDPC CLTUs; and a non-catalogue framed stream whose only correct answer is
+  SIGNAL_NO_CODE with the right period.
+- **Null classes** (12): noise, uncoded BPSK/QPSK/8PSK/16-QAM, 64-QAM (out of catalogue), a K9
+  convolutional code, **DVB RS(204,188) in the conventional basis** (a real Reed-Solomon code the
+  catalogue does not contain — its own GF(2⁸) field polynomial 0x11d and generator roots), a random
+  systematic (128,64) linear code (a "wrong LDPC"), ASM frames with random data, an idle carrier, and
+  a non-catalogue random permutation interleaver.
+- **Channels:** AWGN, Wiener phase noise, linear CFO drift, block Rician fading, slow amplitude
+  variation and fractional timing, at Es/N0 ∈ {3, 6, 9, 12, 15} dB.
+- **Protocol enforced in code:** the sealed runner exits unless given `--final-evaluation`; it
+  verifies the split against the committed per-file SHA-256 manifest
+  (`eval/bench2_sealed_manifest.json`, manifest hash `1ed6d128e0d2ba3e…`) and appends every run to
+  the committed access log `eval/bench2_access_log.jsonl`. `eval/bench2_criteria.json` was committed
+  before the sealed split was generated.
+- **Scoring** distinguishes TP, **TP_PARTIAL** (a true claim about fewer layers than the
+  transmission, or a block code that decoded some of its codewords), FALSE_ACCEPT (a structure that
+  is not there, or a payload that is wrong where the engine says it decoded one), FN and REFUSED_OK.
+  A partial answer is honest and is not a failure, but it is not counted as recall either.
+
+**Four defects the calibration split exposed, and one approach that failed**
+
+- **Defect 6 — an idle carrier was accepted as a continuous K7 code** (2 of 10 files). A constant
+  stream is a codeword of every linear code, and a *rotating* unmodulated carrier is worse: its sign
+  pattern is periodic rather than constant, so it passes a pairwise-independence gate and still
+  biases the parity checks. One reached p = 10⁻¹¹·² with only 59% of checks satisfied. Three changes:
+  `stream.degenerate` refuses a decoded stream with fewer than four distinct bytes (the RS rule of
+  §13.1 note 5, applied to F2 and to LDPC); `stream.DECOYS` adds a **within-file negative control** —
+  four rate-½ K7 tap patterns of the same weight that are not the catalogue code, and a hypothesis is
+  refused when a decoy is as significant as the real code (a periodic stream satisfies every
+  even-weight pattern; a real codeword satisfies only its own); and `F2_AGREEMENT_FLOOR = 0.61`, the
+  analogue of `PM_FLOOR`, **fitted on the calibration split alone** (99th percentile of the check
+  agreement of significant F2 hypotheses on its null classes = 0.6096, against 0.659 at the 1st
+  percentile and 0.989 at the median for genuine accepts).
+- **Approach that failed, and was removed:** a capture-level "unmodulated carrier" test (the exact
+  two-sided binomial p of the imbalance of the hard decisions, Bonferroni-corrected over front ends).
+  It fires on real data, because a front end at a mismatched symbol rate produces a nearly constant
+  stream: 100% one-sided over 1,292 bits on a genuine K7 capture. Recorded so it is not tried again.
+- **Defect 7 — under phase noise and CFO drift the structure was right and the payload wrong**
+  (13 of 15 wrong payloads). A long capture has no single carrier phase, so an untracked front end
+  satisfies the checks inside each polarity segment and decodes to a segment-wise complemented
+  payload. Fix: block phase tracking as an extra front end for captures of at least 512 symbols
+  (which the ≤ 384-bit burst domain never reaches, so bursts are untouched), with the **block length
+  chosen by the data** — the block with the highest coherence |mean(y^M)| / mean(|y^M|), because a
+  linear drift can turn the carrier more than a full turn inside 64 symbols. Wrong payloads fell from
+  15 to 3 and full decodes rose from 84 to 96.
+- **Defect 8 — a bug in my own generator, not in the engine.** `burst_bits` sized a burst as
+  `spec[1] * spec[2]`, which for a convolutional spec is (branches × delay) = 6 bits: the whole
+  convolutional class was transmitting 3-bit bursts, and its measured recall of 0/60 was an artefact.
+  Fixed to a declared 192 coded bits, like the other interleaver types.
+- **Defect 9 — a convolutional hypothesis was sized by the buffer, whose tail is filter ring-out.**
+  A Forney interleaver has no block length of its own, so the engine derived the number of coded bits
+  from the observed length, and the last ~10 symbols of matched-filter ring-out entered Viterbi as
+  data: payload BER 0.042 and 0.052 under a correct structure. Sizing it by the **receiver's own
+  filter** ((len(h)−1)//sps trailing symbols — a known quantity, not an estimate) gives BER 0.000. An
+  intermediate attempt that used the *measured* burst span instead was worse and was rejected: under
+  fading the two-level span fit can land mid-burst (104 of 204 symbols), which shrinks the hypothesis
+  until the block-length rule rejects it, and convolutional recall went to zero.
+
+**Measured — calibration and train (430 files each, development splits)**
+
+| | Calibration | Train |
+|---|---|---|
+| Null classes, false accepts | **0/120** (≤ 3.10%) | **0/120** (≤ 3.10%) |
+| Catalogue, fully correct | 100/310 | 105/310 |
+| Catalogue, partially correct | 2 | 3 |
+| Catalogue, wrong structure or payload | 2 (0.65%) | 3 (0.97%) |
+| Continuous K7 at Es/N0 ≥ 6 dB | 16/16 | 15/16 |
+| CCSDS concatenated at ≥ 9 dB | 12/12 | 9/12 (+2 partial) |
+| TC LDPC CLTU at ≥ 6 dB | 8/8 | 8/8 |
+| Framed RS at ≥ 9 dB | 4/6 (+1 partial) | 5/6 |
+| Non-catalogue framed → SIGNAL_NO_CODE with the right period | 7/10 | 6/10 |
+| BPSK/QPSK block bursts at ≥ 12 dB | 9/12 | 8/12 |
+| Mean runtime per file | 2.33 s | 2.35 s |
+
+The 240 burst files include 120 8PSK/16-QAM files that the default path does not search at all
+(§24 row 34), so they are refusals by design and carry no criterion.
+
+**Criteria** were committed from the calibration split and then sanity-checked on train, which failed
+one of them: the concatenated-chain criterion counted two honest partial RS decodes (2/4 and 12/16
+codewords, under CFO drift and Rician fading) as misses. Criteria v2 splits that into a full-decode
+criterion (≥ 60%) and a not-wrong criterion (≥ 85% full or partial), with the revision and its reason
+recorded in `revision_history` inside the criteria file. All nine criteria then pass on both
+development splits. **No sealed measurement informed any threshold — the sealed split did not exist
+yet.**
+
+**Regression on the committed baselines:** bench-v1 sealed 30/30 and train 63/100 unchanged; on the
+null set, **0 verdict differences** across all 1,350 files (status, code, interleaver, modulation, sps
+and BER), with only hypothesis counts and bars moving as the candidate sets changed. 66 tests pass.

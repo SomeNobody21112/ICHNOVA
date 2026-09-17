@@ -24,6 +24,21 @@ CODE = CODE_CATALOGUE[0]                 # K7 (171,133); the only catalogue stre
 CODE_NAME = CODE['name'] + '_continuous'
 PAIR_OFFSETS = (0, 1)
 MIN_CHECKS = 16                          # below this no count can reach any family bar
+MIN_DISTINCT_BYTES = 4                   # degenerate-stream rule, as for RS (§13.1 note 5)
+
+# Decoy codes: a within-file negative control, not hypotheses (they are never accepted and never
+# enter M2). Each is a rate-1/2 constraint-length-7 generator pair that is NOT the catalogue code and
+# has the same **even** total tap weight (10), so it is exactly as sensitive as the real code to a
+# stream that is periodic or otherwise structured rather than K7-coded. A constant or periodic bit
+# stream satisfies the parity checks of every such tap pattern — that is how an unmodulated carrier
+# reached p = 10^-9 on the real code (bench-v2 calibration, idle_carrier) — while a genuine K7
+# codeword satisfies only the real code's checks and leaves the decoys at chance.
+# Each decoy generator has weight 5 like the catalogue's, and the pairs exclude (171,133), its swap
+# and its bit-reversal (117,155), which are the same code in the other tap convention.
+DECOYS = [{'name': 'decoy_127_135', 'generators': [0o127, 0o135], 'K': 7},
+          {'name': 'decoy_147_153', 'generators': [0o147, 0o153], 'K': 7},
+          {'name': 'decoy_163_165', 'generators': [0o163, 0o165], 'K': 7},
+          {'name': 'decoy_117_127', 'generators': [0o117, 0o127], 'K': 7}]
 
 
 def offsets(modulation):
@@ -37,15 +52,28 @@ def scan(th, modulation):
     th = tanh(LLR/2) of the front end's bit stream. Returns one row per (offset, G2 inversion)."""
     rows = []
     for o in offsets(modulation):
-        chk = syndrome_checks(np.asarray(th)[o:], CODE)
+        stream_th = np.asarray(th)[o:]
+        chk = syndrome_checks(stream_th, CODE)
         if len(chk) < MIN_CHECKS:
             continue
         pos = int(np.count_nonzero(chk > 0))
+        # Negative control: the same test with decoy tap patterns (never accepted, never in M2).
+        decoy = []
+        for d in DECOYS:
+            dchk = syndrome_checks(stream_th, d)
+            if not len(dchk):
+                continue
+            dpos = int(np.count_nonzero(dchk > 0))
+            decoy.append({'name': d['name'], 'n_checks': len(dchk),
+                          'log10_p': min(float(sign_test_log10p(dpos, len(dchk))),
+                                         float(sign_test_log10p(len(dchk) - dpos, len(dchk))))})
+        decoy_best = min((d['log10_p'] for d in decoy), default=0.0)
         for inverted in (False, True):
             k = len(chk) - pos if inverted else pos
             rows.append({'offset': o, 'g2_inverted': inverted, 'n_checks': len(chk),
                          'n_positive': k, 'agreement': k / len(chk),
-                         'log10_p': float(sign_test_log10p(k, len(chk)))})
+                         'log10_p': float(sign_test_log10p(k, len(chk))),
+                         'decoy_log10_p': decoy_best, 'decoys': decoy})
     return rows
 
 
@@ -59,6 +87,21 @@ def rank(row):
     codeword) but fails it at every boundary. Such a front end decodes to a segment-wise complemented,
     useless payload, and it always has a lower agreement ratio than the coherent front end."""
     return (row['log10_p'], -row['agreement'])
+
+
+def degenerate(bits, min_distinct=MIN_DISTINCT_BYTES):
+    """True when a bit stream carries no information, so a code claim on it is not evidence.
+
+    The all-zero (and every constant) sequence is a codeword of every linear code, which is why the
+    Reed-Solomon rule of §13.1 note 5 refuses codewords with fewer than four distinct symbols. An
+    idle carrier reaches the F2 sign test the same way — every parity check of a constant stream is
+    satisfied identically — so the same rule applies here, counted over whole bytes of the decoded
+    information sequence."""
+    b = np.asarray(bits, dtype=np.uint8)
+    if len(b) < 8 * min_distinct:
+        return True
+    byte_vals = np.packbits(b[:len(b) // 8 * 8])
+    return int(len(np.unique(byte_vals))) < min_distinct
 
 
 def _g2_sign(n, offset):

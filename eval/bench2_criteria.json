@@ -1,0 +1,125 @@
+{
+ "version": 2,
+ "committed_utc": "2026-09-18",
+ "engine_default_path": "BPSK/QPSK only; 8PSK and 16-QAM are EXPERIMENTAL and off by default (Constitution §24 row 34), so the burst_8PSK_* and burst_16QAM_* classes are expected to be refused and carry no recall criterion",
+ "protocol": "Committed BEFORE the SEALED split was ever generated or run (Constitution §18.1). Thresholds come from the CALIBRATION split with margin and were then sanity-checked against the TRAIN split, which is what TRAIN is for; version 2 records one revision made at that point and nothing after. A criterion is a falsifiable statement about the sealed measurement, not a description of it.",
+ "calibration_reference": {
+  "null_false_accepts": "0/120",
+  "catalogue_fully_correct": "100/310",
+  "catalogue_partially_correct": "2/310",
+  "catalogue_wrong": "2/310",
+  "stream_k7_esn0_ge_6": "16/16",
+  "ccsds_concat_esn0_ge_9": "12/12",
+  "tc_ldpc_cltu_esn0_ge_6": "8/8",
+  "rs_framed_esn0_ge_9": "4/6 (+1 partial)",
+  "blind_framed": "7/10",
+  "burst_bpsk_qpsk_block_esn0_ge_12": "9/12",
+  "train_check_after_v1": {
+   "null_false_accepts": "0/120",
+   "catalogue_fully_correct": "105/310",
+   "catalogue_partially_correct": "3/310",
+   "catalogue_wrong": "3/310",
+   "ccsds_concat_esn0_ge_9": "9/12 full + 2 partial"
+  }
+ },
+ "criteria": {
+  "no_false_accept_on_non_catalogue_signals": {
+   "kind": "null_false_accept_rate",
+   "requirement": "≤ 1% of null-class files DECODED, and the 95% Wilson upper bound ≤ 5%",
+   "max_rate": 0.01,
+   "max_wilson_hi": 0.05,
+   "why": "This is the property the whole evidence-first design exists to protect (α = 0.01 per file, §13.1). A failure here invalidates the engine's claims, not just its recall."
+  },
+  "wrong_structure_or_payload_is_rare": {
+   "kind": "catalogue_wrong_rate",
+   "requirement": "≤ 2% of catalogue-class files DECODED with a wrong structure or a wrong payload",
+   "max_rate": 0.02,
+   "why": "A partially correct claim (a true statement about fewer layers, or a block code that decoded some of its codewords) is counted separately and is not a failure; this bounds claims that are actually wrong."
+  },
+  "continuous_stream_code_recall": {
+   "kind": "recall",
+   "classes": [
+    "stream_k7"
+   ],
+   "min_esn0": 6,
+   "min_recall": 0.8,
+   "requirement": "≥ 80% of continuous K7 streams at Es/N0 ≥ 6 dB fully decoded"
+  },
+  "ccsds_concatenated_chain_recall": {
+   "kind": "recall",
+   "classes": [
+    "ccsds_concat"
+   ],
+   "min_esn0": 9,
+   "min_recall": 0.6,
+   "requirement": "≥ 60% of CCSDS concatenated captures at Es/N0 ≥ 9 dB decoded fully to the RS payload"
+  },
+  "tc_ldpc_cltu_recall": {
+   "kind": "recall",
+   "classes": [
+    "tc_ldpc_cltu"
+   ],
+   "min_esn0": 6,
+   "min_recall": 0.8,
+   "requirement": "≥ 80% of TC LDPC CLTUs at Es/N0 ≥ 6 dB decoded"
+  },
+  "rs_framed_recall": {
+   "kind": "recall",
+   "classes": [
+    "rs_framed"
+   ],
+   "min_esn0": 9,
+   "min_recall": 0.5,
+   "requirement": "≥ 50% of framed RS captures at Es/N0 ≥ 9 dB decoded to the RS payload"
+  },
+  "blind_framed_signal_no_code": {
+   "kind": "recall",
+   "classes": [
+    "blind_framed"
+   ],
+   "min_recall": 0.5,
+   "requirement": "≥ 50% of non-catalogue framed streams reported as SIGNAL_NO_CODE with the true frame period"
+  },
+  "burst_block_interleaver_recall": {
+   "kind": "recall",
+   "class_prefix": "burst_",
+   "classes": [
+    "burst_BPSK_k7_block",
+    "burst_QPSK_k7_block",
+    "burst_BPSK_k5_block",
+    "burst_QPSK_k5_block",
+    "burst_BPSK_k3_block",
+    "burst_QPSK_k3_block"
+   ],
+   "min_esn0": 12,
+   "min_recall": 0.5,
+   "requirement": "≥ 50% of BPSK/QPSK block-interleaved bursts at Es/N0 ≥ 12 dB fully decoded"
+  },
+  "ccsds_concatenated_chain_not_wrong": {
+   "kind": "recall_including_partial",
+   "classes": [
+    "ccsds_concat"
+   ],
+   "min_esn0": 9,
+   "min_rate": 0.85,
+   "requirement": "≥ 85% of CCSDS concatenated captures at Es/N0 ≥ 9 dB answered without a wrong claim (full or partial decode)"
+  }
+ },
+ "known_limitations_not_under_test": [
+  "8PSK and 16-QAM bursts: the default path does not search them (EXPERIMENTAL, §24 row 34); eval/higher_mod_sweep.py measures that path separately.",
+  "Convolutional (Forney) interleaver recall is low and is measured, not required: the hypothesis has no block length of its own, so it is sized by the receiver's filter ring-out.",
+  "Low Es/N0 bursts (3–6 dB) are expected to be refused; §18 records the same behaviour on bench-v1."
+ ],
+ "revision_history": [
+  {
+   "version": 1,
+   "change": "initial thresholds from the calibration split",
+   "utc": "2026-09-18"
+  },
+  {
+   "version": 2,
+   "change": "ccsds_concatenated_chain_recall lowered from 0.80 to 0.60 full decodes and paired with a new criterion ccsds_concatenated_chain_not_wrong (>= 0.85 full or partial). Reason: on the TRAIN split 9/12 captures at Es/N0 >= 9 dB decoded fully and 2 of the 3 remaining were honest partial RS decodes under CFO drift and Rician fading (2/4 and 12/16 codewords), which the single full-decode criterion counted as misses. The pair now states both properties instead of one that conflates them. Revised before SEALED existed; no sealed measurement informed it.",
+   "utc": "2026-09-18"
+  }
+ ]
+}

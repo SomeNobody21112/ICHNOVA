@@ -72,6 +72,25 @@ F3_MAX_STREAMS = 12     # compute budget: bit streams the frame search may test 
 # fitted value: a 2x oversampled front end repeats every symbol and so agrees on ~75% of pairs (~83%
 # at 3x), while genuinely framed data biases the rate by only a few percent.
 SERIAL_AGREEMENT_MAX = 0.60
+# Block phase tracking for long captures. A capture long enough to carry a continuous code or frames
+# is also long enough for the carrier to drift: Wiener phase noise and a linear CFO drift leave no
+# single phase that fits the whole capture, and an untracked front end then satisfies the parity
+# checks inside each polarity segment while its payload is complemented in the others — the
+# structure is right and the payload is useless (measured on bench-v2 calibration: 13 of 15 wrong
+# payloads were phase_noise, cfo_drift or amplitude). A tracked variant of each front end is
+# therefore added when the capture has at least TRACK_MIN_SYMBOLS symbols, which the burst domain
+# (a single interleaver block of at most 384 bits) never reaches, so bursts are unaffected.
+TRACK_MIN_SYMBOLS = 512
+TRACK_BLOCK = 64        # symbols per phase estimate (8 or more blocks are needed)
+# F2 evidence-strength floor, the analogue of PM_FLOOR for the stream family: the fraction of parity
+# checks an accepted continuous-code hypothesis must satisfy. A long capture makes a *weak* bias
+# significant — an idle carrier whose decisions are periodic rather than random reached p = 10^-11
+# with only 59% of checks satisfied. Fitted on the bench-v2 CALIBRATION split only (§18.1): the 99th
+# percentile of the check agreement of every significant F2 hypothesis on its null classes is 0.6096.
+# Genuine accepts on the same split sit at 0.659 (1st percentile) and 0.989 (median), and the value
+# also has a physical reading: a check spans ten coded bits, so 0.61 corresponds to a bit stream too
+# noisy for the payload to survive.
+F2_AGREEMENT_FLOOR = 0.61
 
 
 FS_SOURCES = ('declared', 'wav_header', 'inferred', 'relative_only', 'unavailable')
@@ -159,8 +178,8 @@ def analyze_iq(iq, fs=None, _oracle=None, _top_k=5, _keep_bits=False, _all_hypot
                 continue
             span = _front_end_evidence(y)
             for mod in mods + gated_mods:
-                higher = mod in GATED_MODULATIONS
-                if higher:
+                higher_mod = mod in GATED_MODULATIONS
+                if higher_mod:
                     phase = constellations.carrier_phase(y, mod)
                     ys = y * np.exp(-1j * phase)
                     S, N = constellations.symbol_snr(ys, mod)
@@ -172,12 +191,19 @@ def analyze_iq(iq, fs=None, _oracle=None, _top_k=5, _keep_bits=False, _all_hypot
                 # every parity check of the catalogue codes (odd-weight generators) ignores.
                 # 8PSK and 16-QAM have no such symmetry, so every rotation of the mapping is a
                 # separate hypothesis (constellations.ROTATIONS).
-                rots = (list(constellations.ROTATIONS[mod]) if higher else
+                rots = (list(constellations.ROTATIONS[mod]) if higher_mod else
                         [0.0] if (mod == 'BPSK' or 'phase' in o) else [0.0, np.pi / 2])
-                for rot in rots:
+                variants = [('static', ys, S, N)]
+                tracked = _track_phase(y, mod)
+                if tracked is not None:
+                    St, Nt = (constellations.symbol_snr(tracked, mod) if higher_mod
+                              else symbol_snr_m2m4(tracked))
+                    variants.append(('block_tracked', tracked, St, Nt))
+                for tracking, yv, Sv, Nv in variants:
+                  for rot in rots:
                     t = time.perf_counter()
-                    llrs = (constellations.llrs(ys * np.exp(-1j * rot), mod, S, N) if higher
-                            else psk_llrs(ys * np.exp(-1j * rot), mod, S, N))
+                    llrs = (constellations.llrs(yv * np.exp(-1j * rot), mod, Sv, Nv) if higher_mod
+                            else psk_llrs(yv * np.exp(-1j * rot), mod, Sv, Nv))
                     # The syndrome null needs serially independent hard decisions. A front end that
                     # oversamples the signal (sps too small) repeats each symbol, which biases short
                     # parity checks: at 2x oversampling every second neighbouring pair is the same
@@ -190,6 +216,15 @@ def analyze_iq(iq, fs=None, _oracle=None, _top_k=5, _keep_bits=False, _all_hypot
                     # end of a framed stream and kept an off-frequency one (whose polarity flips in
                     # segments). Measured in reports/SIH_READINESS_EXECUTION.md (Phase 10 step 3).
                     step = constellations.BITS_PER_SYMBOL[mod]
+                    # A convolutional interleaver is sized by the part of the buffer that can carry
+                    # data. The last symbols are the ring-out of the receiver's own root-raised-cosine
+                    # filter, whose length the receiver knows exactly, so no estimate is involved: an
+                    # h-tap filter at s samples per symbol leaves (len(h)-1)//s trailing symbols. The
+                    # measured burst span is NOT used here — under fading or slow amplitude variation
+                    # the two-level span fit can land mid-burst (measured: 104 of 204 symbols), which
+                    # would then shrink the hypothesis and make the block-length rule reject it.
+                    tail_bits = ((len(rrc_filter(beta, s)) - 1) // s) * step
+                    active_bits = max(len(llrs) - tail_bits, 0)
                     same = np.count_nonzero((llrs[step:] < 0) == (llrs[:-step] < 0))
                     n_pairs = len(llrs) - step
                     if float(np.log10(max(bdtrc(same - 1, n_pairs, SERIAL_AGREEMENT_MAX), 1e-300))
@@ -201,14 +236,16 @@ def analyze_iq(iq, fs=None, _oracle=None, _top_k=5, _keep_bits=False, _all_hypot
                     fi = len(fronts)
                     fronts.append({'cfo': cfo, 'sps': s, 'modulation': mod, 'phase': phase,
                                    'rotation': rot, 'llrs': llrs, 'th': th,
-                                   'symbol_snr_db': float(10 * np.log10(S / N + 1e-30)), **span})
+                                   'phase_tracking': tracking, 'active_bits': active_bits,
+                                   'symbol_snr_db': float(10 * np.log10(Sv / Nv + 1e-30)), **span})
                     spec_list = ([as_spec(o['interleaver'])] if 'interleaver' in o
-                                 else interleavers.candidates(len(llrs), INTERLEAVER_TYPES))
+                                 else interleavers.candidates(len(llrs), INTERLEAVER_TYPES,
+                                                              n_conv=active_bits))
                     if 'exclude_interleaver' in o:
                         spec_list = [s for s in spec_list if s != as_spec(o['exclude_interleaver'])]
                     # All interleaver x code hypotheses of this front end in one vectorised pass
                     # (blind_id.syndrome_scan; identical check signs to the per-pair loop).
-                    scan = syndrome_scan(th, spec_list)
+                    scan = syndrome_scan(th, spec_list, n_conv=active_bits)
                     scan['front'] = np.full(len(scan['n']), fi)
                     # Global spec ids, so one interleaver is the same key on every front end.
                     scan['spec'] = np.array([spec_ids.setdefault(scan['specs'][i], len(spec_ids))
@@ -233,9 +270,10 @@ def analyze_iq(iq, fs=None, _oracle=None, _top_k=5, _keep_bits=False, _all_hypot
         code = CODE_CATALOGUE[int(hyp['code'][k])]
         spec = specs[int(hyp['spec'][k])]
         t0 = time.perf_counter()
-        dec = _decode_both_polarities(fr['llrs'], code, spec)
+        dec = _decode_both_polarities(fr['llrs'], code, spec, fr['active_bits'])
         timers['viterbi'] += time.perf_counter() - t0
-        n_steps = interleavers.n_coded(spec, len(fr['llrs'])) // 2
+        n_steps = interleavers.n_coded(spec, fr['active_bits'] if spec[0] == 'conv'
+                                       else len(fr['llrs'])) // 2
         d = {
             'code': code['name'], 'interleaver': _interleaver_field(spec),
             'interleaver_spec': interleavers.describe(spec), 'sps': fr['sps'],
@@ -294,13 +332,7 @@ def analyze_iq(iq, fs=None, _oracle=None, _top_k=5, _keep_bits=False, _all_hypot
     timers['stream_search'] += time.perf_counter() - t
 
     t = time.perf_counter()
-    f2_bits = None
-    if f2['accepted']:
-        b2 = f2['accepted_hypothesis']
-        f2_decode = stream.decode(fronts[b2['front']]['llrs'], b2['offset'], b2['g2_inverted'])
-        b2.update({k: f2_decode[k] for k in ('covered_bits', 'path_metric', 'consistency',
-                                             'polarity_flipped')})
-        f2_bits = f2_decode['decoded_bits']
+    f2_bits = f2['payload_bits'] if f2['accepted'] else None
     f3_streams = _frame_streams(fronts, f2_bits)
     f3 = _frame_family(f3_streams)
     timers['frame_search'] += time.perf_counter() - t
@@ -388,7 +420,9 @@ def analyze_iq(iq, fs=None, _oracle=None, _top_k=5, _keep_bits=False, _all_hypot
     result['accept'] = {'log10_p': best_log10p, 'log10_threshold': log10_threshold,
                         'n_hypotheses': M, 'alpha': ALPHA, 'accepted_hypothesis': accepted_desc,
                         'significant_but_rejected': rejected,
-                        'rules': {'bl_delta_symbols': BL_DELTA_SYMBOLS, 'pm_floor': PM_FLOOR},
+                        'rules': {'bl_delta_symbols': BL_DELTA_SYMBOLS, 'pm_floor': PM_FLOOR,
+                                  'f2_agreement_floor': F2_AGREEMENT_FLOOR,
+                                  'serial_agreement_max': SERIAL_AGREEMENT_MAX},
                         'families': [{'name': 'F1_burst_code',
                                       'weight': FAMILY_WEIGHTS['F1_burst_code'],
                                       'tested_hypotheses': M, 'log10_threshold': log10_threshold,
@@ -412,7 +446,7 @@ def analyze_iq(iq, fs=None, _oracle=None, _top_k=5, _keep_bits=False, _all_hypot
                                       'best_log10_p': f4['best_log10_p'],
                                       'accepted': f4['accepted']}],
                         'interleaver_types': list(INTERLEAVER_TYPES)}
-    result['stream_code'] = {k: v for k, v in f2.items() if k != 'rows'}
+    result['stream_code'] = {k: v for k, v in f2.items() if k not in ('rows', 'payload_bits')}
     result['frame'] = {k: v for k, v in f3.items() if k != 'accepted_bits'}
     result['block_code'] = {k: v for k, v in f4.items() if k != 'payload_bits'}
     result['structure'] = _structure(result, f2, f3, f4)
@@ -424,6 +458,7 @@ def analyze_iq(iq, fs=None, _oracle=None, _top_k=5, _keep_bits=False, _all_hypot
         'top_hypotheses': top, 'runner_up_margin_log10': runner_margin,
         'n_front_ends': len(fronts), 'front_ends_rejected_serial_dependence': rejected_serial,
         'modulation_gates': gates,
+        'phase_tracked_front_ends': sum(1 for f in fronts if f['phase_tracking'] == 'block_tracked'),
         'timers_s': timers,
     }
     if _all_hypotheses and M:
@@ -456,12 +491,47 @@ def _stream_family(fronts):
                          'modulation': fr['modulation'], **row})
     M2 = len(rows)
     bar = float(np.log10(ALPHA * FAMILY_WEIGHTS['F2_stream_code'] / max(M2, 1)))
-    best = min(rows, key=stream.rank) if rows else None
-    acc = best if best is not None and best['log10_p'] <= bar else None
+    ordered = sorted(rows, key=stream.rank)
+    acc, rejected, payload = None, [], np.array([], dtype=np.uint8)
+    for row in ordered:
+        if row['log10_p'] > bar:
+            break
+        if row['agreement'] < F2_AGREEMENT_FLOOR:
+            rejected.append({**{k: row[k] for k in ('front', 'sps', 'offset', 'g2_inverted',
+                                                    'log10_p', 'agreement')},
+                             'structural_rejection': f"check agreement {row['agreement']:.3f} below "
+                                                     f'the floor {F2_AGREEMENT_FLOOR}: significant '
+                                                     'but too weak for the payload to be usable'})
+            continue
+        if row['decoy_log10_p'] <= bar:
+            # Negative control (stream.DECOYS): a decoy tap pattern of the same weight is as
+            # significant as the catalogue code, so the evidence is not specific to that code -
+            # the stream is periodic or otherwise structured (an unmodulated carrier does this).
+            rejected.append({**{k: row[k] for k in ('front', 'sps', 'offset', 'g2_inverted',
+                                                    'log10_p', 'agreement', 'decoy_log10_p')},
+                             'structural_rejection': 'not specific to the catalogue code: a decoy '
+                                                     'code of the same tap weight reaches '
+                                                     f"log10 p = {row['decoy_log10_p']:.1f} against "
+                                                     f'the bar {bar:.1f}'})
+            continue
+        dec = stream.decode(fronts[row['front']]['llrs'], row['offset'], row['g2_inverted'])
+        if stream.degenerate(dec['decoded_bits']):
+            rejected.append({**{k: row[k] for k in ('front', 'sps', 'offset', 'g2_inverted',
+                                                    'log10_p', 'agreement')},
+                             'structural_rejection': 'degenerate stream: fewer than '
+                                                     f'{stream.MIN_DISTINCT_BYTES} distinct bytes in the '
+                                                     'decoded information (a constant stream is a '
+                                                     'codeword of every linear code)'})
+            continue
+        acc = {**row, **{k: dec[k] for k in ('covered_bits', 'path_metric', 'consistency',
+                                             'polarity_flipped')}}
+        payload = dec['decoded_bits']
+        break
     return {'code': stream.CODE_NAME, 'tested_hypotheses': M2, 'log10_threshold': bar,
-            'best_log10_p': best['log10_p'] if best else 0.0, 'accepted': acc is not None,
-            'accepted_hypothesis': acc,
-            'top': sorted(rows, key=stream.rank)[:5], 'rows': rows}
+            'best_log10_p': ordered[0]['log10_p'] if ordered else 0.0, 'accepted': acc is not None,
+            'accepted_hypothesis': acc, 'significant_but_rejected': rejected,
+            'payload_bits': payload,
+            'top': ordered[:5], 'rows': rows}
 
 
 def _frame_streams(fronts, f2_bits):
@@ -545,11 +615,23 @@ def _block_code_family(streams, f3, fronts):
             if polarity == 'inverted' and llrs is not None:
                 llrs = -np.asarray(llrs)
             dec = blockcode.ldpc_decode(bits, llrs, acc['offset'], acc['randomizer'])
+            if stream.degenerate(dec['info_bits']):
+                # All-zero codewords satisfy every check of a linear code (§13.1 note 5).
+                rejected.append({'code': acc['code'], 'log10_p': acc['log10_p'],
+                                 'structural_rejection': 'degenerate codewords: fewer than '
+                                                         f'{stream.MIN_DISTINCT_BYTES} distinct bytes '
+                                                         'in the decoded information'})
+                acc, payload = None, np.array([], dtype=np.uint8)
+                return _f4_result(M4, bar, rows, acc, rejected, rs_rows, ldpc_rows, payload)
             acc = {**acc, 'polarity': polarity or 'unresolved', 'polarity_resolved': anchored}
             acc = {**acc, 'decode': {k: v for k, v in dec.items()
                                      if k not in ('info_bits', 'converged_codewords')},
                    'converged_codewords': dec['converged_codewords']}
             payload = dec['info_bits']
+    return _f4_result(M4, bar, rows, acc, rejected, rs_rows, ldpc_rows, payload)
+
+
+def _f4_result(M4, bar, rows, acc, rejected, rs_rows, ldpc_rows, payload):
     return {'tested_hypotheses': M4, 'log10_threshold': bar,
             'best_log10_p': rows[0]['log10_p'] if rows else 0.0,
             'accepted': acc is not None,
@@ -660,6 +742,44 @@ def _structural_rejection(d):
     return None
 
 
+def _track_phase(y, mod):
+    """Block-wise carrier phase tracking, or None when the capture is too short to justify it.
+
+    The M-power estimate of one block of TRACK_BLOCK symbols is unwrapped across blocks, so a slow
+    drift (phase noise, a CFO error, a linear drift) is followed instead of being averaged away.
+    Nothing here is data-aided, so it adds no hypotheses of its own: the tracked symbol stream is
+    one more front end, counted in every family M exactly like the untracked one."""
+    m_power = {'BPSK': 2, 'QPSK': 4, '8PSK': 8, '16QAM': 4}[mod]
+    y = np.asarray(y)
+    if len(y) < TRACK_MIN_SYMBOLS:
+        return None
+    # The block length is chosen by the data, not by a constant: a block that spans more than one
+    # rotation averages y^M to nearly zero, so the block with the highest coherence
+    # |mean(y^M)| / mean(|y|^M) is the longest one the drift allows. A linear CFO drift can turn the
+    # carrier by more than a full turn inside 64 symbols, which is why a fixed block failed on the
+    # cfo_drift class.
+    best = None
+    for blk in (TRACK_BLOCK, 32, 16, 8):
+        n_blocks = len(y) // blk
+        if n_blocks < 8:
+            continue
+        blocks = y[:n_blocks * blk].reshape(n_blocks, blk)
+        p = blocks ** m_power
+        z = np.mean(p, axis=1)
+        coherence = float(np.mean(np.abs(z)) / (np.mean(np.abs(p)) + 1e-30))
+        if best is None or coherence > best[0]:
+            best = (coherence, blk, z)
+    if best is None:
+        return None
+    _, blk, z = best
+    ang = np.angle(z) - (np.pi if mod in ('QPSK', '16QAM') else 0.0)
+    phi = np.unwrap(ang) / m_power
+    per_symbol = np.repeat(phi, blk)
+    if len(per_symbol) < len(y):
+        per_symbol = np.concatenate([per_symbol, np.full(len(y) - len(per_symbol), phi[-1])])
+    return y * np.exp(-1j * per_symbol[:len(y)])
+
+
 def _modulation_gates(iq, sps_table, cfo_list, beta, enabled=False):
     """Which catalogue modulations beyond BPSK/QPSK this capture may search (§12.1).
 
@@ -742,10 +862,10 @@ def _interleaver_label(spec):
     return f"QPP K{d['K']}"
 
 
-def _decode_both_polarities(llrs, code, spec):
+def _decode_both_polarities(llrs, code, spec, n_conv=None):
     """Viterbi (zero start state) on the LLRs and on their complement; keep the better path."""
-    a = decode_hypothesis(llrs, code, spec)
-    b = decode_hypothesis(-np.asarray(llrs), code, spec)
+    a = decode_hypothesis(llrs, code, spec, n_conv)
+    b = decode_hypothesis(-np.asarray(llrs), code, spec, n_conv)
     best = b if b['path_metric'] > a['path_metric'] else a
     return dict(best, flip=np.pi if best is b else 0.0)
 
