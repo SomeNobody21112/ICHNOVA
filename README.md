@@ -83,4 +83,4 @@ The complete compiled brief — tech stack, user flows, workflows (data export, 
 | `eval/` | SNR utility, oracle ladder, null set / calibration / scoring comparison |
 | `reports/` | Measured reports and their raw evidence |
 | `PROGRESS.md` | Session-by-session engineering log |
-| `sih26147-constitution/` | Project constitution, roadmap, research docs (`SIH26147_CURRENT_STATE.md` is the live status) |
+| `sih26147-constitution/` | **Project constitution — the single source of truth** (`SIH26147_PROJECT_CONSTITUTION.md`), changelog, current-state snapshot, historical plans |
