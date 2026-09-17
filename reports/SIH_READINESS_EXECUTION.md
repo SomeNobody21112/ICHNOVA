@@ -519,3 +519,44 @@ yet.**
 **Regression on the committed baselines:** bench-v1 sealed 30/30 and train 63/100 unchanged; on the
 null set, **0 verdict differences** across all 1,350 files (status, code, interleaver, modulation, sps
 and BER), with only hypothesis counts and bars moving as the candidate sets changed. 66 tests pass.
+
+### bench-v2 SEALED — first and only run (commit `d790e99`, 2026-09-17T20:08:19Z)
+
+Run once, with `--final-evaluation`, against the committed manifest
+(`1ed6d128e0d2ba3e…`) and criteria (`404159e484ee13a7…`); recorded in
+`eval/bench2_access_log.jsonl`. Full report: `reports/BENCH2_SEALED_REPORT.md`.
+
+| Result | Sealed |
+|---|---|
+| Null classes (12 classes, 120 files), false accepts | **0/120**, 95% Wilson upper bound **3.10%** |
+| Catalogue classes (310 files), fully correct | 98 |
+| Catalogue classes, partially correct (true claim, fewer layers) | 2 |
+| Catalogue classes, wrong structure or payload | **3 (0.97%)**, upper bound 2.81% |
+| Refusals on catalogue classes | 207 (of which 120 are 8PSK/16-QAM, which the default path does not search) |
+| Runtime | 430 files in 113 s; mean 2.38 s, max 64.3 s per file |
+
+**All nine pre-registered criteria PASS:**
+
+| Criterion | Required | Sealed |
+|---|---|---|
+| No false accept on non-catalogue signals | ≤ 1%, upper bound ≤ 5% | 0/120 = 0.00% (≤ 3.10%) |
+| Wrong structure or payload is rare | ≤ 2% | 3/310 = 0.97% |
+| Continuous K7 stream, Es/N0 ≥ 6 dB | ≥ 80% | 16/16 = 100% |
+| CCSDS concatenated chain, ≥ 9 dB, full decode | ≥ 60% | 10/12 = 83% |
+| CCSDS concatenated chain, ≥ 9 dB, no wrong claim | ≥ 85% | 11/12 = 92% |
+| TC LDPC CLTU, ≥ 6 dB | ≥ 80% | 8/8 = 100% |
+| Framed RS, ≥ 9 dB | ≥ 50% | 5/6 = 83% |
+| Non-catalogue framed → SIGNAL_NO_CODE with the right period | ≥ 50% | 5/10 = 50% |
+| BPSK/QPSK block bursts, ≥ 12 dB | ≥ 50% | 6/12 = 50% |
+
+**Read this honestly.** Two criteria pass *exactly* at their bar (the blind framed class at 50% and
+block bursts at 12 dB at 50%), and both are weaker than on the development splits (70%/60% and
+75%/67%). With ten and twelve files per cell that is within sampling noise, but it is not headroom:
+the honest statement is that those two properties are at the boundary of what was required, and a
+larger bench-v2 (or a per-cell criterion) would be needed to say more. The three wrong claims are the
+same residual as on the development splits: a correct structure with a payload spoiled by CFO drift
+or fading.
+
+The sealed split has not been used to change anything. Any later engine change means the numbers
+above describe the engine as of `d790e99`, and a re-run would have to be reported as a second access
+in the log (§18.1: a sealed result obtained after a change made in response to it is contaminated).
