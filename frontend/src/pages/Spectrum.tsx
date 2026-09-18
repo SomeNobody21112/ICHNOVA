@@ -79,14 +79,14 @@ export default function Spectrum() {
         <Panel title={`Occupancy · ${stationName(station)} · ${b.label}`} sub="Rows: channel (low → high frequency, bottom → top). Columns: time. Colour: fraction of time occupied."
           right={<div className="row"><Seg<Range> options={(['1h', '6h', '24h', '7d', '30d'] as Range[]).map((r) => ({ id: r, label: r }))} value={range} onChange={setRange} /><Tag kind="SIMULATED" /></div>}>
           <div style={{ display: 'grid', gridTemplateColumns: '84px 1fr', gap: 8 }}>
-            <div className="col mono muted" style={{ justifyContent: 'space-between', fontSize: 10.5, height: 380 }}><span>{fmtFreq(chanFreq(channels))}</span><span>{fmtFreq(chanFreq(channels / 2))}</span><span>{fmtFreq(chanFreq(0))}</span></div>
+            <div className="col mono muted" style={{ justifyContent: 'space-between', fontSize: 11, height: 380 }}><span>{fmtFreq(chanFreq(channels))}</span><span>{fmtFreq(chanFreq(channels / 2))}</span><span>{fmtFreq(chanFreq(0))}</span></div>
             <Heatmap data={[...occ].reverse()} height={380} onCell={(r) => {
               const f = chanFreq(channels - 1 - r)
               const hit = [...bandSignals].sort((x, y) => Math.abs((x.centerHz ?? 0) - f) - Math.abs((y.centerHz ?? 0) - f))[0]
               if (hit) nav(`/app/signals/${hit.id}`)
             }} />
           </div>
-          <div className="row mono muted" style={{ fontSize: 10.5, justifyContent: 'space-between', paddingLeft: 92, marginTop: 4 }}><span>−{range}</span><span>time →</span><span>now</span></div>
+          <div className="row mono muted" style={{ fontSize: 11, justifyContent: 'space-between', paddingLeft: 92, marginTop: 4 }}><span>−{range}</span><span>time →</span><span>now</span></div>
           <div className="legend" style={{ marginTop: 10 }}><span><i style={{ background: 'var(--occ-1)' }} />idle</span><span><i style={{ background: 'var(--occ-2)' }} />moderate</span><span><i style={{ background: 'var(--amber)' }} />high</span><span><i style={{ background: 'var(--orange)' }} />saturated</span></div>
         </Panel>
       )}

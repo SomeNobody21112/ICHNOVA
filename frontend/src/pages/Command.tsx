@@ -76,7 +76,7 @@ export default function Command() {
         ))}
       </div>
 
-      <div className="grid g-4" style={{ marginBottom: 16 }}>
+      <div className="statbar" style={{ marginBottom: 16 }}>
         <Kpi label="Signals observed · 30 days" value={zs.length} tag="SIMULATED" spark={<Sparkline values={daily(() => true)} />} />
         <Kpi label="Without an established code" value={unknown.length} accent="amber" note="detected or unknown" />
         <Kpi label="Anomalies" value={anomalies.length} accent="orange" note="need review" />
@@ -94,7 +94,7 @@ export default function Command() {
             {alerts.map((a) => (
               <div key={a.key} className="list-item" role="link" tabIndex={0} onClick={() => nav(a.to)} onKeyDown={(e) => { if (e.key === 'Enter') nav(a.to) }}>
                 <span className={`pri pri-${a.pri}`}>{a.pri}</span>
-                <div className="grow" style={{ minWidth: 0 }}><div style={{ fontSize: 13 }}>{a.title}</div><div className="muted" style={{ fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.sub}</div></div>
+                <div className="grow" style={{ minWidth: 0 }}><div style={{ fontSize: 13 }}>{a.title}</div><div className="muted clamp-2" style={{ fontSize: 12 }} title={a.sub}>{a.sub}</div></div>
                 <span className="muted mono" style={{ fontSize: 11.5 }}>{fmtAgo(a.t, now)}</span>
               </div>
             ))}
@@ -106,7 +106,7 @@ export default function Command() {
         <h2>Verified on real transmissions</h2>
         <p className="hide-sm">Open a card to watch the evidence arrive</p>
         <span className="spacer" />
-        <Link to="/app/lab">All results</Link>
+        <Link to="/app/lab" className="btn btn-sm btn-ghost">All results</Link>
       </div>
       <RealProof compact limit={4} />
 
@@ -118,7 +118,7 @@ export default function Command() {
               <div className="col mono muted" style={{ fontSize: 11, justifyContent: 'space-around', height: 150 }}>{BANDS.map((b) => <span key={b.id}>{b.id}</span>)}</div>
               <Heatmap data={heat} height={150} onCell={() => nav('/app/spectrum')} />
             </div>
-            <div className="row mono muted" style={{ fontSize: 10.5, justifyContent: 'space-between', paddingLeft: 50 }}><span>−24 h</span><span>−12 h</span><span>now</span></div>
+            <div className="row mono muted" style={{ fontSize: 11, justifyContent: 'space-between', paddingLeft: 50 }}><span>−24 h</span><span>−12 h</span><span>now</span></div>
           </Panel>
           <Panel title="Outcomes" right={<Tag kind="SIMULATED" />}>
             <div className="row" style={{ gap: 14 }}>
@@ -140,11 +140,14 @@ export default function Command() {
                     <rect x={x} y={130 - h.d * sc} width={bw} height={h.d * sc} fill="var(--green)" rx="1.5" />
                     <rect x={x} y={130 - (h.d + h.n) * sc} width={bw} height={h.n * sc} fill="var(--cyan)" rx="1.5" />
                     <rect x={x} y={130 - total * sc} width={bw} height={h.u * sc} fill="var(--amber)" rx="1.5" />
-                    {i % 6 === 0 && <text x={x} y={146} className="axis">−{24 - i}h</text>}
                   </g>
                 )
               })}
             </svg>
+            {/* Axis labels live in HTML: text inside a scaled viewBox renders smaller than its stated size. */}
+            <div className="row mono muted" style={{ fontSize: 11, justifyContent: 'space-between', marginTop: 2 }}>
+              <span>−24 h</span><span>−18 h</span><span>−12 h</span><span>−6 h</span><span>now</span>
+            </div>
           </Panel>
         </div>
       </details>

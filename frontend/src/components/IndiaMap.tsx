@@ -87,7 +87,7 @@ export default function IndiaMap({ stations, zone, onZone, onStation, links = []
         <span className="row"><i className="dot" style={{ background: 'var(--cyan)' }} /> Station activity</span>
         <span className="row"><i className="dot" style={{ background: 'var(--amber)' }} /> Unresolved signals</span>
         <span className="row"><i className="dot" style={{ background: 'var(--orange)' }} /> Open incident</span>
-        <span className="muted" style={{ fontSize: 10 }}>Boundaries: DataMeet, Survey of India depiction (CC BY 4.0)</span>
+        <span className="muted" style={{ fontSize: 11 }}>Boundaries: DataMeet, Survey of India depiction (CC BY 4.0)</span>
       </div>
     </div>
   )

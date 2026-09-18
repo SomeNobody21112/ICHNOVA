@@ -172,19 +172,22 @@ export default function Analysis() {
               <button role="tab" aria-selected={sampleTab === 'real'} className={sampleTab === 'real' ? 'on' : ''} style={{ flex: 1 }} onClick={() => setSampleTab('real')}>Real transmissions · {realList.length}</button>
               <button role="tab" aria-selected={sampleTab === 'bench'} className={sampleTab === 'bench' ? 'on' : ''} style={{ flex: 1 }} onClick={() => setSampleTab('bench')}>Benchmark · {samples.length}</button>
             </div>
-            {sampleTab === 'bench' && <div className="col" style={{ gap: 6 }}>
+            {sampleTab === 'bench' && <div className="picker" role="radiogroup" aria-label="Benchmark captures">
               {samples.map((s) => (
-                <button key={s.name} className={`chip${sample?.name === s.name ? ' on' : ''}`} style={{ height: 'auto', padding: '7px 10px', borderRadius: 6, flexDirection: 'column', alignItems: 'flex-start', gap: 2, textAlign: 'left' }}
+                <button key={s.name} className="pick" role="radio" aria-checked={sample?.name === s.name}
                   onClick={() => { setSample(s); setReal(null); setFile(null); setMeta({ ...meta, fs: String(s.fs_hz) }) }}>
-                  <span className="mono" style={{ whiteSpace: 'normal' }}>{s.name}</span><span className="muted" style={{ fontSize: 11.5, whiteSpace: 'normal' }}>{s.description}</span>
+                  <span className="pick-name">{s.name}</span>
+                  <span className="pick-note">{s.description}</span>
                 </button>
               ))}
             </div>}
-            {sampleTab === 'real' && <div className="col" style={{ gap: 6 }}>
+            {sampleTab === 'real' && <div className="picker" role="radiogroup" aria-label="Real transmissions">
               {realList.map((e) => (
-                <button key={e.id} className={`chip${real?.id === e.id ? ' on' : ''}`} style={{ height: 'auto', padding: '7px 10px', borderRadius: 6, flexDirection: 'column', alignItems: 'flex-start', gap: 2, textAlign: 'left' }}
+                <button key={e.id} className="pick" role="radio" aria-checked={real?.id === e.id}
                   onClick={() => { setReal(e); setSample(null); setFile(null) }}>
-                  <span className="mono" style={{ whiteSpace: 'normal' }}>{e.station}</span><span className="muted" style={{ fontSize: 11.5, whiteSpace: 'normal' }}>{e.operator.split(' — ')[0]} · {e.frequency_khz >= 1000 ? `${e.frequency_khz / 1000} MHz` : `${e.frequency_khz} kHz`} · {e.receiver}</span>
+                  <span className="pick-name">{e.station}</span>
+                  <span className="mono muted" style={{ fontSize: 'var(--t-xs)' }}>{e.frequency_khz >= 1000 ? `${e.frequency_khz / 1000} MHz` : `${e.frequency_khz} kHz`}</span>
+                  <span className="pick-note">{e.operator.split(' — ')[0]} · {e.receiver}</span>
                 </button>
               ))}
             </div>}

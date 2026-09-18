@@ -105,12 +105,12 @@ export function Spectrogram({ db, f, t, height = 240 }: { db: number[][]; f: num
   return (
     <div>
       <div style={{ display: 'grid', gridTemplateColumns: '52px 1fr', gap: 6 }}>
-        <div className="col mono" style={{ justifyContent: 'space-between', fontSize: 10, color: 'var(--muted)', textAlign: 'right', height }}>
+        <div className="col mono" style={{ justifyContent: 'space-between', fontSize: 11, color: 'var(--muted)', textAlign: 'right', height }}>
           <span>{(f[f.length - 1] / 1e3).toFixed(0)} kHz</span><span>0</span><span>{(f[0] / 1e3).toFixed(0)} kHz</span>
         </div>
         <Heatmap data={flipped} height={height} color={specColor} lo={lo} hi={hi} />
       </div>
-      <div className="row mono" style={{ justifyContent: 'space-between', fontSize: 10, color: 'var(--muted)', paddingLeft: 58, marginTop: 4 }}>
+      <div className="row mono" style={{ justifyContent: 'space-between', fontSize: 11, color: 'var(--muted)', paddingLeft: 58, marginTop: 4 }}>
         <span>0 ms</span><span>time →</span><span>{((t[t.length - 1] ?? 0) * 1e3).toFixed(2)} ms</span>
       </div>
     </div>
@@ -297,7 +297,7 @@ export function Donut({ parts, size = 120, label }: { parts: { value: number; co
   let acc = 0
   const r = 44, c = 2 * Math.PI * r
   return (
-    <svg viewBox="0 0 120 120" width={size} height={size}>
+    <svg viewBox="0 0 120 120" width={size} height={size} style={{ flex: 'none' }}>
       <circle cx="60" cy="60" r={r} fill="none" stroke="var(--panel-3)" strokeWidth="14" />
       {parts.map((p) => {
         const len = (p.value / total) * c
@@ -305,7 +305,7 @@ export function Donut({ parts, size = 120, label }: { parts: { value: number; co
         acc += len
         return el
       })}
-      {label && <text x="60" y="64" textAnchor="middle" style={{ fill: 'var(--text)', font: '600 16px var(--cond)' }}>{label}</text>}
+      {label && size >= 44 && <text x="60" y="64" textAnchor="middle" style={{ fill: 'var(--text)', font: `600 ${Math.round((12 * 120 / size) * 10) / 10}px var(--cond)` }}>{label}</text>}
     </svg>
   )
 }
@@ -327,7 +327,7 @@ export function GenomeGlyph({ values, size = 150, color = 'var(--cyan)', compare
       {values.map((v, i) => { const [x, y] = pt(Math.max(0.06, v), i); return <circle key={i} cx={x} cy={y} r="1.8" fill={color} /> })}
       {labels?.map((l, i) => {
         const [x, y] = pt(1.28, i)
-        return <text key={l} x={x} y={y} textAnchor={x < 55 ? 'end' : x > 65 ? 'start' : 'middle'} style={{ fill: 'var(--muted)', font: '6.5px var(--sans)' }}>{l}</text>
+        return <text key={l} x={x} y={y} textAnchor={x < 55 ? 'end' : x > 65 ? 'start' : 'middle'} style={{ fill: 'var(--muted)', font: '10px var(--sans)' }}>{l}</text>
       })}
     </svg>
   )

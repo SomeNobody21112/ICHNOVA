@@ -51,7 +51,7 @@ export default function System() {
         <Panel title="Data flow" sub="Heavy DSP runs at the edge; the centre receives evidence, not raw spectrum">
           <div className="grid" style={{ gridTemplateColumns: 'minmax(0, 1fr) auto minmax(0, 1fr)', alignItems: 'stretch' }}>
             <Flow items={EDGE} label="Edge · monitoring station" tone="var(--accent)" />
-            <div className="col" style={{ alignItems: 'center', justifyContent: 'center', gap: 4 }}><Icon name="chevron" size={22} /><span className="mono muted" style={{ fontSize: 10.5 }}>evidence<br />packs</span></div>
+            <div className="col" style={{ alignItems: 'center', justifyContent: 'center', gap: 4 }}><Icon name="chevron" size={22} /><span className="mono muted" style={{ fontSize: 11 }}>evidence<br />packs</span></div>
             <Flow items={CENTRAL} label="Central · regional / national" tone="var(--violet)" />
           </div>
         </Panel>

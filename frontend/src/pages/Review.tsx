@@ -31,7 +31,7 @@ export default function Review() {
             <motion.div key={s.id} layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.97 }}>
               <div className="card col" style={{ gap: 10, height: '100%' }}>
                 <div className="row">
-                  <Link to={`/app/signals/${s.id}`} className="mono grow" style={{ fontSize: 13.5 }}>{s.id}</Link>
+                  <Link to={`/app/signals/${s.id}`} className="mono grow" style={{ fontSize: 13.5, minHeight: 24, display: 'flex', alignItems: 'center' }}>{s.id}</Link>
                   <Tag kind={s.provenance} />
                 </div>
                 <div className="row" style={{ gap: 12 }}>

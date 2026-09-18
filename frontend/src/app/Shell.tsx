@@ -94,7 +94,9 @@ export default function Shell() {
       <aside className="sidebar" aria-label="Main navigation">
         <Link to="/app/command" className="brand" aria-label={`${PRODUCT.name} home`}>
           <BrandMark size={34} title={PRODUCT.name} />
-          <div className="brand-text"><Wordmark height={11} /><span className="brand-sub">{PRODUCT.tagline}</span></div>
+          {/* The rail is 236px: the wordmark alone reads cleanly there. The tagline stays on the
+              landing page and in the app footer, where it has room to be set properly. */}
+          <div className="brand-text"><Wordmark height={14} /></div>
         </Link>
         <nav className="nav">
           {NAV.map((g) => (

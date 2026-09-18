@@ -132,11 +132,13 @@ export function Kpi({ label, value, note, accent, tag, spark }: {
   label: string; value: number; note?: ReactNode; accent?: 'amber' | 'orange' | 'green'; tag?: Provenance; spark?: ReactNode
 }) {
   return (
-    <div className={`panel kpi${accent ? ` accent-${accent}` : ''}`}>
+    <div className={`kpi${accent ? ` accent-${accent}` : ''}`}>
       <div className="row"><span className="kpi-label grow">{label}</span>{tag && <Tag kind={tag} />}</div>
-      <div className="kpi-value"><CountUp value={value} /></div>
-      {note && <div className="kpi-note">{note}</div>}
-      {spark && <div className="kpi-spark">{spark}</div>}
+      <div className="row" style={{ alignItems: 'flex-end', gap: 10 }}>
+        <span className="kpi-value grow"><CountUp value={value} /></span>
+        {spark && <span className="kpi-spark">{spark}</span>}
+      </div>
+      <div className="kpi-note">{note ?? ' '}</div>
     </div>
   )
 }
