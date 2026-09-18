@@ -150,7 +150,7 @@ export default function Analysis() {
           {STEPS.map((s, i) => (
             <div key={s} className="row" style={{ gap: 0 }}>
               {i > 0 && <span className="step-line" />}
-              <span className={`step${i === step ? ' on' : i < step ? ' done' : ''}`}><i>{i < step ? '✓' : i + 1}</i>{s}</span>
+              <span className={`step${i === step ? ' on' : i < step ? ' done' : ''}`}><i>{i < step ? <Icon name="check" size={11} /> : i + 1}</i>{s}</span>
             </div>
           ))}
         </div>

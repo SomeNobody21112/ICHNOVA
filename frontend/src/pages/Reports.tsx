@@ -1,7 +1,7 @@
 import { useSearchParams } from 'react-router-dom'
 import { provOf } from '../components/evidence'
 import { Icon, Loading, Panel, Seg, Tag } from '../components/ui'
-import { CODE_FULL, fmtDateTime, fmtFreq, fmtFs, fmtInt, fmtP, STATUS_LABEL, STATUS_MEANING } from '../lib/format'
+import { CODE_FULL, STATUS_LABEL, STATUS_MEANING, fmtDateTime, fmtFreq, fmtFs, fmtInt, fmtInterleaver, fmtP } from '../lib/format'
 import { stationName, useApp, usePack } from '../lib/store'
 import { PRODUCT } from '../brand'
 
@@ -45,18 +45,18 @@ function SignalReport({ id }: { id: string }) {
         <table><tbody>
           <tr><th>Modulation</th><td>{r.modulation ?? 'not established'}</td><th>Samples / symbol</th><td>{r.sps ?? 'not established'}</td></tr>
           <tr><th>Carrier offset (cycles/sample)</th><td>{r.cfo?.toFixed(6) ?? 'not established'}</td><th>Code</th><td>{r.code ? CODE_FULL[r.code] ?? r.code : 'not established'}</td></tr>
-          <tr><th>Interleaver</th><td>{r.interleaver ? `block ${r.interleaver[0]} × ${r.interleaver[1]}` : 'not established'}</td><th>Payload</th><td>{r.payload_len ? `${r.payload_len} bits` : '—'}</td></tr>
+          <tr><th>Interleaver</th><td>{r.interleaver ? `block ${fmtInterleaver(r.interleaver, 'short')}` : 'not established'}</td><th>Payload</th><td>{r.payload_len ? `${r.payload_len} bits` : '—'}</td></tr>
         </tbody></table>
         <h2>3. Statistical validation</h2>
         <p>{fmtInt(pack.accept.n_hypotheses)} hypotheses were tested. Acceptance required log₁₀ p ≤ {pack.accept.log10_threshold.toFixed(2)} (α = {pack.accept.alpha}, Bonferroni over all hypotheses) and passing the modulation, block-length and path-metric consistency checks.</p>
         <table><tbody>
-          <tr><th>Best evidence</th><td>{fmtP(pack.accept.log10_p)}</td><th>Accepted hypothesis</th><td>{acc ? `${acc.modulation} · ${acc.code} · ${acc.interleaver.join('×')}` : 'none'}</td></tr>
+          <tr><th>Best evidence</th><td>{fmtP(pack.accept.log10_p)}</td><th>Accepted hypothesis</th><td>{acc ? `${acc.modulation} · ${acc.code} · ${fmtInterleaver(acc.interleaver, 'short')}` : 'none'}</td></tr>
           {acc && <tr><th>Parity checks satisfied</th><td>{acc.n_positive} / {acc.n_checks}</td><th>Path metric</th><td>{acc.path_metric.toFixed(3)} (floor {pack.accept.rules.pm_floor})</td></tr>}
         </tbody></table>
         {pack.accept.significant_but_rejected.length > 0 && <>
           <h2>4. Significant hypotheses rejected</h2>
           <table><thead><tr><th>Hypothesis</th><th>log₁₀ p</th><th>Reason</th></tr></thead><tbody>
-            {pack.accept.significant_but_rejected.slice(0, 8).map((h, i) => <tr key={i}><td>{h.modulation} · {h.code} · {h.interleaver.join('×')} · sps {h.sps}</td><td>{h.log10_p.toFixed(2)}</td><td>{h.structural_rejection}</td></tr>)}
+            {pack.accept.significant_but_rejected.slice(0, 8).map((h, i) => <tr key={i}><td>{h.modulation} · {h.code} · {fmtInterleaver(h.interleaver, 'short')} · sps {h.sps}</td><td>{h.log10_p.toFixed(2)}</td><td>{h.structural_rejection}</td></tr>)}
           </tbody></table>
         </>}
         <h2>{pack.accept.significant_but_rejected.length ? 5 : 4}. Review & audit</h2>

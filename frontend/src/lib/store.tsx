@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { interleaverBits } from './format'
 import { buildWorld, simPack, STATIONS, type World } from './sim'
 import type { AuditEvent, BenchmarkData, EvidencePack, Level, Session, SignalRecord, Zone } from './types'
 
@@ -74,7 +75,7 @@ export function benchmarkRecord(p: EvidencePack, observedAt: number): SignalReco
       : p.accept.significant_but_rejected.length ? `Significant hypothesis rejected: ${p.accept.significant_but_rejected[0].structural_rejection}`
         : res.status === 'SIGNAL_NO_CODE' ? 'Signal detected; no catalogue code passed statistical acceptance'
           : 'No hypothesis reached significance after multiple-testing correction',
-    candidates: top ? [`${top.code.split('_')[1]?.toUpperCase() ?? top.code} / ${top.interleaver[0] * top.interleaver[1]}-bit`] : [],
+    candidates: top ? [[top.code.split('_')[1]?.toUpperCase() ?? top.code, interleaverBits(top.interleaver) ? `${interleaverBits(top.interleaver)}-bit` : 'no interleaver'].join(' / ')] : [],
     validations: 0, description: p.source.note,
   }
 }
@@ -85,7 +86,7 @@ function genomeFromPack(p: EvidencePack) {
   return [
     0.5, r.modulation === 'BPSK' ? 0.3 : r.modulation === 'QPSK' ? 0.7 : 0.1, r.sps ? r.sps / 20 : 0.05, 0.5,
     r.cfo != null ? 0.5 + r.cfo * 30 : 0.1, r.code ? (r.code.includes('k7') ? 0.9 : r.code.includes('k5') ? 0.65 : 0.4) : 0.05,
-    h ? (h.interleaver[0] * h.interleaver[1]) / 384 : 0.05, 0.4, Math.min(1, Math.max(0.05, 1 + p.diagnostics.detection_log10_p / -30)), 0.5,
+    h && interleaverBits(h.interleaver) ? (interleaverBits(h.interleaver) as number) / 384 : 0.05, 0.4, Math.min(1, Math.max(0.05, 1 + p.diagnostics.detection_log10_p / -30)), 0.5,
   ]
 }
 
@@ -135,8 +136,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const loaded = await Promise.all(idx.map((e) => fetch(`/evidence/${e.id}.json`).then((r) => r.json() as Promise<EvidencePack>)))
       loaded.forEach((p) => packs.set(p.id, p))
       const base = Date.now() - 2 * 3600 * 1000
-      setBenchRecords(loaded.map((p, i) => benchmarkRecord(p, base - i * 17 * 60 * 1000)))
-    }).catch(() => setBenchRecords([]))
+      const records: SignalRecord[] = []
+      loaded.forEach((p, i) => {
+        // Per pack: one malformed record must not empty the whole library.
+        try { records.push(benchmarkRecord(p, base - i * 17 * 60 * 1000)) } catch (err) { console.error('evidence pack skipped', p.id, err) }
+      })
+      setBenchRecords(records)
+    }).catch((err) => { console.error('evidence index unavailable', err); setBenchRecords([]) })
   }, [packs])
 
   const signals = useMemo(

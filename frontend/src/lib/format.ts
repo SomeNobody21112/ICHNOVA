@@ -54,6 +54,16 @@ export function fmtSymRate(sps: number, fsHz: number | null) {
   return fsHz == null ? `${(1 / sps).toFixed(4)} sym/sample (Hz not established)` : fmtRate(fsHz / sps)
 }
 
+/** "10 x 12 = 120 bits", or "none" for a hypothesis whose family has no interleaver. */
+export function fmtInterleaver(iv: number[] | null | undefined, style: 'long' | 'short' = 'long') {
+  if (!iv || iv.length < 2) return style === 'short' ? '\u2014' : 'none'
+  return style === 'short' ? `${iv[0]}\u00d7${iv[1]}` : `${iv[0]} \u00d7 ${iv[1]} = ${iv[0] * iv[1]} bits`
+}
+
+export function interleaverBits(iv: number[] | null | undefined) {
+  return iv && iv.length >= 2 ? iv[0] * iv[1] : null
+}
+
 export function fmtRate(hz: number | null | undefined) {
   if (hz == null) return '—'
   return hz >= 1e6 ? `${(hz / 1e6).toFixed(3)} Msym/s` : `${(hz / 1e3).toFixed(2)} ksym/s`

@@ -164,7 +164,7 @@ export function DecodedTime({ decode, zoneNote }: { decode?: DecodeEv; zoneNote?
                 const ok = !c.key || info?.established
                 return (
                   <motion.span key={`${g.label}-${i}-${c.ch}-${ok}`} className={`dchar${c.key ? (ok ? ' ok' : ' pending') : ' fixed'}`}
-                    initial={{ rotateX: -90, opacity: 0 }} animate={{ rotateX: 0, opacity: 1 }} transition={{ duration: 0.35, delay: i * 0.04 }}
+                    initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.16 }}
                     title={info ? `${DIGIT_TEXT[c.key!] ?? c.key}: ${info.established ? 'established' : 'not established'} · margin ${info.margin_symbols ?? '—'} symbols · log10 odds ${info.log10_odds ?? '—'}` : undefined}>
                     {c.key && !ok ? '?' : c.ch}
                   </motion.span>

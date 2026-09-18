@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion'
 import { useCallback, useMemo, useState, type ReactNode } from 'react'
-import { CODE_FULL, CODE_SHORT, fmtDateTime, fmtFs, fmtInt, fmtP, fmtSymRate, pct } from '../lib/format'
+import { CODE_FULL, CODE_SHORT, fmtDateTime, fmtFs, fmtInt, fmtInterleaver, fmtP, fmtSymRate, interleaverBits, pct } from '../lib/format'
 import type { AuditEvent, EvidencePack, Hyp, Provenance } from '../lib/types'
 import { Constellation, HBars, Landscape, LinePlot, Spectrogram } from './charts'
 import { Drawer, Icon, Meter, Panel, Tag } from './ui'
@@ -114,7 +114,7 @@ export function TopicDetail({ pack, topic }: { pack: EvidencePack; topic: Topic 
     return h ? (
       <div className="col" style={{ gap: 12 }}>
         <dl className="kv">
-          <dt>Interleaver</dt><dd>{h.interleaver[0]} × {h.interleaver[1]} = {h.interleaver[0] * h.interleaver[1]} bits</dd>
+          <dt>Interleaver</dt><dd>{fmtInterleaver(h.interleaver)}</dd>
           <dt>Covered / observed bits</dt><dd>{h.covered_bits} / {h.total_observed_bits}</dd>
           <dt>Covered symbols vs transmission span</dt><dd>{h.covered_symbols.toFixed(0)} / {h.active_symbols}</dd>
           <dt>Block-length tolerance</dt><dd>{pack.accept.rules.bl_delta_symbols} symbols</dd>
@@ -155,7 +155,7 @@ export function TopicDetail({ pack, topic }: { pack: EvidencePack; topic: Topic 
           <Icon name="info" />
           <div><b>Significant but rejected</b>
             {pack.accept.significant_but_rejected.slice(0, 4).map((r, i) => (
-              <div key={i} className="mono" style={{ fontSize: 12 }}>{CODE_SHORT(r.code)} {r.interleaver.join('×')} {r.modulation} sps {r.sps} · p {fmtP(r.log10_p)} · {r.structural_rejection}</div>
+              <div key={i} className="mono" style={{ fontSize: 12 }}>{CODE_SHORT(r.code)} {fmtInterleaver(r.interleaver, 'short')} {r.modulation} sps {r.sps} · p {fmtP(r.log10_p)} · {r.structural_rejection}</div>
             ))}
           </div>
         </div>
@@ -166,7 +166,7 @@ export function TopicDetail({ pack, topic }: { pack: EvidencePack; topic: Topic 
 
 export function HypTable({ pack, rows, compact }: { pack: EvidencePack; rows: Hyp[]; compact?: boolean }) {
   const acc = pack.accept.accepted_hypothesis
-  const same = (h: Hyp) => acc && h.code === acc.code && h.interleaver.join() === acc.interleaver.join()
+  const same = (h: Hyp) => acc && h.code === acc.code && String(h.interleaver) === String(acc.interleaver)
   return (
     <div className="table-wrap" style={{ maxHeight: compact ? 360 : undefined }}>
       <table className="tbl">
@@ -179,7 +179,7 @@ export function HypTable({ pack, rows, compact }: { pack: EvidencePack; rows: Hy
             <tr key={i} title={h.structural_rejection ?? undefined}>
               <td className="mono muted">{String(i + 1).padStart(2, '0')}</td>
               <td className="mono">{CODE_SHORT(h.code)}</td>
-              <td className="mono">{h.interleaver[0]}×{h.interleaver[1]}</td>
+              <td className="mono">{fmtInterleaver(h.interleaver, 'short')}</td>
               <td className="mono">{h.modulation}</td>
               <td className="num">{h.sps}</td>
               <td className="num">{h.n_positive}/{h.n_checks}</td>
@@ -215,7 +215,7 @@ export function Characteristics({ pack }: { pack: EvidencePack }) {
     { label: 'Symbol rate', value: r.sps ? `${r.sps} sps · ${fmtSymRate(r.sps, pack.capture.fs_hz)}` : best ? `${best.sps} sps (candidate)` : '—', topic: 'sps', established: !!r.sps },
     { label: 'CFO', value: r.cfo != null ? `${r.cfo >= 0 ? '+' : ''}${r.cfo.toFixed(5)} cyc/sample` : '—', topic: 'cfo', established: r.cfo != null },
     { label: 'FEC', value: r.code ? CODE_FULL[r.code] ?? r.code : 'Not established', topic: 'fec', established: !!r.code },
-    { label: 'Interleaver', value: r.interleaver ? `Block ${r.interleaver[0]}×${r.interleaver[1]} · ${r.interleaver[0] * r.interleaver[1]} bits` : 'Not established', topic: 'interleaver', established: !!r.interleaver },
+    { label: 'Interleaver', value: r.interleaver ? `Block ${fmtInterleaver(r.interleaver)}` : 'Not established', topic: 'interleaver', established: !!r.interleaver },
     { label: 'Coverage', value: acc ? pct(acc.covered_symbols / Math.max(1, acc.active_symbols)) : '—', topic: 'interleaver', established: !!acc },
     { label: 'Hypotheses evaluated', value: fmtInt(pack.accept.n_hypotheses), topic: 'validation', established: true },
   ]
@@ -259,9 +259,9 @@ export function WhyPanel({ pack }: { pack: EvidencePack }) {
           </>
         ) : (
           <>
-            <Check ok={!!best} na={!best}>{best ? `Best candidate ${CODE_SHORT(best.code)} / ${best.interleaver[0] * best.interleaver[1]}-bit, ${best.modulation}` : 'No candidate hypothesis'}</Check>
+            <Check ok={!!best} na={!best}>{best ? `Best candidate ${CODE_SHORT(best.code)} / ${interleaverBits(best.interleaver) ? `${interleaverBits(best.interleaver)}-bit` : 'no interleaver'}, ${best.modulation}` : 'No candidate hypothesis'}</Check>
             <Check ok={false}>{sig ? 'A hypothesis was significant but failed a structural check' : 'No FEC hypothesis passed statistical acceptance after correcting for multiple testing'}</Check>
-            {a.significant_but_rejected.slice(0, 2).map((x, i) => <Check key={i} ok={false}>Rejected {CODE_SHORT(x.code)} {x.interleaver.join('×')}: {x.structural_rejection}</Check>)}
+            {a.significant_but_rejected.slice(0, 2).map((x, i) => <Check key={i} ok={false}>Rejected {CODE_SHORT(x.code)} {fmtInterleaver(x.interleaver, 'short')}: {x.structural_rejection}</Check>)}
           </>
         )}
       </ul>
@@ -274,7 +274,7 @@ export function WhyPanel({ pack }: { pack: EvidencePack }) {
         <dt>Coverage</dt><dd>{acc ? pct(acc.covered_symbols / Math.max(1, acc.active_symbols)) : '—'}</dd>
       </dl>
       {r.status !== 'DECODED' && (
-        <motion.div className="refusal" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}>
+        <motion.div className="refusal" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.16 }}>
           <strong>THE SYSTEM REFUSED TO GUESS.</strong>
           <span className="dim">{r.status === 'SIGNAL_NO_CODE' ? 'A signal is present, but no code could be established. No payload is asserted.' : 'The evidence does not support any interpretation. No payload is asserted.'}</span>
         </motion.div>
@@ -316,7 +316,7 @@ export function EvidenceChain({ pack }: { pack: EvidencePack }) {
     <div className="grid" style={{ gridTemplateColumns: 'minmax(300px, 380px) minmax(0, 1fr)', alignItems: 'start' }}>
       <div className="chain">
         {nodes.map((n, i) => (
-          <motion.div key={n.id} initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.09 }}>
+          <motion.div key={n.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.16 }}>
             {i > 0 && <div className="chain-link" />}
             {n.id === 'fec' && (
               <div className="chain-branches" style={{ marginBottom: 0 }}>
@@ -360,8 +360,8 @@ export function HypothesisExplorer({ pack }: { pack: EvidencePack }) {
   const [status, setStatus] = useState<StatusFilter>('ALL')
   const [page, setPage] = useState(0)
   const acc = a.accepted_hypothesis
-  const accKey = acc ? `${codeKey(acc.code)}|${acc.interleaver.join('x')}|${acc.sps}|${acc.modulation}` : ''
-  const rejKeys = useMemo(() => new Set(a.significant_but_rejected.map((x) => `${codeKey(x.code)}|${x.interleaver.join('x')}|${x.sps}|${x.modulation}`)), [a.significant_but_rejected])
+  const accKey = acc ? `${codeKey(acc.code)}|${String(acc.interleaver)}|${acc.sps}|${acc.modulation}` : ''
+  const rejKeys = useMemo(() => new Set(a.significant_but_rejected.map((x) => `${codeKey(x.code)}|${String(x.interleaver)}|${x.sps}|${x.modulation}`)), [a.significant_but_rejected])
   const keyOf = useCallback((i: number) => all ? `${all.code[i]}|${all.rows[i]}x${all.cols[i]}|${all.sps[i]}|${all.modulation[i]}` : '', [all])
   const statusOf = useCallback((i: number): StatusFilter => {
     if (!all) return 'NOT SIGNIFICANT'
@@ -415,7 +415,7 @@ export function HypothesisExplorer({ pack }: { pack: EvidencePack }) {
             <tbody>{ranked.slice(page * PAGE, (page + 1) * PAGE).map((i, k) => {
               const st = statusOf(i)
               const color = st === 'ACCEPTED' ? 'var(--green)' : st === 'REJECTED' ? 'var(--orange)' : st === 'SIGNIFICANT' ? 'var(--amber)' : 'var(--muted)'
-              const rej = st === 'REJECTED' ? a.significant_but_rejected.find((x) => `${codeKey(x.code)}|${x.interleaver.join('x')}|${x.sps}|${x.modulation}` === keyOf(i)) : undefined
+              const rej = st === 'REJECTED' ? a.significant_but_rejected.find((x) => `${codeKey(x.code)}|${String(x.interleaver)}|${x.sps}|${x.modulation}` === keyOf(i)) : undefined
               return (
                 <tr key={i} className={st === 'ACCEPTED' ? 'sel' : ''}>
                   <td className="mono muted">{String(page * PAGE + k + 1).padStart(2, '0')}</td>

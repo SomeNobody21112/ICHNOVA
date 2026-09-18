@@ -8,7 +8,8 @@ export type Level = 'FIELD' | 'REGIONAL' | 'NATIONAL'
 
 export interface Hyp {
   code: string
-  interleaver: number[]
+  /** null for families that carry no interleaver (continuous stream code, frame-level block codes). */
+  interleaver: number[] | null
   sps: number
   cfo: number
   modulation: string
@@ -34,7 +35,7 @@ export interface Hyp {
 
 export interface RejectedHyp {
   code: string
-  interleaver: number[]
+  interleaver: number[] | null
   modulation: string
   sps: number
   log10_p: number
