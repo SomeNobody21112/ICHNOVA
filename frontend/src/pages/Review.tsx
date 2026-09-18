@@ -19,7 +19,7 @@ export default function Review() {
     <div className="page">
       <div className="page-head">
         <div className="grow">
-          <div className="eyebrow">Human + machine loop</div>
+          <div className="section-label">Human + machine loop</div>
           <h1 className="page-title"><span style={{ color: 'var(--amber)' }}>{open.length}</span> signals require review</h1>
           <div className="page-sub">Unknowns and anomalies are routed to an analyst, never silently labelled. Validated decisions are logged and can later become reference data.</div>
         </div>

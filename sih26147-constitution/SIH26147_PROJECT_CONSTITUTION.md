@@ -540,6 +540,25 @@ Rules:
 6. **Layout checks before merge:** 1920, 1440, 1366×768 and 390 px wide, both themes, no horizontal page scroll, no console errors.
 7. Plain language: name things by what operators recognise ("Analyse a capture", "Review queue"), not by internals.
 
+### 29.1 Design system (v2.5.2; Operate-mode pass, 2026-09-18)
+
+The console is an **Operate** surface: the operator is in a task, so scanability, one consistent
+component vocabulary and the real usage scene outrank expression. Brand lives in precise details, not
+in decoration. The rules below are enforced in `frontend/src/styles.css` and checked by the
+Impeccable anti-pattern detector (§32).
+
+| Axis | Rule |
+|---|---|
+| Type | One family (IBM Plex Sans), **fixed rem scale** `--t-xs … --t-3xl`, ratio ~1.2. No fluid headings in the app: the operator reads at a constant size. Monospace is for data and measurement (identifiers, p-values, counts), never as a costume for "technical" |
+| Numerals | Tabular figures everywhere; slashed zero in monospace data, so columns of digits align and 0 never reads as O |
+| Colour | Restrained. The accent marks **primary action, current selection and state**, never decoration. One interaction vocabulary shared by every component: `--surface-hover`, `--surface-selected`, `--surface-pressed` |
+| Elevation | Hairlines separate; shadow is reserved for surfaces that actually float (drawer, tour, map tooltip, `.panel.raised`). A page of static panels reads as one plane |
+| Motion | State only, one easing (`--ease`), `--dur-1` 160 ms for controls and `--dur-2` 220 ms for surfaces. No layout-animating properties (width/height/padding); meters scale with a transform. `prefers-reduced-motion` disables all of it |
+| Browser surfaces | Focus ring, caret, selection, placeholder, list markers and scrollbars are themed from the palette in both themes. They are part of the design, not defaults |
+| States | Every interactive component ships default, hover, focus, active, disabled and (where it applies) loading and error. Lists have an empty state that teaches the next action (`.empty`); slow content uses skeletons (`.skeleton`), not a spinner in the middle of the page |
+| Labels | **No decorative kicker above a heading.** The heading carries itself. Identifiers and counters are set quietly (`.meta`); a group of items may carry a small label (`.section-label`) |
+| Cards | Cards are not the page structure, and nested cards are never right. Regions are separated by rules and spacing |
+
 ## 30. Web Tier and API
 
 `server/app.py` — stdlib `ThreadingHTTPServer`, hand-rolled router, SPA fallback; default `127.0.0.1:8765` (`--host 0.0.0.0` for LAN demos).
@@ -579,6 +598,7 @@ Rules: prefer MIT/BSD/Apache; pin versions; offline wheels for air-gapped instal
 | Decision-changing engine change | Null set + wrong-structure null + report | Criteria fixed before running |
 | Performance change | Decision-identity check on sealed + train + null set | 0 differences |
 | UI change | §29.6 screenshots | No overflow, both themes |
+| UI change | `npx impeccable detect frontend/src` | 0 anti-patterns (design-system rules, §29.1) |
 
 A 4/30 commit once reached `main` unverified (v2.1); CI exists so that cannot recur.
 
@@ -795,7 +815,8 @@ Possible application areas (**not deployment claims**): spectrum monitoring and 
 | 2.2 | 2026-09-16 | Evidence-first hardening: leakage removed, sign test + Bonferroni, null set, oracle ladder, 63/100 train |
 | 2.3 | 2026-09-17 | Structural acceptance (0/900), real government transmissions, live monitor, 3–4× faster |
 | 2.4 | 2026-09-17 | Consolidated single source of truth; ICHNOVA brand; console, themes and UX rules; claims corrected; plan documents marked historical |
-| **2.5** | **2026-09-17** | **SIH-readiness amendment: catalogue v1 (§12.1), weighted acceptance families (§13.1), bench-v2 sealed policy (§18.1), fs provenance (§10), P0 re-prioritisation (§35), cloud clause (§9.2); audit conflicts C1–C9 resolved** |
+| 2.5 | 2026-09-17 | **SIH-readiness amendment: catalogue v1 (§12.1), weighted acceptance families (§13.1), bench-v2 sealed policy (§18.1), fs provenance (§10), P0 re-prioritisation (§35), cloud clause (§9.2); audit conflicts C1–C9 resolved** |
+| **2.5.2** | **2026-09-18** | **Console design system (§29.1): fixed type scale, one interaction vocabulary, elevation and motion discipline, themed browser surfaces, complete component states, no decorative kicker labels. Detector added to the quality gates (§32). Pages, routes, copy, provenance labels and disclaimers unchanged** |
 | **2.5.1** | **2026-09-18** | **Status amendment (no rule, weight or catalogue change): §24 rows 33, 35, 36, 36b move from LOCKED to IMPLEMENTED with measured evidence as families F1–F4 entered the engine; row 34 (8PSK/16-QAM) becomes EXPERIMENTAL and off by default, with the measured cost of enabling it; §12.1 marks the higher modulations as not in the default path** |
 
 Details: `SIH26147_CONSTITUTION_CHANGELOG.md`.

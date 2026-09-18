@@ -58,7 +58,7 @@ function Tour() {
     <AnimatePresence mode="wait">
       <motion.div key={tour.scene} className="tour" role="dialog" aria-label="Guided tour" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}>
         <div className="tour-head">
-          <span className="eyebrow grow">Guided tour · {tour.scene + 1} of {SCENES.length}</span>
+          <span className="meta grow">Guided tour · {tour.scene + 1} of {SCENES.length}</span>
           <button className="btn btn-ghost btn-sm" aria-label="Close tour" onClick={() => setTour({ active: false, scene: 0 })}><Icon name="cross" size={13} /></button>
         </div>
         <div className="tour-body"><h3>{s.title}</h3><p>{s.text}</p></div>

@@ -111,7 +111,6 @@ export default function Intelligence() {
     <div className="page">
       <div className="page-head">
         <div className="grow">
-          <div className="eyebrow">Cross-signal intelligence</div>
           <h1 className="page-title">{level === 'NATIONAL' ? 'National RF intelligence' : level === 'REGIONAL' ? 'Regional intelligence' : 'Station intelligence'}</h1>
           <div className="page-sub">Aggregated patterns, not waveforms. Views match the operational level.</div>
         </div>

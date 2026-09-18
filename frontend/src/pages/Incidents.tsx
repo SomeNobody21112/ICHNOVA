@@ -13,7 +13,6 @@ export function IncidentList() {
     <div className="page">
       <div className="page-head">
         <div className="grow">
-          <div className="eyebrow">Workflow objects</div>
           <h1 className="page-title">Incidents</h1>
           <div className="page-sub">An incident is opened when observations form a pattern worth investigating, not for every signal.</div>
         </div>
@@ -50,7 +49,7 @@ export function IncidentDetail() {
       <div className="row" style={{ marginBottom: 10 }}><button className="btn btn-ghost btn-sm" onClick={() => nav('/app/incidents')}><Icon name="back" size={13} /> Incidents</button></div>
       <motion.div className="panel" style={{ padding: '16px 18px', marginBottom: 14 }} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}>
         <div className="row-wrap" style={{ gap: 28, alignItems: 'flex-start' }}>
-          <div><div className="eyebrow">Incident #{inc.id}</div><div className="page-title">{inc.kind}</div><div className="muted">{inc.title}</div></div>
+          <div><div className="meta">Incident #{inc.id}</div><div className="page-title">{inc.kind}</div><div className="muted">{inc.title}</div></div>
           <div><div className="kpi-label">First observed</div><div className="mono">{fmtDateTime(inc.firstSeen)}</div><div className="kpi-label" style={{ marginTop: 8 }}>Last observed</div><div className="mono">{fmtDateTime(inc.lastSeen)}</div></div>
           <div><div className="kpi-label">Occurrences</div><div className="kpi-value">{inc.events.length}</div></div>
           <div><div className="kpi-label">Locations</div><div className="kpi-value">{inc.stationIds.length}</div></div>

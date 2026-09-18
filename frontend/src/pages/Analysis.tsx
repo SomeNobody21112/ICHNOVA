@@ -139,7 +139,6 @@ export default function Analysis() {
     <div className="page">
       <div className="page-head">
         <div className="grow">
-          <div className="eyebrow">Field monitoring mode</div>
           <h1 className="page-title">Analyse a capture</h1>
           <div className="page-sub">Bring in an .IQ or .wav recording with its metadata. The engine infers structure, tests hypotheses and accepts only what the evidence supports.</div>
         </div>

@@ -59,7 +59,7 @@ export default function Command() {
     <div className="page">
       <div className="page-head">
         <div className="grow">
-          <div className="eyebrow">{level === 'NATIONAL' ? 'National view' : level === 'REGIONAL' ? 'Regional view' : 'Field station'}</div>
+          <div className="meta">{level === 'NATIONAL' ? 'National view' : level === 'REGIONAL' ? 'Regional view' : 'Field station'}</div>
           <h1 className="page-title">Welcome{firstName ? `, ${firstName}` : ''}</h1>
           <div className="page-sub">What needs attention across {scope}. Monitoring figures on this page are simulated; real-signal results are marked.</div>
         </div>

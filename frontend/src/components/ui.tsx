@@ -191,7 +191,7 @@ export function Drawer({ open, onClose, title, children, right }: { open: boolea
 }
 
 export function Meter({ value, tone, title }: { value: number; tone?: 'amber' | 'green' | 'orange' | 'segs'; title?: string }) {
-  return <div className={`meter${tone ? ` ${tone}` : ''}`} title={title}><i style={{ width: `${Math.max(0, Math.min(1, value)) * 100}%` }} /></div>
+  return <div className={`meter${tone ? ` ${tone}` : ''}`} title={title} role="img" aria-label={title ?? `${Math.round(Math.max(0, Math.min(1, value)) * 100)}%`}><i style={{ '--fill': Math.max(0, Math.min(1, value)) } as React.CSSProperties} /></div>
 }
 
 export function Philosophy({ compact }: { compact?: boolean }) {

@@ -196,7 +196,7 @@ export function HypTable({ pack, rows, compact }: { pack: EvidencePack; rows: Hy
 export function EvidenceDrawer({ pack, topic, onClose }: { pack: EvidencePack; topic: Topic | null; onClose: () => void }) {
   return (
     <Drawer open={!!topic} onClose={onClose} right={<Tag kind={provOf(pack)} />}
-      title={<><div className="eyebrow">Evidence · {pack.id}</div><div className="panel-title" style={{ fontSize: 15 }}>{topic ? TOPIC_TITLE[topic] : ''}</div></>}>
+      title={<><div className="meta mono">Evidence · {pack.id}</div><div className="panel-title" style={{ fontSize: 15 }}>{topic ? TOPIC_TITLE[topic] : ''}</div></>}>
       {topic && <TopicDetail pack={pack} topic={topic} />}
     </Drawer>
   )

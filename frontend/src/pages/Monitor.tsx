@@ -101,7 +101,7 @@ export default function Monitor() {
     <div className="page">
       <div className="page-head">
         <div className="grow">
-          <div className="eyebrow">Real transmissions · public receivers · no simulation</div>
+          <div className="section-label">Real transmissions · public receivers · no simulation</div>
           <h1 className="page-title">Live Monitor</h1>
           <div className="page-sub">
             Government and public-service transmitters with published formats, received through volunteer-operated KiwiSDR receivers.
@@ -117,7 +117,7 @@ export default function Monitor() {
         <aside className="live-rail">
           {GROUPS.map((g) => (
             <div key={g.title} className="col" style={{ gap: 8 }}>
-              <div className="eyebrow">{g.title}</div>
+              <div className="section-label">{g.title}</div>
               {g.keys.flatMap((key) => {
                 const s = stations?.stations[key]
                 if (!s) return []

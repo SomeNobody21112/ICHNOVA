@@ -43,7 +43,7 @@ export default function Spectrum() {
     <div className="page">
       <div className="page-head">
         <div className="grow">
-          <div className="eyebrow">Spectrum intelligence</div>
+          <div className="section-label">Spectrum intelligence</div>
           <h1 className="page-title">Spectrum Map</h1>
           <div className="page-sub">Occupancy, activity and anomalies by station and band. Click a cell or a detection to open the underlying signal record.</div>
         </div>

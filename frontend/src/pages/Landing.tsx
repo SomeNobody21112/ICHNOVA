@@ -59,7 +59,7 @@ export default function Landing() {
       <main id="main">
         <section className="land-hero">
           <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-            <div className="eyebrow">{PRODUCT.context} · {PRODUCT.sponsor}</div>
+            <div className="section-label">{PRODUCT.context} · {PRODUCT.sponsor}</div>
             <h1 className="land-h1">Hidden signals, <em>made clear</em> — with the evidence to prove it.</h1>
             <p className="land-lede">
               {PRODUCT.name} analyses .IQ and .wav recordings without being told what they contain: carrier, symbol rate, modulation,
@@ -95,7 +95,6 @@ export default function Landing() {
         </section>
 
         <section className="land-sec" id="services">
-          <div className="eyebrow">Services</div>
           <h2>What you can do</h2>
           <div className="tasks" style={{ marginTop: 18 }}>
             {SERVICES.map((s) => (
@@ -110,7 +109,6 @@ export default function Landing() {
 
         <section className="land-sec alt" id="real">
           <div className="inner">
-            <div className="eyebrow">Proven on the air</div>
             <h2>Real transmissions, decoded blind and checked</h2>
             <p className="dim" style={{ maxWidth: '72ch', margin: '0 0 18px' }}>
               Time signals from NIST, PTB, NPL and NICT, a German Meteorological Service teleprinter and All India Radio medium wave, received
@@ -123,7 +121,6 @@ export default function Landing() {
         </section>
 
         <section className="land-sec" id="how">
-          <div className="eyebrow">How it works</div>
           <h2>From noise to harmony, in three steps</h2>
           <div className="flow three">
             {STEPS.map(([k, t, d], i) => (
@@ -140,7 +137,7 @@ export default function Landing() {
         </section>
 
         <section className="land-sec" id="coverage" style={{ paddingTop: 0 }}>
-          <div className="eyebrow">Problem statement SIH26147 · {PRODUCT.sponsor}</div>
+          <div className="section-label">Problem statement SIH26147 · {PRODUCT.sponsor}</div>
           <h2>{PRODUCT.psTitle}</h2>
           <details className="more">
             <summary>What the prototype does, and does not, claim ({COVERAGE.filter((c) => c.status === 'ESTABLISHED').length} of {COVERAGE.length} requirements established)</summary>

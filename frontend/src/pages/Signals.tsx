@@ -31,7 +31,7 @@ export function SignalLibrary() {
     <div className="page">
       <div className="page-head">
         <div className="grow">
-          <div className="eyebrow">Signal library</div>
+          <div className="section-label">Signal library</div>
           <h1 className="page-title">Signals</h1>
           <div className="page-sub">Every observation is an evidence record. Benchmark and live records carry real engine output; the monitoring world is simulated.</div>
         </div>
@@ -110,7 +110,7 @@ export function SignalDetail() {
       <motion.div className="panel detail-head" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}>
         <div className="detail-top">
           <div style={{ minWidth: 0 }}>
-            <div className="eyebrow">Signal record</div>
+            <div className="section-label">Signal record</div>
             <h1 className="page-title mono" style={{ fontSize: 22 }}>{rec.id}</h1>
             <div className="row-wrap" style={{ marginTop: 6 }}><Tag kind={rec.provenance} />{rec.description && <span className="dim" style={{ fontSize: 13 }}>{rec.description}</span>}</div>
           </div>

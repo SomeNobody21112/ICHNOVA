@@ -24,7 +24,6 @@ export default function Lab() {
     <div className="page">
       <div className="page-head">
         <div className="grow">
-          <div className="eyebrow">Evidence about the evidence engine</div>
           <h1 className="page-title">Experiment Lab</h1>
           <div className="page-sub">Every number on this page is read from result files in the repository (commit {b.generated_from_commit}). Nothing is typed by hand.</div>
         </div>
@@ -90,7 +89,7 @@ export default function Lab() {
                 <thead><tr><th>Approach</th><th>What it does</th><th>Strength</th><th>Gap this platform addresses</th></tr></thead>
                 <tbody>{APPROACHES.map((a) => (
                   <tr key={a.name}>
-                    <td style={{ minWidth: 180 }}><div className="eyebrow" style={{ fontSize: 9.5 }}>{a.group}</div><b>{a.name}</b><div className="col" style={{ gap: 2, marginTop: 4 }}>{a.sources.map((s) => <a key={s.url} href={s.url} target="_blank" rel="noreferrer" style={{ fontSize: 11 }}>{s.title}</a>)}</div></td>
+                    <td style={{ minWidth: 180 }}><div className="section-label" style={{ fontSize: 9.5 }}>{a.group}</div><b>{a.name}</b><div className="col" style={{ gap: 2, marginTop: 4 }}>{a.sources.map((s) => <a key={s.url} href={s.url} target="_blank" rel="noreferrer" style={{ fontSize: 11 }}>{s.title}</a>)}</div></td>
                     <td className="dim" style={{ fontSize: 12.5 }}>{a.what}</td>
                     <td className="dim" style={{ fontSize: 12.5 }}>{a.strength}</td>
                     <td style={{ fontSize: 12.5 }}>{a.gap}</td>

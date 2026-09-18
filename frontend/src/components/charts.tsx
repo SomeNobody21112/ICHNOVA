@@ -284,7 +284,7 @@ export function HBars({ items, max, fmt = (v: number) => String(v) }: { items: {
       {items.map((it) => (
         <div key={it.label} style={{ display: 'grid', gridTemplateColumns: 'minmax(90px, 32%) 1fr 64px', gap: 10, alignItems: 'center', fontSize: 12.5 }}>
           <span className="dim" title={it.note}>{it.label}</span>
-          <div className="meter" style={{ height: 10 }}><i style={{ width: `${(it.value / m) * 100}%`, background: it.color ?? 'var(--cyan)' }} /></div>
+          <div className="meter" style={{ height: 10 }}><i style={{ '--fill': it.value / m, background: it.color ?? 'var(--cyan)' } as React.CSSProperties} /></div>
           <span className="mono" style={{ textAlign: 'right' }}>{fmt(it.value)}</span>
         </div>
       ))}

@@ -21,7 +21,7 @@ const CENTRAL = [
 function Flow({ items, label, tone }: { items: typeof EDGE; label: string; tone: string }) {
   return (
     <div className="card col" style={{ gap: 8, borderColor: tone }}>
-      <div className="eyebrow" style={{ color: tone }}>{label}</div>
+      <div className="section-label" style={{ color: tone }}>{label}</div>
       {items.map((s, i) => (
         <div key={s.t} className="row" style={{ alignItems: 'flex-start', gap: 10 }}>
           <span className="mono muted" style={{ width: 16 }}>{i + 1}</span><Icon name={s.icon} size={16} />
@@ -40,7 +40,7 @@ export default function System() {
     <div className="page">
       <div className="page-head">
         <div className="grow">
-          <div className="eyebrow">Platform</div>
+          <div className="section-label">Platform</div>
           <h1 className="page-title">System</h1>
           <div className="page-sub">Architecture, engine configuration, problem-statement coverage, data quality and the complete audit trail.</div>
         </div>

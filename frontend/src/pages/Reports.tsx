@@ -110,7 +110,7 @@ export default function Reports() {
     <div className="page">
       <div className="page-head no-print">
         <div className="grow">
-          <div className="eyebrow">Reporting</div>
+          <div className="section-label">Reporting</div>
           <h1 className="page-title">Reports</h1>
           <div className="page-sub">A report is the evidence record in document form: what was established, how it was validated, what was rejected and who reviewed it.</div>
         </div>

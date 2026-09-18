@@ -32,7 +32,6 @@ export default function Genome() {
     <div className="page">
       <div className="page-head">
         <div className="grow">
-          <div className="eyebrow">Beyond decoding</div>
           <h1 className="page-title">Signal Genome</h1>
           <div className="page-sub">Every observation becomes a structured fingerprint: what was established about its frequency, structure, code and behaviour. Fingerprints make recurrence and similarity searchable.</div>
         </div>
@@ -77,7 +76,7 @@ export default function Genome() {
         <div className="grid g-5">
           {MODULES.map((m) => (
             <div key={m.phase} className="card col" style={{ gap: 8 }}>
-              <div className="row"><span className="eyebrow grow">{m.phase}</span>{m.status === 'OPERATIONAL' ? <span className="tag tag-LIVE">Operational</span> : <Tag kind={m.status as 'EXPERIMENTAL' | 'NOT ESTABLISHED'} />}</div>
+              <div className="row"><span className="meta grow">{m.phase}</span>{m.status === 'OPERATIONAL' ? <span className="tag tag-LIVE">Operational</span> : <Tag kind={m.status as 'EXPERIMENTAL' | 'NOT ESTABLISHED'} />}</div>
               <b style={{ fontFamily: 'var(--cond)', fontSize: 15 }}>{m.name}</b>
               <p className="dim" style={{ margin: 0, fontSize: 12.5 }}>{m.desc}</p>
               <dl className="kv" style={{ fontSize: 11.5, marginTop: 'auto' }}>
