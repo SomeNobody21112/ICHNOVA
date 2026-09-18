@@ -1,0 +1,13 @@
+frontend/node_modules
+frontend/dist
+data
+results
+reports/data
+__pycache__
+**/__pycache__
+.git
+.github
+*.md
+sih26147-constitution
+tests
+eval

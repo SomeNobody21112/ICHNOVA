@@ -222,9 +222,11 @@ class Handler(SimpleHTTPRequestHandler):
 
 
 if __name__ == '__main__':
+    # Defaults stay localhost-only. A container or PaaS sets HOST/PORT (Constitution v2.5 §9.2:
+    # the engine never depends on a network; a hosted instance is a convenience, not the deployment model).
     ap = argparse.ArgumentParser()
-    ap.add_argument('--port', type=int, default=8765)
-    ap.add_argument('--host', default='127.0.0.1')
+    ap.add_argument('--port', type=int, default=int(os.environ.get('PORT', 8765)))
+    ap.add_argument('--host', default=os.environ.get('HOST', '127.0.0.1'))
     a = ap.parse_args()
     print(f'Analysis server on http://{a.host}:{a.port}  (frontend: {DIST})')
     server = ThreadingHTTPServer((a.host, a.port), Handler)

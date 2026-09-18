@@ -53,6 +53,32 @@ python server/app.py      # http://127.0.0.1:8765
 
 Upload an .IQ/.wav capture (a benchmark capture, or a real government recording) and follow the evidence chain from raw IQ to decision; open the Live Monitor to receive WWV, DCF77, MSF, JJY, DDH47 or All India Radio live (or replay recorded sessions offline); browse the Experiment Lab for the measured numbers. Monitoring-network views use clearly labelled simulated data. The console has light and dark themes, a text-size control and a skip-to-content link, with a layout modelled on DoT spectrum portals (Tarang Sanchar, Saral Sanchar). It is an independent prototype, not an official Government of India system. Details, including Google sign-in setup: `frontend/README.md`.
 
+## Running it as a service (container)
+
+The same process serves the console and runs the engine, so a deployed instance analyses uploads
+for real; it is not a playback of stored packs.
+
+```bash
+docker build -t ichnova .
+docker run --rm -p 7860:7860 ichnova        # http://127.0.0.1:7860
+```
+
+`HOST` and `PORT` are read from the environment (defaults stay `127.0.0.1:8765` when run directly with
+`python server/app.py`). The image contains the engine, the server, the reference constants, the
+committed real recordings and the built console; benchmark data and evaluation scripts stay out.
+
+Before putting an instance on a public URL, note two limitations that have not changed
+(Constitution §9.2, §25.8):
+
+- the API is **unauthenticated and has no TLS**, so anyone with the URL can upload captures and use CPU;
+  host it behind the platform's own access control (for example a private Hugging Face Space);
+- the engine is **air-gap capable by design**. A hosted instance is a convenience for reviewers, not
+  the deployment model, and the page keeps the "independent SIH prototype, not an official Government
+  of India system" disclaimer.
+
+Live reception from public KiwiSDR receivers needs outbound WebSocket access; hosts that restrict
+outbound traffic will still run uploads, replays and the benchmark evidence.
+
 ## Stack & documentation
 
 | Layer | What it is |
