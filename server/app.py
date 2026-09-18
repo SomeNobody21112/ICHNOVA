@@ -40,6 +40,7 @@ import realsig                                                        # noqa: E4
 from stations import STATIONS                                         # noqa: E402
 
 DIST = os.path.join(ROOT, 'frontend', 'dist')
+
 MAX_UPLOAD = 64 * 1024 * 1024
 
 
@@ -104,6 +105,17 @@ class Handler(SimpleHTTPRequestHandler):
         self.send_header('Content-Length', str(len(data)))
         self.end_headers()
         self.wfile.write(data)
+
+    def end_headers(self):
+        """Evidence data and the app shell must never come from a stale browser cache.
+
+        They carry no validators, so browsers apply heuristic caching: after re-exporting the
+        evidence the console kept showing the previous run's numbers and commit. Hashed files under
+        /assets/ change name whenever they change, so they stay cacheable."""
+        p = urlparse(self.path).path
+        if '/assets/' not in p and (p.endswith(('.json', '.html')) or '.' not in os.path.basename(p)):
+            self.send_header('Cache-Control', 'no-store, must-revalidate')
+        super().end_headers()
 
     def do_GET(self):
         path = urlparse(self.path).path

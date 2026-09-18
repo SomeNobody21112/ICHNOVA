@@ -3,42 +3,42 @@
   "id": "BENCH-QPSK-K7",
   "status": "DECODED",
   "description": "DECODED QPSK capture: K=7 code and 10\u00d712 interleaver accepted.",
-  "hypotheses": 20982,
+  "hypotheses": 50916,
   "file": "data/sealed/test_018.iq"
  },
  {
   "id": "BENCH-BPSK-K5",
   "status": "DECODED",
   "description": "DECODED capture with a K=5 code, identified from the catalogue.",
-  "hypotheses": 15936,
+  "hypotheses": 52572,
   "file": "data/nullset/k5_120_001.iq"
  },
  {
   "id": "BENCH-UNCODED",
   "status": "SIGNAL_NO_CODE",
   "description": "Uncoded BPSK: signal detected, no catalogue code established.",
-  "hypotheses": 13275,
+  "hypotheses": 32076,
   "file": "data/nullset/uncoded_bpsk_120_000.iq"
  },
  {
   "id": "BENCH-SHORT-K7",
   "status": "UNKNOWN",
   "description": "A real K=7 transmission too short to prove (32 coded bits): refused.",
-  "hypotheses": 2142,
+  "hypotheses": 4356,
   "file": "data/train/test_024.iq"
  },
  {
   "id": "BENCH-WRONGSTRUCT",
   "status": "SIGNAL_NO_CODE",
   "description": "K=3 capture where a structurally inconsistent interleaver was significant and rejected.",
-  "hypotheses": 3243,
+  "hypotheses": 9687,
   "file": "data/nullset/k3_384_012.iq"
  },
  {
   "id": "BENCH-NOISE",
   "status": "UNKNOWN",
   "description": "Receiver noise only: no evidence of a signal.",
-  "hypotheses": 29088,
+  "hypotheses": 67950,
   "file": "data/nullset/noise_060_052.iq"
  }
 ]

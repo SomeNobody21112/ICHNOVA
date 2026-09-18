@@ -77,11 +77,16 @@ def export_packs():
     for pid, rel, desc in pick_paths():
         path = os.path.join(ROOT, rel + '.iq')
         gt = json.load(open(path + '.gt.json'))
-        pack = build_pack(load_iq(path), gt['fs'], pid,
+        # bench-v1 ground truth declares fs; the null-set generator works in normalised units and
+        # declares none, so those captures stay 'unavailable' rather than being given an invented rate.
+        fs = gt.get('fs')
+        pack = build_pack(load_iq(path), fs, pid,
                           {'kind': 'BENCHMARK', 'file': rel + '.iq', 'note': desc,
                            'dataset': rel.split('/')[1]},
-                          {'format': 'iq'}, truth_of(gt), fs_source='declared',
-                          fs_note='Declared by the benchmark generator (a raw .iq file has no header)')
+                          {'format': 'iq'}, truth_of(gt),
+                          fs_source='declared' if fs else 'unavailable',
+                          fs_note=('Declared by the benchmark generator (a raw .iq file has no header)'
+                                   if fs else None))
         json.dump(pack, open(os.path.join(PUB, 'evidence', pid + '.json'), 'w'), default=to_json_default)
         index.append({'id': pid, 'status': pack['result']['status'], 'description': desc,
                       'hypotheses': pack['accept']['n_hypotheses'], 'file': rel + '.iq'})

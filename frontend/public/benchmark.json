@@ -1,5 +1,5 @@
 {
- "generated_from_commit": "e593654",
+ "generated_from_commit": "965ddc3",
  "bench_v1": {
   "baseline_4c8188b": {
    "sealed": {
@@ -145,8 +145,8 @@
     "k3": 31
    },
    "k5": {
-    "UNKNOWN": 63,
     "SIGNAL_NO_CODE": 50,
+    "UNKNOWN": 63,
     "k5": 37
    },
    "k7": {
@@ -187,13 +187,13 @@
     }
    },
    "k5": {
-    "3": {
-     "correct": 3,
-     "n": 44
-    },
     "6": {
      "correct": 5,
      "n": 38
+    },
+    "3": {
+     "correct": 3,
+     "n": 44
     },
     "9": {
      "correct": 13,
@@ -223,8 +223,8 @@
     }
    }
   },
-  "runtime_mean_s": 0.179,
-  "hypotheses_mean": 9508,
+  "runtime_mean_s": 0.214,
+  "hypotheses_mean": 9513,
   "source": "results/nullset_rows.jsonl (reports/data/nullset_report_structural.md)"
  },
  "acceptance": {
@@ -357,12 +357,15 @@
  ],
  "runtime": {
   "stage_share": {
-   "cfo": 0.0268,
-   "sps": 0.0553,
-   "matched_filter": 0.024,
-   "syndrome_search": 0.504,
-   "viterbi": 0.2185,
-   "scoring": 0.1714
+   "cfo": 0.0086,
+   "sps": 0.0172,
+   "matched_filter": 0.0084,
+   "syndrome_search": 0.5973,
+   "viterbi": 0.0842,
+   "scoring": 0.1403,
+   "stream_search": 0.0753,
+   "frame_search": 0.0348,
+   "block_code_search": 0.034
   },
   "source": "results/train_diagnostics.jsonl"
  },
@@ -568,5 +571,5 @@
    }
   }
  ],
- "research_issue": "Wrong-interleaver hypotheses can still pass on 0.9% of wrong-structure runs (2/225, held-out split); low-SNR recall is limited (K7 3/34 at 3 dB Es/N0)."
+ "research_issue": "Wrong-interleaver hypotheses can still pass on 0.9% of wrong-structure runs (2/225, evaluation split of the null-set generator); low-SNR recall is limited (K7 3/34 at 3 dB Es/N0)."
 }
