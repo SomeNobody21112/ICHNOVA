@@ -9,6 +9,10 @@ Outcome: GOOD / DEGRADED / FAILED, with the measured numbers that produced it.
 
 Thresholds are declared here, not fitted: each is the point where a metric starts to change what the
 receiver sees, and every check reports what it measured so an operator can disagree with the label.
+
+Capture *length* is deliberately not judged here. Whether a recording is long enough depends on the
+code and symbol rate under test, which only the acceptance statistic knows; src/sufficiency.py
+answers that question in the engine's own units.
 """
 
 import numpy as np
@@ -18,13 +22,21 @@ CLIP_DEGRADED = 0.001      # 0.1 % of samples at full scale: visible spectral re
 CLIP_FAILED = 0.02         # 2 %: the waveform is no longer the signal that arrived
 DC_DEGRADED = 0.05         # |mean| / RMS: a DC term this large puts a false line at zero offset
 DC_FAILED = 0.25
+# The sample mean of a signal with no DC term is not zero, it is Rayleigh with scale RMS/sqrt(2n), so
+# a short capture shows an apparent offset from nothing at all. Both thresholds are held at or above
+# four of those scales, which chance clears about three times in ten thousand.
+DC_CHANCE = 2.83           # 4 / sqrt(2), applied as DC_CHANCE / sqrt(n)
 GAP_DEGRADED = 0.002       # fraction of samples inside runs of identical zeros (dropped blocks)
 GAP_FAILED = 0.02
 IMBALANCE_DEGRADED = 1.5   # ratio of I to Q power (or its inverse)
 IMBALANCE_FAILED = 3.0
 MIN_SAMPLES = 64
-SHORT_CAPTURE = 4096       # below this a refusal may simply mean "not enough signal"
 GAP_RUN = 8                # identical consecutive zero samples counted as a dropout
+# A float capture has no defined full scale, so clipping is read off the shape of the peak: every
+# capture has one sample at its maximum magnitude, and on a short capture that single sample alone
+# exceeds the fraction thresholds. A clipped one has a flat top of many. Below this count the peak
+# is just the peak.
+CLIP_MIN_SAMPLES = 8
 
 
 def _zero_run_fraction(x, run=GAP_RUN):
@@ -54,7 +66,8 @@ def assess(iq, fs=None, *, declared_samples=None):
     clean = iq[finite]
     peak = float(np.max(np.abs(clean))) if clean.size else 0.0
     rms = float(np.sqrt(np.mean(np.abs(clean) ** 2))) if clean.size else 0.0
-    clip = float((np.abs(clean) >= peak * (1 - 1e-9)).sum() / n) if peak > 0 else 0.0
+    n_at_peak = int((np.abs(clean) >= peak * (1 - 1e-9)).sum()) if peak > 0 else 0
+    clip = float(n_at_peak / n) if n_at_peak >= CLIP_MIN_SAMPLES else 0.0
     dc = float(abs(np.mean(clean)) / rms) if rms > 0 else 0.0
     gaps = _zero_run_fraction(iq)
     ip = float(np.mean(clean.real ** 2)) if clean.size else 0.0
@@ -74,9 +87,10 @@ def assess(iq, fs=None, *, declared_samples=None):
         check('samples', 'FAILED', f'only {n} samples: below the {MIN_SAMPLES}-sample minimum')
     elif declared_samples is not None and n < declared_samples:
         check('samples', 'DEGRADED', f'file ends early: {n} of {declared_samples} declared samples')
-    elif n < SHORT_CAPTURE:
-        check('samples', 'DEGRADED', f'short capture ({n} samples): a refusal may mean too little signal')
     else:
+        # Length is deliberately not judged here. Whether a capture holds enough signal depends on the
+        # code and the symbol rate, which only the acceptance test knows; src/sufficiency.py answers it
+        # with the engine's own numbers instead of an arbitrary sample count.
         check('samples', 'GOOD', f'{n} samples, all finite')
 
     # 2. energy
@@ -95,13 +109,16 @@ def assess(iq, fs=None, *, declared_samples=None):
     else:
         check('clipping', 'GOOD', f'{clip:.3%} of samples at full scale')
 
-    # 4. DC offset
-    if dc >= DC_FAILED:
+    # 4. DC offset, against whatever this capture length produces by chance
+    dc_chance = DC_CHANCE / np.sqrt(max(n, 1))
+    if dc >= max(DC_FAILED, dc_chance):
         check('dc_offset', 'FAILED', f'DC offset is {dc:.0%} of RMS: a false carrier sits at zero offset')
-    elif dc >= DC_DEGRADED:
+    elif dc >= max(DC_DEGRADED, dc_chance):
         check('dc_offset', 'DEGRADED', f'DC offset is {dc:.0%} of RMS')
     else:
-        check('dc_offset', 'GOOD', f'DC offset {dc:.1%} of RMS')
+        check('dc_offset', 'GOOD', f'DC offset {dc:.1%} of RMS'
+                                   + (f' (within the {dc_chance:.0%} a capture this short shows by chance)'
+                                      if dc_chance > DC_DEGRADED else ''))
 
     # 5. dropouts
     if gaps >= GAP_FAILED:

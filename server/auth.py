@@ -143,9 +143,11 @@ class Sessions:
         raw, sig = token.split('.')
         try:
             raw_b = raw.encode()
-            want = hmac.new(self.secret, raw_b, hashlib.sha256).digest()
-            got = base64.urlsafe_b64decode(sig + '=' * (-len(sig) % 4))
-            if not hmac.compare_digest(want, got):
+            # Compare the encoded signature, not the decoded bytes: the last base64 character carries
+            # four bits that decoding discards, so a token differing only in those would otherwise
+            # verify. Only the exact encoding this server issues is accepted.
+            want = base64.urlsafe_b64encode(hmac.new(self.secret, raw_b, hashlib.sha256).digest()).rstrip(b'=').decode()
+            if not hmac.compare_digest(want, sig):
                 return None
             payload = json.loads(base64.urlsafe_b64decode(raw_b + b'=' * (-len(raw_b) % 4)))
         except Exception:

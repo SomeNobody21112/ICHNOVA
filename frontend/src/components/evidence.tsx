@@ -1,7 +1,8 @@
 import { motion } from 'framer-motion'
 import { useCallback, useMemo, useState, type ReactNode } from 'react'
 import { CODE_FULL, CODE_SHORT, fmtDateTime, fmtFs, fmtInt, fmtInterleaver, fmtP, fmtSymRate, interleaverBits, pct } from '../lib/format'
-import type { AuditEvent, EvidencePack, Hyp, Provenance } from '../lib/types'
+import { GENESIS, loadLedgers, verifyChain, verifyLine, type Receipt } from '../lib/receipt'
+import type { AuditEvent, EvidencePack, Hyp, Provenance, QualityStatus } from '../lib/types'
 import { Constellation, HBars, Landscape, LinePlot, Spectrogram } from './charts'
 import { Drawer, Icon, Meter, Panel, Tag } from './ui'
 
@@ -515,7 +516,6 @@ export function DataQuality({ pack, stationClock }: { pack: EvidencePack; statio
     { k: 'Sample rate', v: fmtFs(c), tag: c.fs_hz == null ? 'NOT ESTABLISHED' : provOf(pack) },
     { k: 'Signal quality (symbol SNR, M2M4)', v: snr != null ? `${snr.toFixed(1)} dB · ${snr > 10 ? 'GOOD' : snr > 5 ? 'FAIR' : 'POOR'}` : '—', tag: provOf(pack) },
     { k: 'Metadata completeness', v: `${Math.round((present / metaFields.length) * 100)}% (${present}/${metaFields.length} fields)`, tag: provOf(pack) },
-    { k: 'Duplicate captures', v: 'NOT ESTABLISHED', tag: 'NOT ESTABLISHED' },
     { k: 'Clock synchronisation', v: stationClock ?? 'NOT RECORDED', tag: stationClock ? 'SIMULATED' : 'NOT ESTABLISHED' },
     { k: 'Analysis confidence', v: pack.result.status === 'DECODED' ? 'VERIFIED (accepted)' : 'RESTRAINED (not asserted)', tag: provOf(pack) },
   ]
@@ -526,6 +526,190 @@ export function DataQuality({ pack, stationClock }: { pack: EvidencePack; statio
           <span className="muted" style={{ fontSize: 12.5 }}>{r.k}</span><span className="mono">{r.v}</span><Tag kind={r.tag} />
         </div>
       ))}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------- capture gate
+const QUALITY_TONE: Record<QualityStatus, string> = { GOOD: 'ok', DEGRADED: 'warn', FAILED: 'no' }
+const CHECK_LABEL: Record<string, string> = {
+  samples: 'Sample integrity', level: 'Signal level', clipping: 'Clipping', dc_offset: 'DC offset',
+  gaps: 'Dropouts', iq_balance: 'I/Q balance', sample_rate: 'Declared sample rate',
+}
+
+/** The capture gate: can this recording be trusted as a measurement? Never part of the verdict. */
+export function CaptureGate({ pack }: { pack: EvidencePack }) {
+  const q = pack.data_quality
+  if (!q) return <div className="empty">This record predates the capture gate; it was not assessed.</div>
+  const m = q.metrics
+  return (
+    <div className="col" style={{ gap: 12 }}>
+      <div className="statbar">
+        <div><span className="kpi-label">Capture gate</span><b className={QUALITY_TONE[q.status]}>{q.status}</b></div>
+        <div><span className="kpi-label">Decode verdict</span><b>{pack.result.status.replace(/_/g, ' ')}</b></div>
+        <div><span className="kpi-label">Clipped</span><b className="mono">{pct(m.clipped_fraction)}</b></div>
+        <div><span className="kpi-label">DC / RMS</span><b className="mono">{pct(m.dc_over_rms)}</b></div>
+      </div>
+      <div className="list">
+        {q.checks.map((ch) => (
+          <div key={ch.check} className="list-item" style={{ gridTemplateColumns: '180px minmax(0, 1fr) 90px', cursor: 'default' }}>
+            <span className="muted" style={{ fontSize: 12.5 }}>{CHECK_LABEL[ch.check] ?? ch.check}</span>
+            <span>{ch.detail}</span>
+            <span className={`mono ${QUALITY_TONE[ch.status]}`} style={{ textAlign: 'right', fontSize: 12 }}>{ch.status}</span>
+          </div>
+        ))}
+      </div>
+      <p className="muted" style={{ fontSize: 12.5, margin: 0 }}>{q.note}</p>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------- what would prove it
+const SUFFICIENCY_TITLE: Record<string, string> = {
+  ACHIEVABLE: 'More of this signal would settle it',
+  IMPOSSIBLE_IN_DOMAIN: 'No capture length can settle this',
+  STRUCTURALLY_REJECTED: 'The evidence was there and was refused on structure',
+  NO_TREND: 'Nothing is trending towards an answer',
+  NO_SIGNAL_EVIDENCE: 'No structure reached the code search',
+  UNKNOWN_CAUSE: 'Cause not established',
+}
+
+/** What would turn this refusal into a decision, in the engine's own units. */
+export function WhatWouldProveIt({ pack }: { pack: EvidencePack }) {
+  const s = pack.sufficiency
+  if (pack.result.status === 'DECODED') {
+    return <div className="empty">This capture was accepted. Nothing further is required.</div>
+  }
+  if (!s) return <div className="empty">This record predates the sufficiency analysis.</div>
+  const r = s.required, me = s.measured
+  return (
+    <div className="col" style={{ gap: 12 }}>
+      <div>
+        <div className="section-label">{SUFFICIENCY_TITLE[s.verdict] ?? s.verdict}</div>
+        <p style={{ margin: '6px 0 0' }}>{s.reason}</p>
+      </div>
+      {me.parity_checks != null && (
+        <div className="statbar">
+          <div><span className="kpi-label">Parity checks</span><b className="mono">{fmtInt(me.parity_checks)}</b></div>
+          <div><span className="kpi-label">Agreeing</span><b className="mono">{fmtInt(me.checks_agreeing ?? 0)}{me.agreement_rate != null ? ` · ${pct(me.agreement_rate)}` : ''}</b></div>
+          <div><span className="kpi-label">Evidence</span><b className="mono">{fmtP(s.best_log10_p ?? 0)}</b></div>
+          <div><span className="kpi-label">Bar</span><b className="mono">{fmtP(s.bar_log10_p ?? 0)}</b></div>
+        </div>
+      )}
+      <div>
+        <div className="section-label">What would prove it</div>
+        <p style={{ margin: '6px 0 0' }}>{s.what_would_prove_it}</p>
+      </div>
+      {r?.achievable && (
+        <dl className="kv">
+          <dt>Parity checks now</dt><dd>{fmtInt(r.parity_checks_now ?? 0)}</dd>
+          <dt>Parity checks needed</dt><dd>{fmtInt(r.parity_checks_needed ?? 0)}</dd>
+          <dt>Additional coded bits</dt><dd>{fmtInt(r.extra_coded_bits ?? 0)}</dd>
+          <dt>Additional capture</dt><dd>{r.extra_seconds != null ? `${r.extra_seconds.toFixed(3)} s` : r.extra_samples != null ? `${fmtInt(r.extra_samples)} samples (duration unknown: no absolute sample rate)` : 'duration unknown'}</dd>
+          <dt>Assumption</dt><dd>{r.assumption}</dd>
+        </dl>
+      )}
+      <p className="muted" style={{ fontSize: 12.5, margin: 0 }}>
+        These figures come from the sign test that refused this capture: the observed agreement rate of
+        the best hypothesis measured against the acceptance bar, not a target chosen in advance.
+      </p>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------- receipt verification
+type VerifyStep = { label: string; ok: boolean | null; detail: string }
+
+async function runVerification(pack: EvidencePack, rc: Receipt): Promise<VerifyStep[]> {
+  const ledgers = await loadLedgers()
+  const searched = ledgers.map((l) => ({ ...l, parsed: l.lines.map((s) => { try { return JSON.parse(s) as Receipt } catch { return null } }) }))
+  const hit = searched.map((l) => ({ l, idx: l.parsed.findIndex((r) => r?.hash === rc.hash) })).find((x) => x.idx >= 0)
+  if (!hit) {
+    return [{ label: 'Receipt present in the ledger', ok: false,
+      detail: `No receipt with hash ${rc.hash.slice(0, 12)}… appears in ${searched.map((l) => l.source).join(' or ')}. This decision is not recorded.` }]
+  }
+  const { lines, source, total, parsed } = hit.l
+  const idx = hit.idx
+  const one = await verifyLine(lines[idx])
+  const chain = await verifyChain(lines)
+  const stored = parsed[idx]!
+  const matches = stored.decision.status === pack.result.status && stored.capture.sha256 === rc.capture.sha256
+  const dupes = parsed.filter((r) => r?.capture?.sha256 === rc.capture.sha256).length
+  return [
+    { label: 'Receipt present in the ledger', ok: true, detail: `Entry ${idx + 1} of ${total} in ${source}.` },
+    { label: 'Hash recomputed in this browser', ok: one.ok,
+      detail: one.ok
+        ? `SHA-256 over the receipt content gives ${one.recomputed.slice(0, 16)}…, which is the hash stored with it.`
+        : `Recomputed ${one.recomputed.slice(0, 16)}…, stored ${one.stored.slice(0, 16)}…. The content has changed since it was written.` },
+    { label: 'Chain links intact', ok: chain.ok,
+      detail: chain.ok
+        ? `${chain.checked} receipts checked, each carrying the hash of the one before it. Head ${chain.head.slice(0, 16)}….`
+        : chain.problems.slice(0, 3).map((p) => `entry ${p.index + 1}: ${p.problem}`).join(' · ') },
+    { label: 'Decision on screen matches the receipt', ok: matches,
+      detail: matches
+        ? `${stored.decision.status} on capture ${rc.capture.sha256.slice(0, 16)}…, as shown on this page.`
+        : `The ledger records ${stored.decision.status} for a different capture or verdict than this page shows.` },
+    { label: 'Capture seen before', ok: null,
+      detail: dupes > 1
+        ? `This exact capture appears in ${dupes} receipts: it has been analysed more than once.`
+        : 'This capture appears once in the ledger.' },
+  ]
+}
+
+export function ReceiptPanel({ pack }: { pack: EvidencePack }) {
+  const rc = pack.receipt
+  const [state, setState] = useState<{ busy: boolean; steps: VerifyStep[]; error: string | null }>(
+    { busy: false, steps: [], error: null })
+  if (!rc) return <div className="empty">No receipt was issued for this record.</div>
+  const verify = async () => {
+    setState({ busy: true, steps: [], error: null })
+    try {
+      setState({ busy: false, steps: await runVerification(pack, rc), error: null })
+    } catch (e) {
+      setState({ busy: false, steps: [], error: e instanceof Error ? e.message : 'Verification could not be completed.' })
+    }
+  }
+  const failed = state.steps.some((s) => s.ok === false)
+  return (
+    <div className="col" style={{ gap: 12 }}>
+      <dl className="kv">
+        <dt>Receipt</dt><dd className="mono">{rc.hash.slice(0, 32)}…</dd>
+        <dt>Previous receipt</dt><dd className="mono">{rc.prev_hash === GENESIS ? 'none: first entry in the ledger' : `${rc.prev_hash.slice(0, 32)}…`}</dd>
+        <dt>Capture</dt><dd className="mono">{rc.capture.sha256.slice(0, 32)}…</dd>
+        <dt>Written</dt><dd>{fmtDateTime(new Date(rc.created_utc).getTime())}</dd>
+        <dt>Records</dt><dd>{rc.decision.status}{rc.decision.code ? ` · ${CODE_SHORT(rc.decision.code)}` : ''} · {fmtInt(Number(rc.statistics.n_hypotheses ?? 0))} hypotheses · p {fmtP(Number(rc.statistics.log10_p ?? 0))}</dd>
+      </dl>
+      <div className="row" style={{ gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+        <button className="btn btn-primary" onClick={() => void verify()} disabled={state.busy} data-loading={state.busy}>
+          {state.busy ? 'Verifying…' : 'Verify receipt'}
+        </button>
+        <span className="muted" style={{ fontSize: 12.5 }}>
+          Hashes are recomputed here, in your browser. The server is not asked whether it is honest.
+        </span>
+      </div>
+      {state.error && <div className="banner amber" role="alert"><Icon name="info" /><span>{state.error}</span></div>}
+      {state.steps.length > 0 && (
+        <>
+          <ul className="why-list">
+            {state.steps.map((s) => (
+              <Check key={s.label} ok={s.ok === true} na={s.ok === null}>
+                {s.label}<div className="muted" style={{ fontSize: 12.5 }}>{s.detail}</div>
+              </Check>
+            ))}
+          </ul>
+          <div className={`banner ${failed ? 'amber' : 'muted'}`}>
+            <Icon name="info" />
+            <span>{failed
+              ? 'Verification failed. Treat this decision as unproven: the record does not match what it claims.'
+              : 'Every hash recomputed here matches the stored ledger. The record has not been altered since it was written.'}</span>
+          </div>
+        </>
+      )}
+      <p className="muted" style={{ fontSize: 12.5, margin: 0 }}>
+        A receipt proves that this decision belongs to this capture and this engine configuration, and
+        that the ledger has not been edited since. It is not a signature, and it does not prove the
+        decision is correct. <Tag kind="EXPERIMENTAL" />
+      </p>
     </div>
   )
 }

@@ -185,6 +185,20 @@ def test_forged_and_malformed_tokens_are_refused(server):
         assert call(base, '/api/auth/me', token=bad)[0] == 401, bad
 
 
+def test_no_single_character_change_to_a_signature_verifies():
+    """Exhaustive, because a near-miss is exactly what a forger produces. The last base64 character
+    carries four bits that decoding discards, so a signature compared as bytes rather than as the
+    text it was issued as would accept three variants of every token."""
+    sessions = auth.Sessions(secret=b'fixed-key-for-this-test')
+    token, _ = sessions.issue({'username': 'u', 'role': 'ANALYST', 'name': 'U'})
+    raw, sig = token.split('.')
+    alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_'
+    accepted = [f'{sig[:i]}{c}{sig[i + 1:]}' for i in range(len(sig)) for c in alphabet
+                if c != sig[i] and sessions.verify(f'{raw}.{sig[:i]}{c}{sig[i + 1:]}') is not None]
+    assert accepted == []
+    assert sessions.verify(token) is not None                          # and the real one still works
+
+
 def test_upload_limits_and_malformed_input(server):
     base, _ = server
     token = login(base)

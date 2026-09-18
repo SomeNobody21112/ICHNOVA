@@ -2,7 +2,7 @@ import { motion } from 'framer-motion'
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { GenomeGlyph } from '../components/charts'
-import { AuditTrail, Characteristics, DataQuality, DecisionRecord, EvidenceChain, HypothesisExplorer, provOf, ViewsPanel, WhyPanel } from '../components/evidence'
+import { AuditTrail, CaptureGate, Characteristics, DataQuality, DecisionRecord, EvidenceChain, HypothesisExplorer, provOf, ReceiptPanel, ViewsPanel, WhatWouldProveIt, WhyPanel } from '../components/evidence'
 import { Icon, Loading, Panel, Stamp, Tabs, Tag } from '../components/ui'
 import { CODE_SHORT, fmtAgo, fmtBw, fmtDateTime, fmtFreq, fmtInt, STATUS_MEANING } from '../lib/format'
 import { cosine, GENOME_AXES, STATIONS } from '../lib/sim'
@@ -146,10 +146,19 @@ export function SignalDetail() {
             <div className="grid" style={{ gridTemplateColumns: 'minmax(0, 1.1fr) minmax(0, 0.9fr)', alignItems: 'start' }}>
               <div className="col" style={{ gap: 14 }}>
                 <Characteristics pack={pack} />
-                <Panel title="Data quality" right={<Tag kind={provOf(pack)} />} flush><DataQuality pack={pack} stationClock={station?.clock} /></Panel>
+                <Panel title="Capture quality" sub="Whether the recording can be trusted as a measurement. Reported beside the verdict, never part of it." right={<Tag kind={provOf(pack)} />}>
+                  <CaptureGate pack={pack} />
+                  <div className="hr" />
+                  <DataQuality pack={pack} stationClock={station?.clock} />
+                </Panel>
               </div>
               <div className="col" style={{ gap: 14 }}>
                 <WhyPanel pack={pack} />
+                {pack.result.status !== 'DECODED' && (
+                  <Panel title="What would prove it?" sub="Derived from the test that refused this capture" right={<Tag kind={provOf(pack)} />}>
+                    <WhatWouldProveIt pack={pack} />
+                  </Panel>
+                )}
                 {incident && <Panel title="Linked incident"><Link to={`/app/incidents/${incident.id}`} className="row"><span className={`pri pri-${incident.priority}`}>{incident.priority}</span><span>{incident.id} · {incident.title}</span></Link></Panel>}
                 <Panel title="Similar signals" sub="Fingerprint cosine similarity" right={<Tag kind="EXPERIMENTAL" />} flush><Similar rec={rec} /></Panel>
               </div>
@@ -180,7 +189,12 @@ export function SignalDetail() {
           {tab === 'audit' && (
             <div className="grid g-2" style={{ alignItems: 'start' }}>
               <Panel title="Audit trail" right={<Tag kind={provOf(pack)} />} flush><AuditTrail pack={pack} extra={extraAudit} /></Panel>
-              <Panel title="Decision record"><DecisionRecord pack={pack} operatorAction={reviews[rec.id]?.action} /></Panel>
+              <div className="col" style={{ gap: 14 }}>
+                <Panel title="Decision record"><DecisionRecord pack={pack} operatorAction={reviews[rec.id]?.action} /></Panel>
+                <Panel title="Evidence receipt" sub="Hash-chained record of this decision, verifiable without trusting this system">
+                  <ReceiptPanel pack={pack} />
+                </Panel>
+              </div>
             </div>
           )}
         </motion.div>

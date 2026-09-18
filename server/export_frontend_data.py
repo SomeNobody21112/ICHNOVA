@@ -73,6 +73,11 @@ def truth_of(gt):
 def export_packs():
     os.makedirs(os.path.join(PUB, 'evidence'), exist_ok=True)
     os.makedirs(os.path.join(PUB, 'samples'), exist_ok=True)
+    # The flagship packs get their own receipt ledger, shipped with the build, so the chain can be
+    # re-verified in a browser with no server behind it. Rebuilt from scratch on every export.
+    ledger = os.path.join(PUB, 'evidence', 'ledger.jsonl')
+    if os.path.exists(ledger):
+        os.remove(ledger)
     index, samples = [], []
     for pid, rel, desc in pick_paths():
         path = os.path.join(ROOT, rel + '.iq')
@@ -86,7 +91,8 @@ def export_packs():
                           {'format': 'iq'}, truth_of(gt),
                           fs_source='declared' if fs else 'unavailable',
                           fs_note=('Declared by the benchmark generator (a raw .iq file has no header)'
-                                   if fs else None))
+                                   if fs else None),
+                          ledger_path=ledger)
         json.dump(pack, open(os.path.join(PUB, 'evidence', pid + '.json'), 'w'), default=to_json_default)
         index.append({'id': pid, 'status': pack['result']['status'], 'description': desc,
                       'hypotheses': pack['accept']['n_hypotheses'], 'file': rel + '.iq'})

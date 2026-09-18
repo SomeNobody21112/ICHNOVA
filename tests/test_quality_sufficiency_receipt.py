@@ -52,6 +52,13 @@ def test_dropouts_and_truncation_are_detected():
     assert short['status'] in ('DEGRADED', 'FAILED') and any('ends early' in r for r in short['reasons'])
 
 
+def test_a_short_clean_capture_is_not_called_degraded():
+    """Length is sufficiency's question, not the gate's, and one sample at the peak is not clipping."""
+    q = quality.assess(clean_capture(420, seed=7), fs=1e6)
+    assert q['status'] == 'GOOD', q['reasons']
+    assert q['metrics']['clipped_fraction'] == 0.0
+
+
 def test_dc_offset_and_real_valued_capture():
     iq = clean_capture() + 0.9
     assert quality.assess(iq, fs=1e6)['status'] == 'FAILED'
@@ -108,11 +115,13 @@ def test_short_block_is_reported_as_impossible_not_as_a_longer_capture():
 
 
 def test_trending_hypothesis_asks_for_a_derived_amount_of_signal():
+    # -6.0 from 20 000 hypotheses is 10^-1.7 after correcting for the search: a real trend, short of
+    # the bar. (A weaker one is covered by test_best_of_many_on_noise_is_not_a_trend.)
     fake = {'status': 'UNKNOWN',
-            'accept': {'log10_p': -3.1, 'log10_threshold': -6.4, 'n_hypotheses': 20000},
+            'accept': {'log10_p': -6.0, 'log10_threshold': -6.4, 'n_hypotheses': 20000},
             'diagnostics': {'top_hypotheses': [{'code': 'conv_k7_r12_171_133', 'interleaver': [8, 16],
                                                 'modulation': 'BPSK', 'sps': 8, 'n_checks': 120,
-                                                'n_positive': 78, 'log10_p': -3.1}]}}
+                                                'n_positive': 78, 'log10_p': -6.0}]}}
     s = sufficiency.assess(fake, fs=1e6)
     assert s['verdict'] == 'ACHIEVABLE'
     req = s['required']
@@ -122,6 +131,33 @@ def test_trending_hypothesis_asks_for_a_derived_amount_of_signal():
     assert req['extra_parity_checks'] == expected - 120
     assert req['extra_coded_bits'] == req['extra_parity_checks'] * 2
     assert req['extra_seconds'] == pytest.approx(req['extra_samples'] / 1e6)
+
+
+def test_best_of_many_on_noise_is_not_a_trend():
+    """The best of tens of thousands of hypotheses agrees well by construction. Promising a decode
+    from it would send an operator to capture signal that cannot help."""
+    fake = {'status': 'UNKNOWN',
+            'accept': {'log10_p': -5.3, 'log10_threshold': -6.8, 'n_hypotheses': 32076},
+            'diagnostics': {'top_hypotheses': [{'code': 'conv_k7_r12_171_133', 'interleaver': [8, 16],
+                                                'modulation': 'QPSK', 'sps': 8, 'n_checks': 116,
+                                                'n_positive': 82, 'log10_p': -5.3}]}}
+    s = sufficiency.assess(fake)
+    assert s['verdict'] == 'NO_TREND' and s['required']['achievable'] is False
+    assert 'best of 32076' in s['reason']
+
+
+def test_evidence_refused_on_structure_does_not_ask_for_more_capture():
+    """A hypothesis that passed the bar and failed a structural check is not short of evidence."""
+    fake = {'status': 'UNKNOWN',
+            'accept': {'log10_p': -7.5, 'log10_threshold': -7.1, 'n_hypotheses': 67950},
+            'diagnostics': {'top_hypotheses': [{'code': 'conv_k7_r12_171_133', 'interleaver': [8, 16],
+                                                'modulation': 'BPSK', 'sps': 8, 'n_checks': 127,
+                                                'n_positive': 94, 'log10_p': -7.5,
+                                                'structural_rejection': 'soft path metric 0.851 below floor 0.926'}]}}
+    s = sufficiency.assess(fake)
+    assert s['verdict'] == 'STRUCTURALLY_REJECTED'
+    assert s['required']['achievable'] is False
+    assert 'would not change this' in s['what_would_prove_it']
 
 
 def test_more_evidence_is_needed_when_agreement_is_weaker():

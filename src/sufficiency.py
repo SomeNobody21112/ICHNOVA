@@ -31,6 +31,11 @@ import numpy as np
 BITS_PER_CHECK = 2          # rate-1/2 catalogue codes: one parity check per two coded bits
 MIN_AGREEMENT = 0.52        # below this the estimate is too weak to extrapolate from
 SAFETY = 1.25               # the estimate is a mean; ask for 25 % more so the capture is likely enough
+# The best of M hypotheses is a maximum over M draws, so its agreement rate is biased upward even on
+# noise: with M ~ 30 000, a p-value near 10^-4.5 is what chance alone produces. Extrapolating from
+# such a hypothesis would promise a decode that more capture cannot deliver, so a trend only counts
+# as real when it survives the correction for the search itself with an order of magnitude to spare.
+SELECTION_MARGIN_LOG10 = -1.0
 
 
 def _kl_to_fair(q):
@@ -89,6 +94,22 @@ def assess(result, *, fs=None):
                        'parity_checks': n, 'checks_agreeing': k, 'agreement_rate': agreement,
                        'symbol_snr_db': best.get('symbol_snr_db')}
 
+    # Did the evidence actually clear the bar, only to fail a structural check? Then the refusal is
+    # not about quantity at all, and asking for more capture would be the wrong instruction.
+    rejection = best.get('structural_rejection')
+    if rejection and bar is not None and float(best.get('log10_p', 0.0)) <= bar:
+        out.update(verdict='STRUCTURALLY_REJECTED',
+                   reason=(f'The strongest hypothesis ({best.get("code")}) reached '
+                           f'10^{best.get("log10_p", 0):.1f}, past the bar of 10^{bar:.1f}, and was then '
+                           f'refused on a structural check: {rejection}.'),
+                   what_would_prove_it=('More of the same signal would not change this. The parity '
+                                        'agreement was there but the hypothesis contradicts what the '
+                                        'capture shows, which is how a coincidental fit is caught. A '
+                                        'decode would need a hypothesis that is consistent with the '
+                                        'observed modulation, block length and coverage.'),
+                   required={'achievable': False, 'structural_rejection': rejection})
+        return out
+
     # Can this structure ever reach the bar, even with every check agreeing?
     ceiling = best_attainable_log10p(n)
     if bar is not None and ceiling > bar:
@@ -104,10 +125,17 @@ def assess(result, *, fs=None):
                              'parity_checks_for_any_proof': checks_needed(1.0, bar)})
         return out
 
-    # Otherwise: how much more of the same signal would reach the bar?
-    if agreement < MIN_AGREEMENT:
+    # Otherwise: how much more of the same signal would reach the bar? Only if the trend is real.
+    n_hyp = accept.get('n_hypotheses') or 1
+    adjusted = float(best.get('log10_p', 0.0)) + math.log10(n_hyp)
+    if agreement < MIN_AGREEMENT or adjusted > SELECTION_MARGIN_LOG10:
+        out['measured']['adjusted_log10_p'] = adjusted
         out.update(verdict='NO_TREND',
-                   reason=(f'The best hypothesis agrees on {k} of {n} parity checks '
+                   reason=(f'The best hypothesis agrees on {k} of {n} parity checks ({agreement:.1%}), '
+                           f'but it is the best of {n_hyp} tried: after correcting for the search its '
+                           f'evidence is 10^{adjusted:.1f}, which is what chance alone produces.'
+                           if agreement >= MIN_AGREEMENT else
+                           f'The best hypothesis agrees on {k} of {n} parity checks '
                            f'({agreement:.1%}), which is consistent with chance.'),
                    what_would_prove_it=('Nothing about this hypothesis is trending. A longer capture of '
                                         'the same signal is not expected to change it; a better '

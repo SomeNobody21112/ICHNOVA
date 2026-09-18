@@ -1,4 +1,5 @@
 import type { Answer, ReplayIndexEntry, Runs } from './live'
+import type { Receipt } from './receipt'
 
 export type Status = 'DECODED' | 'SIGNAL_NO_CODE' | 'UNKNOWN'
 export type Provenance = 'SIMULATED' | 'BENCHMARK' | 'LIVE' | 'EXPERIMENTAL' | 'NOT ESTABLISHED'
@@ -102,8 +103,49 @@ export interface EvidencePack {
     constellation: number[][]
     timeseries: { i: number[]; q: number[] }
   }
+  /** Capture quality, reported beside the verdict and never part of it (src/quality.py). */
+  data_quality?: DataQualityReport
+  /** What would settle a refusal. null when the capture decoded (src/sufficiency.py). */
+  sufficiency?: Sufficiency | null
+  /** Hash-chained record of this decision (src/receipt.py). */
+  receipt?: Receipt
   benchmark_truth?: Record<string, unknown>
   real?: RealAnalysis
+}
+
+export type QualityStatus = 'GOOD' | 'DEGRADED' | 'FAILED'
+
+export interface DataQualityReport {
+  status: QualityStatus
+  reasons: string[]
+  checks: { check: string; status: QualityStatus; detail: string }[]
+  metrics: {
+    samples: number; nonfinite: number; rms: number; peak: number; crest_factor: number
+    clipped_fraction: number; dc_over_rms: number; zero_run_fraction: number
+    iq_power_ratio: number | null; duration_s: number | null
+  }
+  note: string
+}
+
+export interface Sufficiency {
+  verdict: 'ACHIEVABLE' | 'IMPOSSIBLE_IN_DOMAIN' | 'STRUCTURALLY_REJECTED' | 'NO_TREND' | 'NO_SIGNAL_EVIDENCE' | 'UNKNOWN_CAUSE'
+  status: Status
+  bar_log10_p: number | null
+  best_log10_p: number | null
+  hypotheses_tested: number | null
+  reason: string | null
+  what_would_prove_it: string | null
+  required: {
+    achievable: boolean
+    parity_checks_now?: number; parity_checks_needed?: number; extra_parity_checks?: number
+    extra_coded_bits?: number; extra_symbols?: number; extra_samples?: number | null
+    extra_seconds?: number | null; assumption?: string; parity_checks_for_any_proof?: number | null
+  } | null
+  measured: {
+    best_hypothesis?: { code: string; interleaver: number[] | null; modulation: string; sps: number }
+    parity_checks?: number; checks_agreeing?: number; agreement_rate?: number
+    symbol_snr_db?: number; detection_log10_p?: number
+  }
 }
 
 export interface RealAnalysis {

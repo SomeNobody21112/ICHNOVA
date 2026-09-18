@@ -6,6 +6,8 @@ GET  /api/health                         engine version, commit, search-domain c
 POST /api/analyze?format=iq|wav[&fs=HZ]&name=...  (no fs for .iq → fs_source 'unavailable', never a default)[&t0_unix=&timing=gps|arrival]
                                          → evidence pack (server/evidence.py); narrowband captures also get
                                            the real-signal receivers (src/realsig.py) under pack.real
+GET  /api/ledger[?limit=N]               evidence receipts as stored, one raw JSON line each, so a
+                                         client can recompute the hash chain without trusting us
 GET  /api/live/stations                  live-receivable government transmitters (server/stations.py)
 POST /api/live/start?station=KEY[&mode=iq|band&seconds=S&receiver=URL]   → {session}
 GET  /api/live/events?session=ID         Server-Sent Events: spectrum rows, symbols, decodes, result
@@ -34,7 +36,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
 import auth                                                          # noqa: E402
-from evidence import ROOT, build_pack, engine_info, to_json_default   # noqa: E402
+from evidence import LEDGER, ROOT, build_pack, engine_info, to_json_default   # noqa: E402
 from modem import load_wav                                            # noqa: E402
 import live                                                           # noqa: E402
 import realsig                                                        # noqa: E402
@@ -77,8 +79,35 @@ class Handler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=DIST, **kwargs)
 
+    # A body already read, so a refusal knows not to drain it twice.
+    body_consumed = False
+    DRAIN_LIMIT = 1024 * 1024
+
+    def _drain(self):
+        """Read and discard an unread request body before answering.
+
+        Answering a POST without reading what the client is still sending leaves unread data in the
+        socket, and closing it then sends a reset: on Windows the client sees a dropped connection
+        instead of the 401, 403 or 429 that explains the refusal. Anything larger than DRAIN_LIMIT is
+        left unread on purpose — refusing an oversized upload must not mean receiving it first."""
+        if self.body_consumed or self.command not in ('POST', 'PUT', 'PATCH'):
+            return
+        self.body_consumed = True
+        try:
+            length = int(self.headers.get('Content-Length', 0) or 0)
+        except ValueError:
+            return
+        remaining = min(length, self.DRAIN_LIMIT)
+        while remaining > 0:
+            chunk = self.rfile.read(min(remaining, 65536))
+            if not chunk:
+                break
+            remaining -= len(chunk)
+
     def _json(self, code, payload):
         body = json.dumps(payload, default=to_json_default).encode()
+        if code >= 400:
+            self._drain()
         self.send_response(code)
         self.send_header('Content-Type', 'application/json')
         self.send_header('Content-Length', str(len(body)))
@@ -105,6 +134,7 @@ class Handler(SimpleHTTPRequestHandler):
         length = int(self.headers.get('Content-Length', 0) or 0)
         if length <= 0 or length > limit:
             return None
+        self.body_consumed = True
         try:
             return json.loads(self.rfile.read(length))
         except Exception:
@@ -116,6 +146,7 @@ class Handler(SimpleHTTPRequestHandler):
         ok, retry = LIMITER.check(self._client(), bucket)
         if not ok:
             body = json.dumps({'error': 'too many requests', 'retry_after_s': retry}).encode()
+            self._drain()                      # or the client sees a reset instead of the 429
             self.send_response(429)
             self.send_header('Retry-After', str(retry))
             self.send_header('Content-Type', 'application/json')
@@ -178,7 +209,7 @@ class Handler(SimpleHTTPRequestHandler):
         evidence the console kept showing the previous run's numbers and commit. Hashed files under
         /assets/ change name whenever they change, so they stay cacheable."""
         p = urlparse(self.path).path
-        if '/assets/' not in p and (p.endswith(('.json', '.html')) or '.' not in os.path.basename(p)):
+        if '/assets/' not in p and (p.endswith(('.json', '.jsonl', '.html')) or '.' not in os.path.basename(p)):
             self.send_header('Cache-Control', 'no-store, must-revalidate')
         # The console is self-contained: no third-party scripts, styles, fonts or frames, and
         # connections are same-origin only, so the browser cannot be steered to an external service.
@@ -216,6 +247,17 @@ class Handler(SimpleHTTPRequestHandler):
             active = [x.summary() for x in live.SESSIONS.values() if x.state in ('starting', 'receiving', 'analysing')]
             return self._json(200, {'status': 'ready', 'engine': engine_info(),
                                     'live': {'active': active, 'max_sessions': live.MAX_SESSIONS}})
+        if path == '/api/ledger':
+            # The receipt ledger as it is stored, line for line. The raw text is what each hash was
+            # taken over, so a client can recompute every hash itself instead of trusting this reply.
+            limit = max(1, min(2000, int(self._query().get('limit') or 500)))
+            lines = []
+            if os.path.exists(LEDGER):
+                with open(LEDGER, encoding='utf-8') as f:
+                    lines = [ln.strip() for ln in f if ln.strip()]
+            return self._json(200, {'path': os.path.relpath(LEDGER, ROOT).replace('\\', '/'),
+                                    'total': len(lines), 'lines': lines[-limit:],
+                                    'truncated': len(lines) > limit})
         if path == '/api/live/stations':
             keys = ('name', 'operator', 'country', 'service', 'frequency_khz', 'site', 'analysis', 'capture_s', 'references')
             return self._json(200, {k: {kk: v[kk] for kk in keys} for k, v in STATIONS.items()})
@@ -297,7 +339,11 @@ class Handler(SimpleHTTPRequestHandler):
         q = {k: v[0] for k, v in parse_qs(url.query).items()}
         length = int(self.headers.get('Content-Length', 0))
         if length <= 0 or length > MAX_UPLOAD:
+            # Refused on the declared length alone: the point is not to receive it, so the body is
+            # deliberately left unread and the connection may be reset rather than drained.
+            self.body_consumed = True
             return self._json(413, {'error': f'upload must be 1 byte to {MAX_UPLOAD // 2**20} MB'})
+        self.body_consumed = True
         body = self.rfile.read(length)
         fmt = q.get('format', 'iq').lower()
         try:
