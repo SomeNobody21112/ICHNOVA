@@ -17,6 +17,9 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, 'src'))
 
 import pipeline                                           # noqa: E402
+import quality                                            # noqa: E402
+import receipt as receipts                                # noqa: E402
+import sufficiency                                        # noqa: E402
 from pipeline import analyze_iq                           # noqa: E402
 from modem import rrc_filter                              # noqa: E402
 from analyze import matched_filter_demod, estimate_carrier_phase   # noqa: E402
@@ -95,7 +98,11 @@ def _views(iq, fs, result):
 FS_NOT_ESTABLISHED = 'Absolute sample rate not established'
 
 
-def build_pack(iq, fs, pack_id, source, capture_meta=None, truth=None, fs_source=None, fs_note=None):
+LEDGER = os.path.join(ROOT, 'results', 'ledger.jsonl')
+
+
+def build_pack(iq, fs, pack_id, source, capture_meta=None, truth=None, fs_source=None, fs_note=None,
+               ledger_path=None):
     """fs: absolute sample rate in Hz or None; fs_source: pipeline.FS_SOURCES."""
     iq = np.asarray(iq, dtype=complex)
     r = analyze_iq(iq, fs=fs, _top_k=20, _all_hypotheses=True, fs_source=fs_source)
@@ -125,6 +132,23 @@ def build_pack(iq, fs, pack_id, source, capture_meta=None, truth=None, fs_source
         'diagnostics': r['diagnostics'],
         'views': _views(iq, fs, {**r, 'diagnostics': r['diagnostics']}),
     }
+    # Capture quality: reported beside the verdict, never folded into it.
+    pack['data_quality'] = quality.assess(iq, fs, declared_samples=(capture_meta or {}).get('declared_samples'))
+    # Why a refusal happened and what capture would settle it, from the acceptance statistics.
+    pack['sufficiency'] = sufficiency.assess(r, fs=fs)
+    # Receipt: this decision, this capture, this engine, chained to the previous receipt.
+    path = LEDGER if ledger_path is None else ledger_path
+    decision, statistics = receipts.summarise(r, pack_id)
+    rec = receipts.build(capture_sha256=receipts.sha256_array(iq), engine=pack['engine'],
+                         decision=decision, statistics=statistics, source=source,
+                         prev_hash=receipts.last_hash(path),
+                         capture={'samples': int(len(iq)), 'fs_hz': float(fs) if fs is not None else None,
+                                  'fs_source': r['fs_source']})
+    try:
+        receipts.append(rec, path)
+    except OSError:
+        pass                      # a read-only deployment still returns the receipt with the pack
+    pack['receipt'] = rec
     if truth is not None:
         pack['benchmark_truth'] = truth
     return pack
