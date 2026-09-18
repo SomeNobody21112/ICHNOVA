@@ -4,6 +4,7 @@ import { useSearchParams } from 'react-router-dom'
 import { AmPanel, BlindCatalogue, CensusTable, DecodedTime, EvidenceSteps, MinuteDial, PathCard, progressSteps, RealWaterfall, Teletype, Verification, type FreqLabel } from '../components/liveviz'
 import { Icon, Panel, Seg, Stamp, Tag } from '../components/ui'
 import { useLiveFeed, type ReplayDoc, type ReplayIndexEntry, type StationsDoc } from '../lib/live'
+import { api } from '../lib/api'
 import { useApp } from '../lib/store'
 
 type Source = { kind: 'replay'; id: string } | { kind: 'live'; session: string; stationKey: string; mode: 'iq' | 'band' }
@@ -69,7 +70,7 @@ export default function Monitor() {
     setError(null)
     setStarting(key + m)
     try {
-      const r = await fetch(`/api/live/start?station=${encodeURIComponent(key)}&mode=${m}`, { method: 'POST' })
+      const r = await api(`/api/live/start?station=${encodeURIComponent(key)}&mode=${m}`, { method: 'POST' })
       const j = await r.json()
       if (!r.ok) throw new Error(j.error ?? `HTTP ${r.status}`)
       setSource({ kind: 'live', session: j.session.id, stationKey: key, mode: m })
@@ -81,7 +82,7 @@ export default function Monitor() {
   }, [])
 
   const stop = async () => {
-    if (source?.kind === 'live') await fetch(`/api/live/stop?session=${source.session}`, { method: 'POST' }).catch(() => undefined)
+    if (source?.kind === 'live') await api(`/api/live/stop?session=${source.session}`, { method: 'POST' }).catch(() => undefined)
   }
 
   const labels: FreqLabel[] = useMemo(() => {

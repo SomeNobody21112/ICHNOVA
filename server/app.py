@@ -33,6 +33,7 @@ import numpy as np
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
+import auth                                                          # noqa: E402
 from evidence import ROOT, build_pack, engine_info, to_json_default   # noqa: E402
 from modem import load_wav                                            # noqa: E402
 import live                                                           # noqa: E402
@@ -40,8 +41,23 @@ import realsig                                                        # noqa: E4
 from stations import STATIONS                                         # noqa: E402
 
 DIST = os.path.join(ROOT, 'frontend', 'dist')
-
 MAX_UPLOAD = 64 * 1024 * 1024
+
+USERS = auth.Users()
+SESSIONS = auth.Sessions()
+LIMITER = auth.RateLimiter()
+# Authentication is on by default. ICHNOVA_OPEN_API=1 restores the old unauthenticated behaviour for
+# an offline single-user workstation.
+OPEN_API = os.environ.get('ICHNOVA_OPEN_API', '0') == '1'
+
+# Endpoint -> permission. Everything under /api/ that is not listed needs 'read'.
+ENDPOINT_PERMISSION = {
+    '/api/analyze': 'analyse',
+    '/api/live/start': 'live',
+    '/api/live/stop': 'live',
+    '/api/auth/users': 'admin',
+}
+PUBLIC_ENDPOINTS = ('/api/health', '/api/auth/login', '/api/auth/demo', '/api/auth/accounts')
 
 
 
@@ -71,6 +87,55 @@ class Handler(SimpleHTTPRequestHandler):
 
     def _query(self):
         return {k: v[0] for k, v in parse_qs(urlparse(self.path).query).items()}
+
+    def _client(self):
+        fwd = self.headers.get('X-Forwarded-For', '')
+        return (fwd.split(',')[0].strip() if fwd else self.client_address[0]) or 'unknown'
+
+    def _token(self):
+        head = self.headers.get('Authorization', '')
+        if head.lower().startswith('bearer '):
+            return head[7:].strip()
+        return self._query().get('token')
+
+    def _identity(self):
+        return SESSIONS.verify(self._token())
+
+    def _body(self, limit=64 * 1024):
+        length = int(self.headers.get('Content-Length', 0) or 0)
+        if length <= 0 or length > limit:
+            return None
+        try:
+            return json.loads(self.rfile.read(length))
+        except Exception:
+            return None
+
+    def _guard(self, path, bucket='default'):
+        """Rate limit, then authenticate and authorise. Returns the identity, or None when a
+        response has already been sent."""
+        ok, retry = LIMITER.check(self._client(), bucket)
+        if not ok:
+            body = json.dumps({'error': 'too many requests', 'retry_after_s': retry}).encode()
+            self.send_response(429)
+            self.send_header('Retry-After', str(retry))
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Content-Length', str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return None
+        if path in PUBLIC_ENDPOINTS:
+            return {'sub': None, 'role': None}
+        permission = ENDPOINT_PERMISSION.get(path, 'read')
+        if OPEN_API:
+            return {'sub': 'local', 'role': 'ADMIN', 'name': 'Local workstation', 'open_api': True}
+        who = self._identity()
+        if not who:
+            self._json(401, {'error': 'authentication required'})
+            return None
+        if not auth.allowed(who['role'], permission):
+            self._json(403, {'error': f"role {who['role']} may not {permission}"})
+            return None
+        return who
 
     def _sse(self, session):
         self.send_response(200)
@@ -115,10 +180,38 @@ class Handler(SimpleHTTPRequestHandler):
         p = urlparse(self.path).path
         if '/assets/' not in p and (p.endswith(('.json', '.html')) or '.' not in os.path.basename(p)):
             self.send_header('Cache-Control', 'no-store, must-revalidate')
+        # The console is self-contained: no third-party scripts, styles, fonts or frames, and
+        # connections are same-origin only, so the browser cannot be steered to an external service.
+        self.send_header('Content-Security-Policy',
+                         "default-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; "
+                         "style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; "
+                         "font-src 'self' data:; object-src 'none'; frame-ancestors 'none'; base-uri 'self'")
+        self.send_header('X-Content-Type-Options', 'nosniff')
+        self.send_header('Referrer-Policy', 'no-referrer')
+        self.send_header('X-Frame-Options', 'DENY')
+        self.send_header('Permissions-Policy', 'geolocation=(), microphone=(), camera=()')
         super().end_headers()
 
     def do_GET(self):
         path = urlparse(self.path).path
+        if path.startswith('/api/'):
+            who = self._guard(path, 'auth' if path.startswith('/api/auth/') else 'default')
+            if who is None:
+                return
+            self.identity = who
+        if path == '/api/auth/accounts':
+            # Demo accounts only: username, role and what that role may do. Never a password.
+            demo = [{'username': u['username'], 'name': u['name'], 'role': u['role'],
+                     'station': u['station'],
+                     'permissions': [k for k, roles in auth.PERMISSIONS.items() if u['role'] in roles]}
+                    for u in USERS.users.values() if u.get('demo')]
+            return self._json(200, {'demo_accounts': demo, 'auth_required': not OPEN_API,
+                                    'session_ttl_s': SESSIONS.ttl,
+                                    'ephemeral_signing_key': SESSIONS.ephemeral_key})
+        if path == '/api/auth/me':
+            return self._json(200, {'user': {k: self.identity.get(k) for k in ('sub', 'name', 'role', 'station', 'demo', 'exp')}})
+        if path == '/api/auth/users':
+            return self._json(200, {'users': [USERS.public(u) for u in USERS.users.values()]})
         if path == '/api/health':
             active = [x.summary() for x in live.SESSIONS.values() if x.state in ('starting', 'receiving', 'analysing')]
             return self._json(200, {'status': 'ready', 'engine': engine_info(),
@@ -160,6 +253,29 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_POST(self):
         url = urlparse(self.path)
+        who = self._guard(url.path, 'auth' if url.path.startswith('/api/auth/') else
+                          'analyse' if url.path == '/api/analyze' else
+                          'live' if url.path.startswith('/api/live/') else 'default')
+        if who is None:
+            return
+        self.identity = who
+        if url.path == '/api/auth/login':
+            data = self._body() or {}
+            rec = USERS.check(str(data.get('username', '')), str(data.get('password', '')))
+            if not rec:
+                return self._json(401, {'error': 'invalid username or password'})
+            token, payload = SESSIONS.issue(rec)
+            return self._json(200, {'token': token, 'expires_at': payload['exp'], 'user': USERS.public(rec)})
+        if url.path == '/api/auth/demo':
+            # Signs in a demo account without revealing its password. Demo accounts only.
+            data = self._body() or {}
+            rec = USERS.users.get(str(data.get('username', '')))
+            if not rec or not rec.get('demo'):
+                return self._json(404, {'error': 'unknown demo account'})
+            token, payload = SESSIONS.issue(rec)
+            return self._json(200, {'token': token, 'expires_at': payload['exp'], 'user': USERS.public(rec)})
+        if url.path == '/api/auth/logout':
+            return self._json(200, {'revoked': SESSIONS.revoke(self._token())})
         if url.path == '/api/live/start':
             q = self._query()
             try:

@@ -66,16 +66,28 @@ def test_pack_without_fs_says_not_established():
 
 @pytest.fixture(scope='module')
 def server():
+    # The API requires authentication (Constitution v2.5 §25.8), so the fixture signs in as the
+    # demo analyst and hands the base URL plus a bearer token to the tests.
+    os.environ['ICHNOVA_SECRET_KEY'] = 'fs-provenance-test-key'
+    sys.modules.pop('app', None)
     import app
     httpd = app.ThreadingHTTPServer(('127.0.0.1', 0), app.Handler)
     t = threading.Thread(target=httpd.serve_forever, daemon=True)
     t.start()
-    yield f'http://127.0.0.1:{httpd.server_address[1]}'
+    base = f'http://127.0.0.1:{httpd.server_address[1]}'
+    req = urllib.request.Request(base + '/api/auth/demo', method='POST',
+                                 data=json.dumps({'username': 'demo.analyst'}).encode(),
+                                 headers={'Content-Type': 'application/json'})
+    with urllib.request.urlopen(req, timeout=60) as resp:
+        token = json.loads(resp.read())['token']
+    yield base, token
     httpd.shutdown()
 
 
-def _post(base, query, body):
+def _post(server, query, body):
+    base, token = server
     req = urllib.request.Request(f'{base}/api/analyze?{query}', data=body, method='POST')
+    req.add_header('Authorization', f'Bearer {token}')
     try:
         with urllib.request.urlopen(req, timeout=120) as resp:
             return resp.status, json.loads(resp.read())

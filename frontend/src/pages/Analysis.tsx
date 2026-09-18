@@ -7,6 +7,7 @@ import type { ReplayDoc, ReplayIndexEntry, ResultEv } from '../lib/live'
 import { Icon, Panel, Stamp, Tag } from '../components/ui'
 import { CODE_SHORT, fmtInt, fmtP, STATUS_MEANING } from '../lib/format'
 import { STATIONS } from '../lib/sim'
+import { api } from '../lib/api'
 import { useApp } from '../lib/store'
 import type { EvidencePack, RealAnalysis } from '../lib/types'
 
@@ -66,14 +67,13 @@ export default function Analysis() {
     const tick = setInterval(() => setProgress((p) => Math.min(p + 1, STAGES.length - 1)), 420)
     try {
       if (engine.online) {
-        const meta = await (await fetch(`/api/recordings/${entry.id}.json`)).json()
-        const body = await (await fetch(`/api/recordings/${entry.id}.wav`)).arrayBuffer()
+        const meta = await (await api(`/api/recordings/${entry.id}.json`)).json()
+        const body = await (await api(`/api/recordings/${entry.id}.wav`)).arrayBuffer()
         const c = meta.capture
         const q = new URLSearchParams({ format: 'wav', fs: String(c.fs_hz), name: `${entry.id}.wav`, t0_unix: String(c.t0_unix), timing: c.timing,
           center_freq_hz: String(c.tuned_khz * 1e3), notes: `Real recording: ${entry.station} via ${entry.receiver ?? 'KiwiSDR'}` })
-        const res = await fetch(`/api/analyze?${q}`, { method: 'POST', body })
+        const res = await api(`/api/analyze?${q}`, { method: 'POST', body })
         const j = await res.json()
-        if (!res.ok) throw new Error(j.error ?? `HTTP ${res.status}`)
         setPack(j as EvidencePack)
         setRealResult((j as EvidencePack).real ?? null)
       } else {
@@ -105,9 +105,8 @@ export default function Analysis() {
         const body = file ? await file.arrayBuffer() : await (await fetch(`/samples/${sample!.name}`)).arrayBuffer()
         const q = new URLSearchParams({ format: fmt, ...(meta.fs.trim() ? { fs: meta.fs.trim() } : {}), name, station: meta.station, antenna: meta.antenna, captured_at: meta.captured, notes: meta.notes,
           center_freq_hz: String(Number(meta.centerMHz) * 1e6), bandwidth_hz: String(Number(meta.bwKHz) * 1e3) })
-        const res = await fetch(`/api/analyze?${q}`, { method: 'POST', body })
+        const res = await api(`/api/analyze?${q}`, { method: 'POST', body })
         const j = await res.json()
-        if (!res.ok) throw new Error(j.error ?? `HTTP ${res.status}`)
         result = j as EvidencePack
       } else if (sample) {
         result = await loadPack(sample.evidence_id)

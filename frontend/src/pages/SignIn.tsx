@@ -1,12 +1,13 @@
 import { GoogleLogin, GoogleOAuthProvider } from '@react-oauth/google'
 import { motion } from 'framer-motion'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { PRODUCT } from '../brand'
 import { Link } from 'react-router-dom'
 import { BrandMark, Lockup, Wordmark } from '../components/brand'
 import { Icon, Tag } from '../components/ui'
 import { UtilityBar } from '../components/utility'
+import { ApiError, authInfo, login, loginDemo, ROLE_LABEL, type AuthInfo, type AuthUser } from '../lib/api'
 import { STATIONS } from '../lib/sim'
 import { useApp } from '../lib/store'
 import { useTheme } from '../lib/theme'
@@ -33,10 +34,39 @@ export default function SignIn() {
   const [officer, setOfficer] = useState('')
   const [code, setCode] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState<string | null>(null)
+  const [info, setInfo] = useState<AuthInfo | null>(null)
 
-  const finish = (s: Omit<Session, 'role' | 'stationId' | 'signedInAt'>) => {
-    signIn({ ...s, role, stationId: station, signedInAt: Date.now() })
+  // What the server offers: whether authentication is required and which demo accounts exist.
+  useEffect(() => { authInfo().then(setInfo).catch(() => setInfo(null)) }, [])
+
+  const finish = (s: Omit<Session, 'role' | 'stationId' | 'signedInAt'>, user?: AuthUser) => {
+    signIn({
+      ...s, role, stationId: user?.station ?? station, signedInAt: Date.now(),
+      authRole: user?.role, username: user?.username, demo: user?.demo,
+    })
     if (loc.state?.tour) { setTour({ active: true, scene: 0 }); nav('/app/monitor') } else nav(loc.state?.from ?? '/app/command')
+  }
+
+  const fail = (e: unknown) => {
+    setError(e instanceof ApiError ? e.message : 'Could not reach the analysis server. Is it running?')
+    setBusy(null)
+  }
+
+  const signInWithPassword = async () => {
+    setError(null); setBusy('password')
+    try {
+      const { user } = await login(officer.trim(), code)
+      finish({ name: user.name, email: `${user.username}@station.local`, method: 'operator' }, user)
+    } catch (e) { fail(e) }
+  }
+
+  const signInAsDemo = async (username: string, name: string) => {
+    setError(null); setBusy(username)
+    try {
+      const { user } = await loginDemo(username)
+      finish({ name: user.name || name, email: `${user.username}@demo.local`, method: 'demo' }, user)
+    } catch (e) { fail(e) }
   }
 
   return (
@@ -97,21 +127,48 @@ export default function SignIn() {
             </div>
           )}
 
-          <div className="divider">or operator credentials (offline)</div>
+          <div className="divider">operator account</div>
           <form className="col" style={{ gap: 10 }} onSubmit={(e) => {
             e.preventDefault()
-            if (!officer.trim() || code.length < 4) { setError('Enter an officer ID and an access code of at least 4 characters.'); return }
-            finish({ name: officer.trim(), email: `${officer.trim().toLowerCase().replace(/\s+/g, '.')}@station.local`, method: 'operator' })
+            if (!officer.trim() || code.length < 8) { setError('Enter your username and a password of at least 8 characters.'); return }
+            void signInWithPassword()
           }}>
-            <div className="field"><label htmlFor="officer">Officer ID</label><input id="officer" className="input" value={officer} onChange={(e) => setOfficer(e.target.value)} placeholder="e.g. Analyst A. Rao" autoComplete="username" /></div>
-            <div className="field"><label htmlFor="code">Access code</label><input id="code" className="input" type="password" value={code} onChange={(e) => setCode(e.target.value)} autoComplete="current-password" /></div>
+            <div className="field"><label htmlFor="officer">Username</label>
+              <input id="officer" className="input" value={officer} onChange={(e) => setOfficer(e.target.value)} placeholder="e.g. a.rao" autoComplete="username" /></div>
+            <div className="field"><label htmlFor="code">Password</label>
+              <input id="code" className="input" type="password" value={code} onChange={(e) => setCode(e.target.value)} autoComplete="current-password" /></div>
             {error && <div className="banner amber" role="alert"><Icon name="info" /><span>{error}</span></div>}
-            <button className="btn btn-primary btn-lg" type="submit" style={{ justifyContent: 'center' }}>Sign in</button>
-            <button type="button" className="btn btn-ghost" style={{ justifyContent: 'center' }} onClick={() => finish({ name: 'Demo Analyst', email: 'demo.analyst@station.local', method: 'operator' })}>Continue as demo analyst</button>
+            <button className="btn btn-primary btn-lg" type="submit" style={{ justifyContent: 'center' }}
+              data-loading={busy === 'password'} disabled={busy !== null}>Sign in</button>
           </form>
+
+          {!!info?.demo_accounts?.length && (
+            <div className="col" style={{ gap: 8 }}>
+              <div className="divider">demo accounts</div>
+              <div className="picker" role="group" aria-label="Demo accounts">
+                {info.demo_accounts.map((a) => (
+                  <button key={a.username} type="button" className="pick" disabled={busy !== null}
+                    data-loading={busy === a.username} onClick={() => void signInAsDemo(a.username, a.name)}>
+                    <span className="pick-name">{a.name}</span>
+                    <span className="mono muted" style={{ fontSize: 'var(--t-xs)' }}>{ROLE_LABEL[a.role]}</span>
+                    <span className="pick-note">Can {a.permissions.join(', ')}{a.station ? ` \u00b7 station ${a.station}` : ''}</span>
+                  </button>
+                ))}
+              </div>
+              <p className="muted" style={{ fontSize: 'var(--t-sm)', margin: 0 }}>
+                Demo accounts are issued by the server for this demonstration. They carry exactly the
+                permissions listed above, and no password reaches the browser.
+              </p>
+            </div>
+          )}
           <div className="banner muted" style={{ fontSize: 12 }}>
             <Icon name="shield" />
-            <span>Prototype authentication: identity is kept in this browser only. A classified, air-gapped deployment would replace Google sign-in with the organisation's on-premises identity provider and verify tokens server-side. <Tag kind="EXPERIMENTAL" /></span>
+            <span>
+              Passwords are verified on the server with scrypt, and the session is a signed token that
+              expires{info ? ` after ${Math.round(info.session_ttl_s / 3600)} h` : ''}. Google sign-in
+              remains a prototype path: its token is decoded in the browser and is not verified
+              server-side. <Tag kind="EXPERIMENTAL" />
+            </span>
           </div>
         </motion.div>
       </div>

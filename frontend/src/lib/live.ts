@@ -1,3 +1,4 @@
+import { getToken } from './api'
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
 
 export interface Reference { title: string; url: string }
@@ -170,7 +171,9 @@ export function useLiveFeed(source: { kind: 'replay'; doc: ReplayDoc | null; spe
 
   useEffect(() => {
     if (!session) return
-    const es = new EventSource(`/api/live/events?session=${encodeURIComponent(session)}`)
+    // EventSource cannot set an Authorization header, so the stream carries the token as a query
+    // parameter. The server accepts it there for this endpoint only.
+    const es = new EventSource(`/api/live/events?session=${encodeURIComponent(session)}&token=${encodeURIComponent(getToken() ?? '')}`)
     es.onmessage = (m) => {
       try {
         const ev = JSON.parse(m.data) as LiveEvent

@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { getToken, logout as apiLogout, onAuthChange } from './api'
 import { interleaverBits } from './format'
 import { buildWorld, simPack, STATIONS, type World } from './sim'
 import type { AuditEvent, BenchmarkData, EvidencePack, Level, Session, SignalRecord, Zone } from './types'
@@ -118,7 +119,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     let alive = true
     const check = async () => {
       try {
-        const res = await fetch('/api/health', { cache: 'no-store' })
+        const res = await fetch('/api/health', { cache: 'no-store' })   // public: no token needed
         const j = await res.json()
         if (alive) setEngine({ online: j.status === 'ready', version: j.engine?.version, commit: j.engine?.commit, checkedAt: Date.now() })
       } catch {
@@ -208,8 +209,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
     })
   }, [])
 
+  // The token is the session. If it goes (logout, expiry, or a 401 from any call), so does the user.
+  useEffect(() => onAuthChange(() => {
+    if (!getToken()) {
+      setSession(null)
+      try { localStorage.removeItem('rfap.session') } catch { /* ignore */ }
+    }
+  }), [])
+
   const signOut = useCallback(() => {
     log('Signed out', session?.stationId ?? '')
+    void apiLogout()
     setSession(null)
     try { localStorage.removeItem('rfap.session') } catch { /* ignore */ }
   }, [log, session])

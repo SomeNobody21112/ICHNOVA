@@ -180,10 +180,17 @@ export interface Session {
   name: string
   email: string
   picture?: string
-  method: 'google' | 'operator'
+  /** How the session was obtained. 'demo' is a server-issued demo account. */
+  method: 'google' | 'operator' | 'demo'
+  /** Operational view (Field / Regional / National). Not a permission. */
   role: Level
   stationId: string
   signedInAt: number
+  /** Permission role issued by the server; the server remains the authority. */
+  authRole?: 'ADMIN' | 'ANALYST' | 'REVIEWER' | 'VIEWER'
+  username?: string
+  demo?: boolean
+  expiresAt?: number
 }
 
 export interface BenchmarkData {
