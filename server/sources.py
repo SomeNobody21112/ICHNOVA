@@ -10,6 +10,12 @@ Every source declares three things the console shows verbatim:
   descriptions of observations.
 - **Health**: measured when asked, never assumed. `last_data_utc` is read from what this installation
   actually received, so "last received" is a fact about this machine, not a claim about the service.
+  The state the console shows is *derived* from that measurement by `SignalSource.health_state`, and
+  two rules govern it. A source that cannot produce a verdict reports REFERENCE ONLY or METADATA ONLY
+  instead of a liveness state, so no green light ever sits beside documentation. And ONLINE requires
+  a recent observation as well as a reachable service: a directory that answers while nothing has
+  been received from it inside its freshness window reads STALE, with the age beside it. There is no
+  permanent green indicator anywhere in this registry.
 
 Scope is deliberate. Only publicly accessible, openly documented transmissions are listed: standard
 time and frequency stations, public broadcast, volunteer receiver networks and open satellite
@@ -40,10 +46,24 @@ LIVE_DIR = os.path.join(ROOT, 'results', 'live')
 SATNOGS_API = 'https://network.satnogs.org/api/stations/?format=json'
 USER_AGENT = 'SIH26147-research'
 
-# Health states. AVAILABLE and DEGRADED are measured; UNAVAILABLE means a check ran and failed;
-# NOT CONFIGURED means the source needs something this installation has not been given.
-AVAILABLE, DEGRADED, UNAVAILABLE, NOT_CONFIGURED = 'AVAILABLE', 'DEGRADED', 'UNAVAILABLE', 'NOT CONFIGURED'
 ENGINE, REFERENCE_ONLY, METADATA_ONLY = 'ENGINE', 'REFERENCE ONLY', 'METADATA ONLY'
+
+# What `check` may return: reachability, measured now, never assumed.
+ONLINE = 'ONLINE'                  # reachable and answering
+DEGRADED = 'DEGRADED'              # reachable, but less of it than there should be
+OFFLINE = 'OFFLINE'                # a check ran and failed
+NOT_CONFIGURED = 'NOT CONFIGURED'  # needs something this installation has not been given
+AUTH_REQUIRED = 'AUTH_REQUIRED'    # reachable, but refuses without credentials we do not hold
+UNSUPPORTED = 'UNSUPPORTED'        # reachable, but offers nothing this system can use
+
+# The state the console shows. It is derived, not reported: see SignalSource.health_state.
+STALE = 'STALE'                    # reachable, but nothing recent has actually come from it
+HEALTH_STATES = (ONLINE, DEGRADED, STALE, OFFLINE, AUTH_REQUIRED, UNSUPPORTED, NOT_CONFIGURED,
+                 REFERENCE_ONLY, METADATA_ONLY)
+# AUTH_REQUIRED and UNSUPPORTED are part of the vocabulary because a source that needs credentials
+# or offers nothing usable must be able to say so rather than being called OFFLINE. No source in
+# this registry produces either today, and `test_sources_health.py` records which states are
+# reachable, so neither is quietly presented as if it had been exercised.
 
 
 def _utc_now():
@@ -91,10 +111,36 @@ class SignalSource:
     licence_note = ''
     references = ()
     needs_network = True
+    # How recently this installation must have taken data for the source to count as current.
+    # None means recency does not apply: a local capability is not an observation stream, and
+    # calling one "stale" because nobody used it today would be meaningless.
+    freshness_s = None
 
     def check(self, timeout=8):
-        """Return (state, detail). Subclasses measure; they never assume."""
+        """Return (reachability, detail). Subclasses measure; they never assume."""
         raise NotImplementedError
+
+    def health_state(self, reachable, age_s):
+        """The state the console shows, derived from reachability and the freshness rule.
+
+        Two rules, and both exist to stop a green light meaning less than it looks like it means:
+
+        1. A source that cannot produce a verdict never reports a liveness state at all. Published
+           documentation and demodulated third-party frames are useful, but 'ONLINE' beside them
+           would put the same indicator next to reference material as next to a receiver.
+        2. ONLINE requires a recent observation, not merely a reachable service. A directory that
+           answers while nothing has actually been received from it in a day is STALE, and says so
+           with the age beside it.
+        """
+        if self.feeds in (REFERENCE_ONLY, METADATA_ONLY):
+            return self.feeds
+        if reachable != ONLINE:
+            return reachable
+        if self.freshness_s is None:
+            return ONLINE
+        if age_s is None or age_s > self.freshness_s:
+            return STALE
+        return ONLINE
 
     def last_data_utc(self):
         """When this installation last took data from this source, or None."""
@@ -103,12 +149,12 @@ class SignalSource:
     def status(self, timeout=8, probe=True):
         """`probe=False` skips the reachability check but still reports what this machine received."""
         if not probe:
-            state, detail = NOT_CONFIGURED, 'not checked: this request asked for the offline answer'
+            reachable, detail = NOT_CONFIGURED, 'not checked: this request asked for the offline answer'
         else:
             try:
-                state, detail = self.check(timeout)
+                reachable, detail = self.check(timeout)
             except (urllib.error.URLError, OSError, ValueError, TimeoutError) as e:
-                state, detail = UNAVAILABLE, f'{type(e).__name__}: {e}'
+                reachable, detail = OFFLINE, f'{type(e).__name__}: {e}'
         last = self.last_data_utc()
         age = None
         if last:
@@ -120,8 +166,9 @@ class SignalSource:
             'key': self.key, 'name': self.name, 'kind': self.kind, 'operator': self.operator,
             'feeds': self.feeds, 'licence': self.licence, 'licence_note': self.licence_note,
             'references': list(self.references), 'needs_network': self.needs_network,
-            'health': {'state': state, 'detail': detail, 'checked_utc': _iso(_utc_now()),
-                       'last_data_utc': last, 'age_s': age},
+            'health': {'state': self.health_state(reachable, age), 'reachable': reachable,
+                       'detail': detail, 'checked_utc': _iso(_utc_now()),
+                       'last_data_utc': last, 'age_s': age, 'freshness_s': self.freshness_s},
         }
 
 
@@ -141,11 +188,14 @@ class PublicSDRSource(SignalSource):
                     'and takes one short capture at a time. No licence is asserted over the received '
                     'signal itself: the transmissions are public broadcasts.')
     references = ({'title': 'KiwiSDR public receiver directory', 'url': 'http://rx.linkfanel.net/'},)
+    # A reachable directory is not a received signal. Unless this installation has actually taken a
+    # capture within a day, the source reads STALE with its age beside it rather than green.
+    freshness_s = 24 * 3600
 
     def check(self, timeout=8):
         directory = kiwi.fetch_directory(timeout=timeout)
         if not directory:
-            return UNAVAILABLE, 'the receiver directory returned no receivers'
+            return OFFLINE, 'the receiver directory returned no receivers'
         usable = {}
         for key, st in STATIONS.items():
             site = (st['site']['lat'], st['site']['lon'])
@@ -154,10 +204,10 @@ class PublicSDRSource(SignalSource):
             usable[key] = len(rx)
         reachable = sum(1 for n in usable.values() if n)
         if reachable == 0:
-            return UNAVAILABLE, f'{len(directory)} receivers listed, none in range of a catalogued station'
+            return OFFLINE, f'{len(directory)} receivers listed, none in range of a catalogued station'
         detail = f'{len(directory)} receivers listed; in range: ' + ', '.join(
             f'{k} {n}' for k, n in usable.items() if n)
-        return (AVAILABLE if reachable >= len(STATIONS) // 2 else DEGRADED), detail
+        return (ONLINE if reachable >= len(STATIONS) // 2 else DEGRADED), detail
 
     def last_data_utc(self):
         if not os.path.isdir(LIVE_DIR):
@@ -199,7 +249,7 @@ class SatNOGSSource(SignalSource):
         if not rows:
             return DEGRADED, 'the network API replied with no stations'
         online = sum(1 for s in rows if str(s.get('status', '')).lower() in ('online', '2'))
-        return (AVAILABLE if online else DEGRADED), f'{len(rows)} stations on this page, {online} online'
+        return (ONLINE if online else DEGRADED), f'{len(rows)} stations on this page, {online} online'
 
 
 class UserCaptureSource(SignalSource):
@@ -215,9 +265,12 @@ class UserCaptureSource(SignalSource):
     licence_note = ('Whoever uploads a capture is responsible for holding the right to analyse it. '
                     'Nothing leaves this machine: the file is read locally.')
     needs_network = False
+    # A local capability, not a feed: the endpoint is either there or it is not, and "nobody uploaded
+    # anything today" is not a fault. `last_data_utc` is still reported, so the age is visible.
+    freshness_s = None
 
     def check(self, timeout=8):
-        return AVAILABLE, 'POST /api/analyze accepts .iq and .wav captures up to 64 MB'
+        return ONLINE, 'POST /api/analyze accepts .iq and .wav captures up to 64 MB'
 
     def last_data_utc(self):
         return _ledger_last(lambda s: s.get('kind') == 'UPLOAD')
@@ -247,7 +300,7 @@ class PublicReferenceSource(SignalSource):
 
     def check(self, timeout=8):
         refs = sum(len(st.get('references', [])) for st in STATIONS.values())
-        return AVAILABLE, f'{len(STATIONS)} catalogued transmissions with {refs} operator references, held offline'
+        return ONLINE, f'{len(STATIONS)} catalogued transmissions with {refs} operator references, held offline'
 
 
 class SimulationSource(SignalSource):
@@ -264,7 +317,7 @@ class SimulationSource(SignalSource):
 
     def check(self, timeout=8):
         have = os.path.isdir(os.path.join(ROOT, 'data', 'sealed'))
-        return ((AVAILABLE, 'sealed and training sets present under data/') if have else
+        return ((ONLINE, 'sealed and training sets present under data/') if have else
                 (NOT_CONFIGURED, 'no generated data on this machine: run python src/generate.py sealed'))
 
     def last_data_utc(self):
