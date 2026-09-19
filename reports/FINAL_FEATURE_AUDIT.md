@@ -45,8 +45,8 @@ no number in this document should be quoted as "accuracy" without the dataset be
 | 11 | Works on live radio | **LIVE** | KiwiSDR receiver network; 865 receivers listed during this audit, in range of all eight catalogued transmissions. |
 | 12 | Standard-time transmissions as ground truth | **VALIDATED** | Time codes decoded blind and checked against receiver GPS time (`reports/REAL_SIGNAL_VALIDATION.md`). The CHU decoder is **SIMULATED** only: implemented and tested on synthetic packets, never received off air. |
 | 13 | Indian signal source | **LIVE** | All India Radio Chennai, 720 kHz medium wave (Prasar Bharati, 200 kW). Two public receivers in range at audit time; five AIR carriers previously matched against the official transmitter list. |
-| 14 | Higher-order modulation (8PSK, 16-QAM) | **PLANNED** | In the catalogue but disabled; enabling it without a false-accept experiment would raise the error rate silently. |
-| 15 | LDPC / Reed–Solomon / frame-level codes | **IMPLEMENTED** | CCSDS RS(255,223)/(255,239), TC LDPC (128,64), ASM and randomiser catalogue present in the search domain. |
+| 14 | Higher-order modulation (8PSK, 16-QAM) | **EXPERIMENTAL** | Implemented, tested and switchable per analysis, but off by default on measured evidence: 0 of 100 8PSK captures decoded, search 21.8× larger, and one BPSK capture returned a confident 8PSK answer 40 % wrong (`reports/HIGHER_MODULATION_EXPERIMENT.md`). |
+| 15 | LDPC / Reed–Solomon / frame-level codes | **VALIDATED** | CCSDS RS(255,223)/(255,239) with dual basis, depth I and virtual fill; TC LDPC (128,64); the full concatenated chain decoded end to end by `test_f4_decodes_the_full_ccsds_chain` and `test_f4_decodes_a_tc_ldpc_cltu_and_reports_unresolved_polarity`. |
 
 ---
 
@@ -112,6 +112,15 @@ Each was found by running the system, not by reading it.
   stand-in; no org was connected.
 - **No restricted data.** Every source is publicly offered and openly documented. Nothing reaches
   government telemetry, command links, encrypted services or private RF infrastructure.
+
+---
+
+8. **Four coverage claims in the console were stale**, all understating the engine: convolutional,
+   diagonal and QPP de-interleaving and the CCSDS RS/LDPC/concatenated chain were listed as
+   "Planned" long after they were built and tested. Corrected against the code and the tests that
+   exercise it. Blind sampling frequency stays NOT ESTABLISHED, and now says why: baseband carries
+   the symbol rate only as a fraction of the sampling rate, so an absolute rate cannot come from the
+   samples at all.
 
 ---
 
