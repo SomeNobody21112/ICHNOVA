@@ -460,6 +460,28 @@ export function ViewsPanel({ pack }: { pack: EvidencePack }) {
 }
 
 // ---------------------------------------------------------------- audit & decision record
+/** What the engine did to this capture, in order, with the operator's own actions merged in.
+ *
+ *  Exported so the CSV on the report page carries the same rows the screen shows: exporting only
+ *  the operator events produced a file with nothing but headers for any record nobody had acted on
+ *  yet. */
+export function auditRows(pack: EvidencePack, extra: AuditEvent[] = []) {
+  const t0 = new Date(pack.analysed_at).getTime()
+  const tm = pack.diagnostics.timers_s
+  let acc = 0
+  const step = (s: number) => (acc += s * 1000)
+  const d = pack.diagnostics, a = pack.accept
+  return [
+    { t: t0, actor: 'engine', label: 'Capture received', detail: `${fmtInt(pack.capture.samples)} samples (${pack.source.kind})` },
+    { t: t0 + step(tm.cfo ?? 0), actor: 'engine', label: d.detection_log10_p <= LOG_ALPHA(pack) ? 'Signal detected' : 'Signal presence not established', detail: `${d.cfo_candidates.length} spectral-line candidates` },
+    { t: t0 + step(tm.sps ?? 0), actor: 'engine', label: `${d.sps_candidates.length} SPS candidates generated`, detail: d.sps_candidates.join(', ') },
+    { t: t0 + step((tm.matched_filter ?? 0) + (tm.syndrome_search ?? 0)), actor: 'engine', label: `${fmtInt(a.n_hypotheses)} FEC hypotheses evaluated`, detail: `${d.n_front_ends} front-ends` },
+    { t: t0 + step(tm.scoring ?? 0), actor: 'engine', label: a.log10_p <= a.log10_threshold ? 'Statistical test passed' : 'Statistical test not passed', detail: `best p ${fmtP(a.log10_p)} vs bar ${fmtP(a.log10_threshold)}` },
+    { t: t0 + step(tm.viterbi ?? 0), actor: 'engine', label: pack.result.status.replace('_', ' '), detail: pack.result.code ? `${CODE_SHORT(pack.result.code)} ${pack.result.interleaver?.join('×')}` : 'no interpretation asserted' },
+    ...extra.map((e) => ({ t: e.t, actor: e.actor, label: e.action, detail: e.detail ?? '' })),
+  ].sort((x, y) => x.t - y.t)
+}
+
 export function AuditTrail({ pack, extra }: { pack: EvidencePack; extra: AuditEvent[] }) {
   const t0 = new Date(pack.analysed_at).getTime()
   const tm = pack.diagnostics.timers_s

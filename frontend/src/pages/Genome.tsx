@@ -53,11 +53,14 @@ export default function Genome() {
         </Panel>
         <div className="col" style={{ gap: 14 }}>
           <Panel title={<span className="mono">{rec.id}</span>} right={<><Stamp status={rec.status} /><Tag kind={rec.provenance} /></>}>
-            <div className="row" style={{ gap: 16, alignItems: 'center' }}>
-              <GenomeGlyph values={rec.genome} size={230} labels={GENOME_AXES} />
-              <div className="col" style={{ gap: 4, fontSize: 12.5 }}>
-                <span className="muted">{stationName(rec.stationId)}</span><span className="mono">{fmtFreq(rec.centerHz)}</span>
-                <Link to={`/app/signals/${rec.id}`} className="btn btn-sm" style={{ marginTop: 8 }}>Open record</Link>
+            {/* Stacked, not side by side: the axis names need the full width of the card. */}
+            <div className="col" style={{ gap: 10 }}>
+              <div className="center"><GenomeGlyph values={rec.genome} size={380} labels={GENOME_AXES} /></div>
+              <div className="row-wrap" style={{ gap: 10, alignItems: 'center', fontSize: 12.5 }}>
+                <span className="muted">{stationName(rec.stationId)}</span>
+                <span className="mono">{fmtFreq(rec.centerHz)}</span>
+                <span className="spacer" />
+                <Link to={`/app/signals/${rec.id}`} className="btn btn-sm">Open record</Link>
               </div>
             </div>
           </Panel>

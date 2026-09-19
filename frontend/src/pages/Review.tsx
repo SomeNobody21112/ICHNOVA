@@ -36,7 +36,9 @@ export default function Review() {
                 </div>
                 <div className="row" style={{ gap: 12 }}>
                   <GenomeGlyph values={s.genome} size={52} color={s.status === 'UNKNOWN' ? 'var(--amber)' : 'var(--cyan)'} />
-                  <div className="col" style={{ gap: 4 }}>
+                  {/* min-width 0: without it this column refuses to shrink and the badges are
+                      clipped by the card edge instead of wrapping. */}
+                  <div className="col" style={{ gap: 4, minWidth: 0 }}>
                     <Stamp status={s.status} investigate={s.investigate} />
                     <span className="muted" style={{ fontSize: 12 }}>{stationName(s.stationId)} · {fmtFreq(s.centerHz)} · {fmtAgo(s.observedAt)}</span>
                   </div>

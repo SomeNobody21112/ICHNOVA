@@ -319,7 +319,9 @@ export function GenomeGlyph({ values, size = 150, color = 'var(--cyan)', compare
   }
   const poly = (vals: number[]) => vals.map((v, i) => pt(Math.max(0.06, v), i).map((x) => x.toFixed(1)).join(',')).join(' ')
   return (
-    <svg viewBox={labels ? '-40 -12 200 144' : '0 0 120 120'} width={size} height={size * (labels ? 0.72 : 1)} style={{ overflow: 'visible' }}>
+    // The labelled viewBox is wide enough to hold the axis names, and nothing is allowed to paint
+    // outside it: with overflow visible the names spilled over whatever sat beside the glyph.
+    <svg viewBox={labels ? '-115 -14 350 148' : '0 0 120 120'} width={size} height={size * (labels ? 0.423 : 1)}>
       {[0.33, 0.66, 1].map((k) => <polygon key={k} points={poly(Array(n).fill(k))} fill="none" stroke="var(--line)" />)}
       {values.map((_, i) => { const [x, y] = pt(1, i); return <line key={i} x1="60" y1="60" x2={x} y2={y} stroke="var(--line)" /> })}
       {compare && <polygon points={poly(compare)} fill="var(--amber)" fillOpacity={0.1} stroke="var(--amber)" strokeWidth="1" strokeDasharray="3 2" />}
@@ -389,12 +391,23 @@ export function TimelineStrip({ lanes, events, from, to, height = 150, onPick }:
   const days: number[] = []
   const d0 = new Date(from); d0.setHours(0, 0, 0, 0)
   for (let d = d0.getTime() + 86400000; d < to; d += 86400000) days.push(d)
+  // Every day gets a gridline, but a label only where one fits. Over a few weeks the daily labels
+  // would otherwise overprint each other into an unreadable smear.
+  const LABEL_W = 58
+  const perDay = (W - pl - 10) / Math.max(1, days.length)
+  const step = Math.max(1, Math.ceil(LABEL_W / Math.max(perDay, 1)))
   return (
     <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: H }}>
-      {days.map((d) => (
+      {days.map((d, i) => (
         <g key={d}>
           <line x1={sx(d)} x2={sx(d)} y1={0} y2={H - 18} stroke="var(--line)" />
-          <text x={sx(d) + 3} y={H - 5} className="axis">{new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</text>
+          {/* Skipped rather than right-anchored near the edge: anchoring it pulls the label back
+              on top of the previous one. */}
+          {i % step === 0 && sx(d) + LABEL_W <= W && (
+            <text x={sx(d) + 3} y={H - 5} className="axis">
+              {new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+            </text>
+          )}
         </g>
       ))}
       {lanes.map((l, i) => (

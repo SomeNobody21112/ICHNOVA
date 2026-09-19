@@ -79,9 +79,11 @@ export function Tag({ kind, children }: { kind: Provenance; children?: ReactNode
 
 export function Stamp({ status, size, investigate }: { status: Status; size?: 'lg' | 'xl'; investigate?: boolean }) {
   return (
-    <span className="row" style={{ gap: 6 }}>
+    // Wraps rather than overflowing: the verdict and the flag share a narrow column on the record
+    // page, and the flag stays at base size so it reads as secondary to the verdict.
+    <span className="row-wrap" style={{ gap: 6 }}>
       <span className={`stamp stamp-${status}${size ? ` stamp-${size}` : ''}`}>{STATUS_LABEL[status]}</span>
-      {investigate && <span className={`stamp stamp-INVESTIGATE${size ? ` stamp-${size}` : ''}`}>INVESTIGATE</span>}
+      {investigate && <span className="stamp stamp-INVESTIGATE">INVESTIGATE</span>}
     </span>
   )
 }

@@ -1,9 +1,19 @@
 import { useSearchParams } from 'react-router-dom'
-import { provOf } from '../components/evidence'
+import { auditRows, provOf } from '../components/evidence'
 import { Icon, Loading, Panel, Seg, Tag } from '../components/ui'
 import { CODE_FULL, STATUS_LABEL, STATUS_MEANING, fmtDateTime, fmtFreq, fmtFs, fmtInt, fmtInterleaver, fmtP } from '../lib/format'
 import { stationName, useApp, usePack } from '../lib/store'
+import type { AuditEvent, EvidencePack } from '../lib/types'
 import { PRODUCT } from '../brand'
+
+/** The audit trail as it appears on screen: the engine's own steps plus any operator actions.
+ *  Excel reads a leading BOM as UTF-8, without which the units and symbols arrive as mojibake. */
+function auditCsv(pack: EvidencePack, id: string, trail: AuditEvent[]) {
+  const cell = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`
+  const rows = auditRows(pack, trail).map((e) =>
+    [new Date(e.t).toISOString(), e.actor, e.label, id, e.detail].map(cell).join(','))
+  return '﻿' + ['time,actor,action,subject,detail', ...rows].join('\r\n') + '\r\n'
+}
 
 function save(name: string, text: string, type: string) {
   const a = document.createElement('a')
@@ -27,7 +37,7 @@ function SignalReport({ id }: { id: string }) {
       <div className="row no-print" style={{ marginBottom: 12 }}>
         <button className="btn btn-primary" onClick={() => { log('Report printed', id); window.print() }}><Icon name="download" size={14} /> Print / save PDF</button>
         <button className="btn" onClick={() => { log('Evidence exported', id, 'JSON'); save(`${id}.evidence.json`, JSON.stringify(pack, null, 1), 'application/json') }}>Evidence pack (JSON)</button>
-        <button className="btn" onClick={() => save(`${id}.audit.csv`, ['time,actor,action,subject,detail', ...trail.map((e) => [new Date(e.t).toISOString(), e.actor, e.action, e.subject, e.detail ?? ''].map((v) => `"${String(v).replace(/"/g, '""')}"`).join(','))].join('\n'), 'text/csv')}>Audit trail (CSV)</button>
+        <button className="btn" onClick={() => { log('Audit trail exported', id, 'CSV'); save(`${id}.audit.csv`, auditCsv(pack, id, trail), 'text/csv') }}>Audit trail (CSV)</button>
         <span className="grow" />
         <Tag kind={provOf(pack)} />
       </div>

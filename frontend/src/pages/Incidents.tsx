@@ -6,6 +6,12 @@ import { Icon, Panel, Stamp, Tag } from '../components/ui'
 import { fmtAgo, fmtDate, fmtDateTime } from '../lib/format'
 import { stationName, useApp } from '../lib/store'
 
+/** What the subtitle still has to say once the heading has said the kind. */
+function subtitleOf(title: string, kind: string) {
+  if (!title.startsWith(kind)) return title === kind ? '' : title
+  return title.slice(kind.length).replace(/^\s*[·|—–-]\s*/, '').trim()
+}
+
 export function IncidentList() {
   const { world } = useApp()
   const nav = useNavigate()
@@ -49,14 +55,21 @@ export function IncidentDetail() {
       <div className="row" style={{ marginBottom: 10 }}><button className="btn btn-ghost btn-sm" onClick={() => nav('/app/incidents')}><Icon name="back" size={13} /> Incidents</button></div>
       <motion.div className="panel" style={{ padding: '16px 18px', marginBottom: 14 }} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}>
         <div className="row-wrap" style={{ gap: 28, alignItems: 'flex-start' }}>
-          <div><div className="meta">Incident #{inc.id}</div><div className="page-title">{inc.kind}</div><div className="muted">{inc.title}</div></div>
+          {/* The subtitle usually restates the heading and then adds the band and frequency. Only
+              the part the heading does not already say is worth the line. */}
+          <div style={{ minWidth: 0 }}>
+            <div className="meta">Incident #{inc.id}</div>
+            <div className="page-title">{inc.kind}</div>
+            {subtitleOf(inc.title, inc.kind) && <div className="muted">{subtitleOf(inc.title, inc.kind)}</div>}
+          </div>
           <div><div className="kpi-label">First observed</div><div className="mono">{fmtDateTime(inc.firstSeen)}</div><div className="kpi-label" style={{ marginTop: 8 }}>Last observed</div><div className="mono">{fmtDateTime(inc.lastSeen)}</div></div>
           <div><div className="kpi-label">Occurrences</div><div className="kpi-value">{inc.events.length}</div></div>
           <div><div className="kpi-label">Locations</div><div className="kpi-value">{inc.stationIds.length}</div></div>
           <span className="spacer" />
-          <div className="col" style={{ gap: 6, alignItems: 'flex-end' }}>
+          {/* One aligned row: three chips stacked at three different widths read as debris. */}
+          <div className="row-wrap" style={{ gap: 8, alignItems: 'center', justifyContent: 'flex-end' }}>
             <span className={`pri pri-${inc.priority}`}>{inc.priority} PRIORITY</span>
-            <select className="select" style={{ width: 220 }} value={status} onChange={(e) => { setStatus(e.target.value as typeof inc.status); log(`Incident status → ${e.target.value}`, inc.id) }}>
+            <select className="select" style={{ width: 200 }} value={status} onChange={(e) => { setStatus(e.target.value as typeof inc.status); log(`Incident status → ${e.target.value}`, inc.id) }}>
               {['OPEN', 'UNDER INVESTIGATION', 'MONITORING', 'CLOSED'].map((s) => <option key={s}>{s}</option>)}
             </select>
             <Tag kind="SIMULATED" />

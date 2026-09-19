@@ -356,9 +356,10 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .stamp-UNKNOWN { color: var(--amber); }
 .stamp-UNKNOWN::before { background: transparent; border: 1.5px solid currentColor; width: 5px; height: 5px; }
 .stamp-INVESTIGATE { color: var(--orange); }
-.stamp-lg { font-size: 15px; padding: 6px 14px; letter-spacing: 0.14em; }
-.stamp-xl { font-size: 24px; padding: 10px 20px; letter-spacing: 0.16em; border-width: 2px; }
-.stamp-xl::before { width: 12px; height: 12px; }
+/* Sized to sit inside a quarter-width facts cell beside a second badge, not to fill it. */
+.stamp-lg { font-size: 12.5px; padding: 4px 10px; letter-spacing: 0.1em; }
+.stamp-xl { font-size: 17px; padding: 7px 14px; letter-spacing: 0.12em; border-width: 1px; }
+.stamp-xl::before { width: 9px; height: 9px; }
 
 .pri { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; padding: 2px 7px; border-radius: 4px; }
 .pri-HIGH { color: var(--red); background: var(--red-dim); }
@@ -612,9 +613,18 @@ details.more[open] > summary::before { content: '−'; }
 @media print {
   body { background: #fff; zoom: 1; }
   .sidebar, .topbar, .util-bar, .no-print, .tour, .app-foot { display: none !important; }
-  .shell { display: block; height: auto; }
-  .content { overflow: visible; }
-  .print-report { padding: 0; border: 0; }
+  /* Every scrolling ancestor has to be unclipped. The app is a fixed-height shell with its own
+     scroll area, and a printed page cannot scroll: leaving overflow:hidden on .shell makes the
+     browser crop the report to a single page, which is what it used to do. */
+  .shell, .main, .content, .route, .page {
+    display: block !important; height: auto !important; max-height: none !important;
+    overflow: visible !important;
+  }
+  .panel { border: 0; background: #fff; box-shadow: none; }
+  .print-report { padding: 0; border: 0; border-radius: 0; }
+  .print-report table { page-break-inside: avoid; }
+  .print-report h2 { page-break-after: avoid; }
+  @page { margin: 14mm; }
 }
 
 /* ============ Live monitor ============ */
