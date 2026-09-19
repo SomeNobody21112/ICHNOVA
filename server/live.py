@@ -362,6 +362,16 @@ class Session:
             if r['url'] not in seen:
                 seen.add(r['url'])
                 out.append(r)
+        # An operator may say which public receiver to use, but only one the public directory
+        # actually lists. Without this check the `receiver` query parameter chooses an arbitrary host
+        # and port for this server to open a TCP connection to, and the per-receiver failure is
+        # reported straight back over the event stream: a server-side request forgery with an oracle
+        # attached, usable to map hosts and ports the client cannot reach itself. The station's own
+        # `preferred` list is configuration, not input, and stays trusted.
+        if self.receiver and self.receiver not in {r.get('url') for r in directory}:
+            raise kiwi.KiwiError(
+                f'{self.receiver} is not in the public receiver directory. Name a listed receiver, '
+                f'or leave the choice to the server.')
         pref = ([self.receiver] if self.receiver else []) + rc.get('preferred', [])
         front = [r for p in pref for r in out if r['url'] == p]
         extra = [{'url': p, 'loc': '', 'gps': None, 'distance_km': None, 'gps_timed': None, 'snr_db': None}

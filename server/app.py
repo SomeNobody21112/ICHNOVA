@@ -28,6 +28,7 @@ import argparse
 import json
 import os
 import queue
+import re
 import sys
 import tempfile
 import traceback
@@ -58,6 +59,10 @@ LIMITER = auth.RateLimiter()
 # Authentication is on by default. ICHNOVA_OPEN_API=1 restores the old unauthenticated behaviour for
 # an offline single-user workstation.
 OPEN_API = os.environ.get('ICHNOVA_OPEN_API', '0') == '1'
+# Addresses whose X-Forwarded-For header may be believed. Empty by default: a directly exposed
+# deployment must never take a client's word for who it is. Set this to the reverse proxy's address
+# when one is in front (deploy/README.md).
+TRUSTED_PROXIES = {h.strip() for h in os.environ.get('ICHNOVA_TRUSTED_PROXIES', '').split(',') if h.strip()}
 
 # Endpoint -> permission. Everything under /api/ that is not listed needs 'read'.
 ENDPOINT_PERMISSION = {
@@ -127,8 +132,19 @@ class Handler(SimpleHTTPRequestHandler):
         return {k: v[0] for k, v in parse_qs(urlparse(self.path).query).items()}
 
     def _client(self):
-        fwd = self.headers.get('X-Forwarded-For', '')
-        return (fwd.split(',')[0].strip() if fwd else self.client_address[0]) or 'unknown'
+        """Who to rate-limit as. Only a proxy we were told about may rename the client.
+
+        X-Forwarded-For is a request header, so anyone can send one. Trusting it unconditionally
+        hands the rate limiter a fresh identity on every request, which defeats the login limiter
+        (10/min) and the analysis limiter (12/min) completely. It is honoured only when the actual
+        peer is a configured trusted proxy, and then the rightmost entry is taken, because that is
+        the address our own proxy observed; anything to the left of it came from the client."""
+        peer = self.client_address[0] or 'unknown'
+        if peer in TRUSTED_PROXIES:
+            hops = [h.strip() for h in self.headers.get('X-Forwarded-For', '').split(',') if h.strip()]
+            if hops:
+                return hops[-1]
+        return peer
 
     def _token(self):
         head = self.headers.get('Authorization', '')
@@ -431,8 +447,13 @@ class Handler(SimpleHTTPRequestHandler):
             traceback.print_exc()
             return self._json(500, {'error': f'analysis failed: {e}'})
 
+    # EventSource cannot set an Authorization header, so /api/live/events carries the session token
+    # in the query string. Logging the request line verbatim would write live session tokens to
+    # stderr and into whatever collects it.
+    _TOKEN_IN_URL = re.compile(r'([?&]token=)[^&\s"]+')
+
     def log_message(self, fmt, *args):
-        sys.stderr.write('[server] ' + fmt % args + '\n')
+        sys.stderr.write('[server] ' + self._TOKEN_IN_URL.sub(r'\1<redacted>', fmt % args) + '\n')
 
 
 if __name__ == '__main__':
