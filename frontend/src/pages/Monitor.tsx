@@ -229,7 +229,10 @@ export default function Monitor() {
                     )}
                   </AnimatePresence>
                   {st.error && <div className="banner amber"><Icon name="flag" /><span>{st.error}</span></div>}
-                  <Tag kind="LIVE">Real signal · {source?.kind === 'live' ? 'received now' : 'recorded from a live session'}</Tag>
+                  {/* Real signal either way, but only one of them is arriving now. */}
+                  {source?.kind === 'live'
+                    ? <Tag kind="LIVE">Real signal · received now</Tag>
+                    : <Tag kind="BENCHMARK">Real signal · recorded from a live session</Tag>}
                 </div>
               </div>
             </>

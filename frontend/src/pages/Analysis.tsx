@@ -234,13 +234,13 @@ export default function Analysis() {
             {realResult && (
               <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
                 <Panel title="4 · Real-signal receivers" sub="Time codes, start-stop FSK and AM characterisation, run blind over the whole recording"
-                  right={replay ? <Tag kind="LIVE">Recorded result</Tag> : <Tag kind="LIVE">Engine result</Tag>}>
+                  right={replay ? <Tag kind="BENCHMARK">Recorded result</Tag> : <Tag kind="LIVE">Engine result</Tag>}>
                   <div className="row-wrap" style={{ gap: 20, alignItems: 'center' }}>
                     <motion.div initial={{ scale: 1.25, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 260, damping: 18 }}>
                       <Stamp status={realResult.answer.status} size="xl" />
                     </motion.div>
                     <div className="grow" style={{ minWidth: 240 }}>
-                      <div className="result-summary" style={{ maxHeight: 90 }}>{realResult.answer.summary}</div>
+                      <div className="result-summary">{realResult.answer.summary}</div>
                       {realResult.answer.verification && <div className="mono" style={{ fontSize: 12, marginTop: 6, color: 'var(--green)' }}>arrival − decoded = {realResult.answer.verification.arrival_minus_decoded_ms.toFixed(1)} ms by the receiver&apos;s {realResult.answer.verification.timing === 'gps' ? 'GPS' : 'network'} clock</div>}
                     </div>
                   </div>
