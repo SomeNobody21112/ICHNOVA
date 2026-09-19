@@ -64,3 +64,58 @@ Time by stage:
   memory is not a constraint on the default path.
 - The EXPERIMENTAL higher-modulation path costs about 20× on the null set (mean 2–3 s per file, max
   19 s) and is off by default; `eval/perf.py --higher` measures it.
+
+---
+
+## DEVELOPMENT MEASUREMENT — re-run after the ordering and hardening pass
+
+**Not a validated benchmark.** A development machine under ordinary load, one run per dataset, no
+pre-registration. It exists to answer one question — *did the ordering locks cost anything?* — and
+nothing above it has been altered.
+
+Environment: Python 3.11.14, numpy 2.4.2, psutil 7.2.2, Windows 11, single process, default engine
+path (8PSK/16-QAM off). Command: `python eval/perf.py`.
+
+| Dataset | Files | Mean s | Max s | Peak RSS | Earlier run (2026-09-18) |
+|---|---|---|---|---|---|
+| bench-v1 sealed | 30 | 0.15 | 0.22 | 118 MB | 0.12 s / 114 MB |
+| bench-v1 train | 100 | 0.14 | 0.31 | 124 MB | 0.12 s / 123 MB |
+| Null set (200-file sample) | 193 | 0.18 | 0.50 | 151 MB | 0.15 s / 144 MB |
+| Long CCSDS chain | 1 | 4.11 | 4.11 | 147 MB | 3.47 s / 138 MB |
+| Long TC LDPC CLTU | 1 | 0.43 | 0.43 | 148 MB | 0.37 s / 143 MB |
+
+The two columns are **not** a controlled comparison: different machine state, a different Python
+patch release, and a browser had just been driven through 120 pages on the same host. The stage
+profile is unchanged (syndrome search 52–58% on short bursts, frame search 61–63% on long captures),
+peak RSS still never exceeds 151 MB, and nothing in the ordering fix touches the analysis path.
+**Conclusion: no regression of any consequence, and no performance claim is made from this table.**
+
+### Where the ordering fix *does* cost something: the ledger append
+
+`receipt.last_hash()` reads the ledger to find the head, so an append is one pass over the whole
+file — and since the ordering fix that pass happens inside the writer lock. This was measured
+directly, because an append-only file that is read in full on every append is a scaling limit worth
+knowing before it is reached rather than after.
+
+Synthetic receipts of about 440 bytes, 20 timed appends at each size, same environment:
+
+| Ledger entries | File size | Mean append | p95 |
+|---|---|---|---|
+| 100 | 51 KB | 10.9 ms | 13.6 ms |
+| 1,000 | 438 KB | 17.0 ms | 22.6 ms |
+| 10,000 | 4.3 MB | 64.1 ms | 68.8 ms |
+| 100,000 | 43 MB | 505 ms | 559 ms |
+
+Linear in ledger size, as the implementation implies. Against a mean analysis of about 0.15 s the
+append is noise at a few thousand receipts and becomes the dominant cost somewhere between 10,000
+and 100,000. The deployed ledger currently holds **153** receipts, where the append costs about
+11 ms.
+
+Verification does not degrade the same way: reading and verifying a **100,020**-receipt chain end to
+end took **1.8 s** (0.76 s read, 1.06 s verify), and reported `ok=True`.
+
+**The upgrade path, deliberately not taken yet.** Because `server/store_lock.py` now gives a process
+exclusive ownership of the results directory for its lifetime, that process can cache the head hash
+after the first read and make the append O(1). That is sound *only* because of the single-writer
+lock. It is not implemented, because 153 receipts do not justify it, and a cached head in a system
+that did not own the directory would be a correctness bug rather than an optimisation.

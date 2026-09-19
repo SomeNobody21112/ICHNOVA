@@ -3,10 +3,12 @@
 Independent Smart India Hackathon prototype for problem statement **SIH26147**. **Not an official
 Government of India system.**
 
-State after the hardening, ordering and deployment pass, engine `v0.3.0`. **169 tests pass.** Every
+State after the hardening, ordering and deployment pass, engine `v0.3.0`. **175 tests pass.** Every
 figure below comes from a committed result file or a test; where something is not established, this
 document says so. What that pass changed, and what it deliberately did not,
-is in `reports/HARDENING_AND_DEPLOYMENT_PASS.md`.
+is in `reports/HARDENING_AND_DEPLOYMENT_PASS.md`; the verification that followed it — a real
+browser sweep, a dependency scan, and the ledger's measured scaling limit — is in
+`reports/FINAL_VERIFICATION_PASS.md`.
 
 Labels used throughout: **LIVE** (exercised against real radio or a real service), **VALIDATED**
 (measured against known ground truth, or protected by a test that fails if it breaks),
@@ -115,8 +117,9 @@ Each is something a judge can check in the room.
 Every answer is **DECODED**, **SIGNAL_NO_CODE** or **UNKNOWN**. A result is accepted only when an
 exact statistical test clears a bar corrected for *every hypothesis tried* — up to about 68,000 on a
 single capture. **0 false accepts on 120 sealed non-catalogue signals, and 0 on 800 null-set
-captures.** Most signal tools always return an answer; this one returns an answer only when it can
-defend it.
+captures.** We have not surveyed other tools, so this makes no claim about them: what is stated is
+what this one does, which is to return an answer only when it can defend it, and to publish the rate
+at which it refuses.
 
 ### UVP 2 — Every decision is independently verifiable
 Each decision is chained into a SHA-256 receipt: this capture, this engine, this verdict, linked to

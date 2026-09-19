@@ -153,7 +153,87 @@ evidence that this system has been run in anger.
 
 ---
 
-## 6. If you are not using containers
+## 6. Operational semantics you must know before deploying this
+
+Three mechanisms behave in ways an operator will otherwise discover at the wrong moment. Each is a
+deliberate choice for a single-process prototype, and each is stated here with what it does **not**
+give you.
+
+### Rate limiting — what it protects against, and what it does not
+
+Two layers, and they protect different things:
+
+| | Where | Protects against | Does **not** protect against |
+|---|---|---|---|
+| `limit_req` / `limit_conn` | nginx, per source address | Connection floods, sign-in hammering from one address | A distributed source; anything already past the proxy |
+| `auth.RateLimiter` | the application, per client and bucket | A loop exhausting the single-threaded analysis path; password guessing (10/min on `auth`, 12/min on `analyse`, 6/min on `live`) | A distributed flood; a restart, which empties it |
+
+The application limiter is a **fixed window held in memory in one process**. That is the honest
+description: it resets on restart, it is not shared with anything, and it is not a DDoS defence.
+It does not need Redis, because there is one process by design (see below), and adding a network
+dependency to a prototype that must run air-gapped would cost more than it buys.
+
+**Who a client is** comes from `Handler._client`. Behind the proxy that is the rightmost
+`X-Forwarded-For` entry and only when the peer is in `ICHNOVA_TRUSTED_PROXIES`; direct, it is the
+peer address. Setting `ICHNOVA_TRUSTED_PROXIES` too permissively removes the limiter entirely — a
+client that sends a new value per request gets a fresh bucket per request.
+
+### Sessions and revocation
+
+| Property | Behaviour |
+|---|---|
+| Token | HMAC-SHA256 over a payload carrying user, role and an absolute expiry. Nothing is stored server-side. |
+| Lifetime | `ICHNOVA_SESSION_TTL` seconds, default 8 hours. Absolute, not sliding: it cannot be extended by using it. |
+| Where it lives | `sessionStorage` in the browser. Gone when the tab closes; never a cookie, so there is no CSRF surface. |
+| Logout | Records the token id in an in-memory revocation set for the remainder of its lifetime, and the token stops verifying immediately. |
+| Restart, **no** `ICHNOVA_SECRET_KEY` | A fresh random signing key is generated, so **every** token stops verifying. Safe, and the revocation set being empty afterwards does not matter: nothing it held is valid any more. |
+| Restart, **with** `ICHNOVA_SECRET_KEY` | Tokens survive, and the revocation set does **not**. A token revoked by logout becomes usable again until its expiry. |
+
+That last row is the one that matters. It is the price of stateless sessions and no database, and it
+is bounded by the TTL. **If you need a logout to survive a restart, shorten `ICHNOVA_SESSION_TTL`,
+or rotate `ICHNOVA_SECRET_KEY` when you restart** — which invalidates every session, which is the
+strictly safe direction. No database is introduced to make demo sessions persistent.
+
+### One writer per results directory
+
+The receipt ledger and the CRM outbox are append-only files, serialised **within one process**
+(`receipt.append_chained`, `crm._OUTBOX_LOCK`). Two processes on the same directory would each read
+the ledger head and each append against it, forking the evidence chain.
+
+This is not left to documentation. At start-up the server takes an exclusive OS lock on the results
+directory (`server/store_lock.py`: `fcntl.flock` on POSIX, `msvcrt.locking` on Windows) and holds it
+for its lifetime. A second instance exits with a message naming the directory rather than starting.
+The OS releases the lock when the process dies, so a crash needs no cleanup.
+
+So: `deploy.replicas` stays 1, and `--scale ichnova=2` is refused by the application, not merely
+discouraged by a comment. **Running two ICHNOVA hosts against one shared filesystem is out of scope
+and is not made safe by any of this.**
+
+### The ledger grows, and the append grows with it
+
+`last_hash()` reads the ledger to find the head, so an append costs one pass over the file — and
+that pass is inside the writer lock. Measured on this development machine (DEVELOPMENT MEASUREMENT,
+not a validated benchmark; Python 3.11.14, Windows 11, synthetic receipts of ~440 bytes):
+
+| Ledger entries | File size | Mean append | p95 |
+|---|---|---|---|
+| 100 | 51 KB | 10.9 ms | 13.6 ms |
+| 1,000 | 438 KB | 17.0 ms | 22.6 ms |
+| 10,000 | 4.3 MB | 64.1 ms | 68.8 ms |
+| 100,000 | 43 MB | 505 ms | 559 ms |
+
+Linear, as expected. Against a mean analysis of about 0.15 s, the append is noise at a few thousand
+receipts and becomes the dominant cost somewhere between 10,000 and 100,000. Verification does not
+degrade the same way: reading and verifying a 100,020-receipt chain end to end took 1.8 s.
+
+**The upgrade path, when it is needed and not before:** because a process now provably owns the
+directory for its lifetime, it can hold the head hash in memory after the first read and make the
+append O(1). That is only sound *because* of the single-writer lock, and it is deliberately not
+implemented yet — the deployed ledger holds 153 receipts.
+
+---
+
+## 7. If you are not using containers
 
 The same shape applies. Run the application as an unprivileged service bound to loopback:
 

@@ -235,6 +235,14 @@ selection → code search, not try-everything-and-pick-what-looks-good.
 
 ## 8. What this pass did **not** do
 
+> **Superseded in part, 2026-09-20.** The first bullet below said no browser-rendered visual sweep
+> was possible. A later pass found that Chrome was installed and that `server/kiwi.py` already
+> contained an RFC 6455 client, so the DevTools Protocol was reachable with no new dependency. The
+> sweep was then performed — 15 routes x 4 viewports x 2 themes, 120 pages — and it found and fixed
+> one real clipping defect. See `reports/FINAL_VERIFICATION_PASS.md` §2. The rest of this section
+> still stands, except that dependency scanning has since been executed (§3 there).
+
+
 Stated plainly, because partial completion is not completion.
 
 - **No browser-rendered visual sweep.** The instruction was to fix a figure card whose Accept button
