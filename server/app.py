@@ -10,6 +10,9 @@ GET  /api/ledger[?limit=N]               evidence receipts as stored, one raw JS
                                          client can recompute the hash chain without trusting us
 GET  /api/sources[?network=0]            signal sources with provenance, licence, what they feed
                                          (ENGINE / REFERENCE ONLY / METADATA ONLY) and measured health
+GET  /api/crm/status                     Salesforce configuration and the local outbox
+POST /api/crm/queue                      {pack, summary, priority, station} -> queue a case locally
+POST /api/crm/flush                      attempt delivery of queued cases; reports what happened
 GET  /api/live/stations                  live-receivable government transmitters (server/stations.py)
 POST /api/live/start?station=KEY[&mode=iq|band&seconds=S&receiver=URL]   → {session}
 GET  /api/live/events?session=ID         Server-Sent Events: spectrum rows, symbols, decodes, result
@@ -42,6 +45,7 @@ from evidence import LEDGER, ROOT, build_pack, engine_info, to_json_default   # 
 from modem import load_wav                                            # noqa: E402
 import live                                                           # noqa: E402
 import realsig                                                        # noqa: E402
+import crm                                                            # noqa: E402
 import sources                                                        # noqa: E402
 from stations import STATIONS                                         # noqa: E402
 
@@ -61,6 +65,8 @@ ENDPOINT_PERMISSION = {
     '/api/live/start': 'live',
     '/api/live/stop': 'live',
     '/api/auth/users': 'admin',
+    '/api/crm/queue': 'review',
+    '/api/crm/flush': 'review',
 }
 PUBLIC_ENDPOINTS = ('/api/health', '/api/auth/login', '/api/auth/demo', '/api/auth/accounts')
 
@@ -261,6 +267,8 @@ class Handler(SimpleHTTPRequestHandler):
             return self._json(200, {'path': os.path.relpath(LEDGER, ROOT).replace('\\', '/'),
                                     'total': len(lines), 'lines': lines[-limit:],
                                     'truncated': len(lines) > limit})
+        if path == '/api/crm/status':
+            return self._json(200, crm.status())
         if path == '/api/sources':
             # Health is measured on request, against the live services, so this can take a few
             # seconds. `network=0` answers from what is known offline instead of waiting.
@@ -336,6 +344,26 @@ class Handler(SimpleHTTPRequestHandler):
             except (RuntimeError, ValueError) as e:
                 return self._json(429, {'error': str(e)})
             return self._json(200, {'session': x.summary()})
+        if url.path == '/api/crm/queue':
+            # The case is built here, from a fixed field list, so what reaches the CRM never widens
+            # to whatever a client chose to send.
+            body = self._body(limit=512 * 1024) or {}
+            pack = body.get('pack') or {}
+            item_id = ((pack.get('receipt') or {}).get('hash'))
+            if not item_id:
+                return self._json(400, {'error': 'the evidence pack has no receipt: nothing to raise a case against'})
+            try:
+                payload = crm.case_payload(pack, summary=str(body.get('summary') or '')[:1000],
+                                           raised_by=self.identity.get('sub'),
+                                           priority=str(body.get('priority') or 'Medium')[:40],
+                                           station=body.get('station'))
+                item, created = crm.Outbox().add(item_id, 'case', payload)
+            except crm.BulkDataRefused as e:
+                return self._json(400, {'error': str(e)})
+            return self._json(200, {'queued': created, 'item': {k: v for k, v in item.items() if k != 'payload'},
+                                    'crm': crm.Salesforce().status(), 'outbox': crm.Outbox().counts()})
+        if url.path == '/api/crm/flush':
+            return self._json(200, crm.flush())
         if url.path == '/api/live/stop':
             x = live.SESSIONS.get(self._query().get('session', ''))
             if not x:

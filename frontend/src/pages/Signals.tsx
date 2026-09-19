@@ -2,6 +2,7 @@ import { motion } from 'framer-motion'
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { GenomeGlyph } from '../components/charts'
+import { RaiseCase } from '../components/crm'
 import { AuditTrail, CaptureGate, Characteristics, DataQuality, DecisionRecord, EvidenceChain, HypothesisExplorer, provOf, ReceiptPanel, ViewsPanel, WhatWouldProveIt, WhyPanel } from '../components/evidence'
 import { Icon, Loading, Panel, Stamp, Tabs, Tag } from '../components/ui'
 import { CODE_SHORT, fmtAgo, fmtBw, fmtDateTime, fmtFreq, fmtInt, STATUS_MEANING } from '../lib/format'
@@ -120,6 +121,7 @@ export function SignalDetail() {
               <button className="btn btn-sm" onClick={() => review(rec.id, 'Added to library')}>Add to library</button>
               <button className="btn btn-sm" onClick={() => { log('Incident created from signal', rec.id); nav(incident ? `/app/incidents/${incident.id}` : '/app/incidents') }}><Icon name="incidents" size={13} /> {incident ? 'Open incident' : 'Create incident'}</button>
               <Link className="btn btn-sm" to={`/app/reports?signal=${rec.id}`}><Icon name="reports" size={13} /> Report</Link>
+              {pack && <RaiseCase pack={pack} station={rec.stationId} />}
             </div>
             {reviews[rec.id] && <span className="muted" style={{ fontSize: 12 }}>{reviews[rec.id].action} · {reviews[rec.id].by} · {fmtAgo(reviews[rec.id].t)}</span>}
           </div>

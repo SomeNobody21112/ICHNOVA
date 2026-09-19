@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { CaseOutbox } from '../components/crm'
 import { SignalSources } from '../components/sources'
 import { Icon, Panel, Tag } from '../components/ui'
 import { fmtDateTime } from '../lib/format'
@@ -99,7 +100,10 @@ export default function System() {
         </div>
       </div>
 
-      <div style={{ marginTop: 14 }}><SignalSources /></div>
+      <div className="grid g-2" style={{ marginTop: 14, alignItems: 'start' }}>
+        <SignalSources />
+        <CaseOutbox />
+      </div>
 
       <Panel title="Audit trail" sub="Every sign-in, analysis, review and export on this workstation" style={{ marginTop: 14 }} flush right={<span className="muted mono" style={{ fontSize: 11 }}>{audit.length} events · stored locally</span>}>
         {audit.length ? (

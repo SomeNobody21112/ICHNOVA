@@ -279,3 +279,55 @@ def test_authorised_analysis_still_works(server):
                            token=token, raw=buf.getvalue())
     assert status == 200 and pack['result']['status'] in ('DECODED', 'SIGNAL_NO_CODE', 'UNKNOWN')
     assert pack['capture']['fs_source'] == 'wav_header'
+
+
+# ---------------------------------------------------------------- CRM hand-off over HTTP
+@pytest.fixture
+def local_outbox(tmp_path, monkeypatch):
+    """Keep the test's cases out of the real queue."""
+    import crm
+    path = str(tmp_path / 'outbox.jsonl')
+    monkeypatch.setattr(crm, 'OUTBOX', path)
+    monkeypatch.setattr(crm.Outbox, '__init__', lambda self, p=path: setattr(self, 'path', p))
+    return crm
+
+
+def test_crm_queue_is_role_gated_and_idempotent(server, local_outbox):
+    base, _ = server
+    token = login(base)
+    pack = {'id': 'CAP-TEST-1', 'analysed_at': '2026-09-19T04:15:00Z', 'source': {'kind': 'UPLOAD'},
+            'result': {'status': 'UNKNOWN', 'code': None, 'payload_bits': [1] * 512},
+            'accept': {'log10_p': -3.0, 'log10_threshold': -6.4, 'n_hypotheses': 1000},
+            'receipt': {'hash': 'c' * 64, 'capture': {'sha256': 'd' * 64}},
+            'data_quality': {'status': 'GOOD'}, 'sufficiency': {'verdict': 'NO_TREND'}}
+    status, body, _ = call(base, '/api/crm/queue', method='POST', token=token,
+                           body={'pack': pack, 'summary': 'Recurrent unidentified carrier'})
+    assert status == 200 and body['queued'] is True
+    assert body['item']['state'] == 'PENDING' and 'payload' not in body['item']
+    assert body['crm']['state'] in ('CONFIGURED', 'NOT CONFIGURED')
+
+    again = call(base, '/api/crm/queue', method='POST', token=token, body={'pack': pack})[1]
+    assert again['queued'] is False and again['outbox']['total'] == 1
+
+
+def test_crm_queue_refuses_a_pack_without_a_receipt(server, local_outbox):
+    base, _ = server
+    token = login(base)
+    status, body, _ = call(base, '/api/crm/queue', method='POST', token=token,
+                           body={'pack': {'id': 'CAP-NO-RECEIPT'}})
+    assert status == 400 and 'receipt' in body['error']
+
+
+def test_crm_flush_without_salesforce_reports_no_synchronisation(server, local_outbox, monkeypatch):
+    base, _ = server
+    token = login(base)
+    for var in ('SALESFORCE_CLIENT_ID', 'SALESFORCE_CLIENT_SECRET', 'SALESFORCE_REFRESH_TOKEN'):
+        monkeypatch.delenv(var, raising=False)
+    pack = {'id': 'CAP-TEST-2', 'source': {'kind': 'UPLOAD'}, 'result': {'status': 'UNKNOWN'},
+            'accept': {}, 'receipt': {'hash': 'e' * 64, 'capture': {'sha256': 'f' * 64}}}
+    call(base, '/api/crm/queue', method='POST', token=token, body={'pack': pack})
+    status, report, _ = call(base, '/api/crm/flush', method='POST', token=token)
+    assert status == 200 and report['sent'] == 0 and 'not configured' in report['detail']
+    state = call(base, '/api/crm/status', token=token)[1]
+    assert state['crm']['state'] == 'NOT CONFIGURED'
+    assert state['outbox']['pending'] >= 1 and state['outbox']['sent'] == 0
