@@ -151,7 +151,7 @@ GitHub Actions on push: `pytest tests` (30) → regenerate sealed set (seed 9900
 
 ### LAN demo workflow (as currently deployed)
 
-`python server/app.py --host 0.0.0.0 --port 8765` (detached, PID logged) + one inbound firewall rule scoped to LocalSubnet; visitors use `http://<LAN-IP>:8765`. The API itself is unauthenticated — fine for a demo room, listed as a hardening item below.
+`python server/app.py --host 0.0.0.0 --port 8765` (detached, PID logged) + one inbound firewall rule scoped to LocalSubnet; visitors use `http://<LAN-IP>:8765`. The API is authenticated, so visitors sign in with a demo account; set `ICHNOVA_SECRET_KEY` first so sessions survive a restart. There is still no TLS, so traffic is readable on the LAN — listed as a hardening item below.
 
 ---
 
@@ -169,6 +169,6 @@ GitHub Actions on push: `pytest tests` (30) → regenerate sealed set (seed 9900
 - `http.server` is fine for a demo console but not production-grade (no TLS, no HTTP/2, limited concurrency model) — a rewrite target (e.g. FastAPI) if this ever becomes a deployed product.
 - Single-process, in-memory session state: one analysis at a time scales, many concurrent users will not.
 - Strictly pinned numpy/scipy versions keep reproducibility but need deliberate bumps.
-- No server-side auth — Google sign-in gates the UI, but the API itself is unauthenticated (worth knowing when exposing the console on a LAN).
+- No TLS — the API is authenticated server-side (scrypt passwords, signed session tokens, per-endpoint role permissions, rate limiting), but `http.server` terminates no TLS, so anything exposed beyond a trusted LAN needs a proxy in front. Google sign-in remains a prototype path: its token is decoded in the browser and is not verified server-side.
 
 **Through-line:** the stack looks "small", but every choice serves the demo's core argument — a receiver that refuses to guess needs so little infrastructure that **absence of framework is itself the evidence** of a well-understood system.
