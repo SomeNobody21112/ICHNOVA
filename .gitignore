@@ -3,3 +3,9 @@ __pycache__/
 # Regenerate deterministically from repo root: python src/generate.py sealed | train
 data/
 results/
+
+# Deployment secrets and certificates: never committed (deploy/README.md).
+deploy/certs/
+deploy/acme/
+deploy/config/
+deploy/.env

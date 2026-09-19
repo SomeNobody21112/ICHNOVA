@@ -1,0 +1,55 @@
+# ICHNOVA behind an HTTPS reverse proxy.
+#
+#   docker compose -f deploy/docker-compose.yml up --build
+#
+# The application is not published on a host port: it is reachable only through the proxy. Secrets
+# come from the environment or from a .env file that is never committed. See deploy/README.md.
+services:
+  ichnova:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    environment:
+      HOST: 0.0.0.0
+      PORT: "8765"
+      # Without this, every restart invalidates every session. Generate with:
+      #   python -c "import secrets; print(secrets.token_urlsafe(48))"
+      ICHNOVA_SECRET_KEY: ${ICHNOVA_SECRET_KEY:?set ICHNOVA_SECRET_KEY before starting}
+      # Only this address may name the client through X-Forwarded-For. It must be the proxy's
+      # address on this network; `docker compose exec ichnova getent hosts proxy` prints it.
+      ICHNOVA_TRUSTED_PROXIES: ${ICHNOVA_TRUSTED_PROXIES:?set to the proxy address on this network}
+      # Demo accounts sign in without a password. Off for anything reachable from outside.
+      ICHNOVA_DEMO_ACCOUNTS: "0"
+      # A real user store, so accounts survive a restart. Mounted read-only below.
+      ICHNOVA_USERS_FILE: /app/config/users.json
+    volumes:
+      - ichnova-results:/app/results
+      - ./config:/app/config:ro
+    expose:
+      - "8765"
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+  proxy:
+    image: nginx:1.27-alpine
+    depends_on:
+      - ichnova
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/ichnova.conf:ro
+      - ./certs:/etc/letsencrypt:ro
+      - ./acme:/var/www/certbot
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  ichnova-results:
