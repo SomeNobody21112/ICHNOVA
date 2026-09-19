@@ -216,7 +216,7 @@ def test_upload_limits_and_malformed_input(server):
     assert call(base, '/api/analyze?format=iq', method='POST', token=token, raw=b'12345')[0] == 400
     assert call(base, '/api/analyze?format=iq', method='POST', token=token, raw=iq_bytes(8))[0] == 400
     assert call(base, '/api/analyze?format=wav', method='POST', token=token,
-                raw=b'RIFFxxxxWAVEjunk')[0] in (400, 500)
+                raw=b'RIFFxxxxWAVEjunk')[0] == 400          # a bad upload is the client's error
     for fs in ('fast', '-1', '0', 'NaN', 'Infinity'):
         assert call(base, f'/api/analyze?format=iq&fs={fs}', method='POST', token=token,
                     raw=iq_bytes())[0] == 400, fs

@@ -393,6 +393,10 @@ class Handler(SimpleHTTPRequestHandler):
                     f.write(body)
                 try:
                     iq, header_fs = load_wav(f.name)
+                except Exception as e:
+                    # A file that is not a readable .wav is the client's mistake, not a server
+                    # fault: it must not be reported as one.
+                    return self._json(400, {'error': f'not a readable .wav file: {e}'})
                 finally:
                     os.unlink(f.name)
                 fs, fs_source = float(header_fs), 'wav_header'
