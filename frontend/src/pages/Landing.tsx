@@ -20,7 +20,7 @@ export const COVERAGE: { req: string; detail: string; status: Provenance | 'ESTA
   { req: 'Bit-stream correlation (header / payload)', detail: 'Frame synchronisation on marker patterns and redundancy checks for time codes and CHU packets; general header search planned', status: 'EXPERIMENTAL' },
   { req: 'De-interleaving: convolutional, diagonal, pseudo-random', detail: 'Forney convolutional (branches × delay), wrapped diagonal and 3GPP QPP permutations, all searched by default alongside block', status: 'ESTABLISHED' },
   { req: 'FEC: RS, concatenated, LDPC', detail: 'CCSDS Reed–Solomon (255,223) and (255,239) with dual basis, depth I and virtual fill; CCSDS TC LDPC (128,64); and the full concatenated chain of RS + randomiser + attached sync marker + inner convolutional code', status: 'ESTABLISHED' },
-  { req: 'Demodulation: QAM', detail: '8PSK and 16-QAM demapping and gating are implemented but off by default: a modulation that is searched without being needed can only add false accepts. Measured on the null set before it is enabled.', status: 'EXPERIMENTAL' },
+  { req: 'Demodulation: QAM', detail: '8PSK and 16-QAM demapping is implemented and can be switched on per analysis, but stays off by default on the evidence: over 1,350 null-set captures it decoded 0 of 100 8PSK signals, raised the search 21.8× and once returned a confident 8PSK answer, 40% wrong, on a BPSK signal that decoded perfectly without it', status: 'EXPERIMENTAL' },
   { req: 'Sampling frequency (blind)', detail: 'Not recoverable from the samples: baseband carries the symbol rate only as a fraction of the sampling rate, so an absolute rate in Hz must come from the WAV header or the operator. The engine reports which, and refuses to invent one.', status: 'NOT ESTABLISHED' },
 ]
 
