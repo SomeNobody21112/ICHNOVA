@@ -127,7 +127,10 @@ def run(higher=False):
     paths = [(p, higher) for p in sorted(glob.glob(OUT + '/*.iq'))]
     os.makedirs('results', exist_ok=True)
     out_name = 'results/nullset_rows_higher.jsonl' if higher else 'results/nullset_rows.jsonl'
-    with Pool(max(1, (os.cpu_count() or 2) - 1)) as pool, \
+    # NULLSET_WORKERS caps the pool on a machine short of memory: the higher-modulation search holds
+    # far more hypotheses per worker, and an over-subscribed run gets killed part way through.
+    workers = int(os.environ.get('NULLSET_WORKERS') or max(1, (os.cpu_count() or 2) - 1))
+    with Pool(workers) as pool, \
             open(out_name, 'w') as f:
         for i, row in enumerate(pool.imap_unordered(run_one, paths, chunksize=4)):
             f.write(json.dumps(row) + '\n')
