@@ -75,7 +75,7 @@ export default function Command() {
         {tasks.map((t) => (
           <Link key={t.title} to={t.to} className="task">
             <span className="task-icon"><Icon name={t.icon} /></span>
-            <span><b>{t.title}</b><span>{t.text}</span></span>
+            <span><span className="task-title">{t.title}</span><span className="task-text">{t.text}</span></span>
             <span className="go"><Icon name="arrow" size={16} /></span>
           </Link>
         ))}

@@ -500,14 +500,24 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
 
 /* Task cards: one line of purpose each (service-card pattern of DoT's Saral Sanchar) */
 .tasks { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--panel); overflow: hidden; }
-.task { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; padding: 12px 14px; color: var(--text); text-decoration: none !important; border-left: 1px solid var(--line); transition: background var(--dur-1) var(--ease); }
+/* .task is sometimes a <button>: reset the browser's own button face and outset border, or every
+   card renders as a grey system button. */
+.task {
+  appearance: none; margin: 0; width: 100%; font: inherit; text-align: left; cursor: pointer;
+  background: transparent; border: 0; border-left: 1px solid var(--line); border-radius: 0;
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: start;
+  padding: 16px 18px; color: var(--text); text-decoration: none !important;
+  transition: background var(--dur-1) var(--ease);
+}
 .task:first-child { border-left: 0; }
 .task:hover { background: var(--surface-hover); }
-.task-icon { color: var(--accent); display: grid; place-items: center; }
+.task:hover .go { color: var(--accent); transform: translateX(2px); }
+.task:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
+.task-icon { color: var(--accent); display: grid; place-items: center; padding-top: 2px; }
 .task-icon svg { width: 18px; height: 18px; }
-.task b { display: block; font-size: var(--t-base); font-weight: 600; }
-.task span { display: block; font-size: var(--t-sm); color: var(--text-2); margin-top: 1px; line-height: 1.4; }
-.task .go { color: var(--faint); }
+.task-title { display: block; font-size: var(--t-base); font-weight: 600; color: var(--text); }
+.task-text { display: block; font-size: var(--t-sm); color: var(--text-2); margin-top: 3px; line-height: 1.45; }
+.task .go { color: var(--faint); padding-top: 2px; transition: color var(--dur-1) var(--ease), transform var(--dur-1) var(--ease); }
 @media (max-width: 900px) { .task { border-left: 0; border-top: 1px solid var(--line); } .task:first-child { border-top: 0; } }
 .section-head { display: flex; align-items: baseline; gap: 12px; margin: 26px 0 12px; }
 .section-head h2 { font-size: 17px; font-weight: 600; margin: 0; }

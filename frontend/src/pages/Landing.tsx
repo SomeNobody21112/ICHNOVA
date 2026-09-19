@@ -98,9 +98,9 @@ export default function Landing() {
           <h2>What you can do</h2>
           <div className="tasks" style={{ marginTop: 18 }}>
             {SERVICES.map((s) => (
-              <button key={s.title} className="task" style={{ textAlign: 'left', cursor: 'pointer', font: 'inherit' }} onClick={() => go(s.to)}>
+              <button key={s.title} type="button" className="task" onClick={() => go(s.to)}>
                 <span className="task-icon"><Icon name={s.icon} /></span>
-                <span><b>{s.title}</b><span>{s.text}</span></span>
+                <span><span className="task-title">{s.title}</span><span className="task-text">{s.text}</span></span>
                 <span className="go"><Icon name="arrow" size={16} /></span>
               </button>
             ))}
