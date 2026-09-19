@@ -33,6 +33,7 @@ Configuration is environment-only (never a file in the repo):
 import datetime as dt
 import json
 import os
+import threading
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -133,6 +134,17 @@ def case_payload(pack, *, summary='', raised_by=None, priority='Medium', station
     return assert_no_bulk_data(out)
 
 
+# Every read-modify-write of the outbox runs under this lock. `add` and `update` each read the whole
+# queue, change one row and rewrite the file; without serialisation two of them running at once both
+# write from the snapshot they read, and the later write silently drops the earlier one's change — a
+# case that the operator was told was queued disappears. The same race defeats the idempotency check
+# in `add`, so a double click can queue two cases for one decision.
+# ponytail: one lock for every Outbox instance. They are the same file in practice, and
+# over-serialising a queue this small costs nothing. A second *process* writing the same file still
+# needs an OS file lock; that is the upgrade path, not this.
+_OUTBOX_LOCK = threading.RLock()
+
+
 class Outbox:
     """An append-only queue on disk. Survives a restart, a crash and a flat network."""
 
@@ -167,16 +179,17 @@ class Outbox:
         For an evidence case the natural key is the receipt hash, which is already unique per
         decision, so a double click cannot raise two cases for the same analysis."""
         assert_no_bulk_data(payload)
-        rows = self._read()
-        for r in rows:
-            if r['id'] == item_id:
-                return r, False
-        item = {'id': item_id, 'kind': kind, 'payload': payload, 'state': PENDING, 'attempts': 0,
-                'created_utc': _iso(), 'next_attempt_utc': _iso(), 'last_error': None,
-                'sent_utc': None, 'remote_id': None}
-        rows.append(item)
-        self._write(rows)
-        return item, True
+        with _OUTBOX_LOCK:
+            rows = self._read()
+            for r in rows:
+                if r['id'] == item_id:
+                    return r, False
+            item = {'id': item_id, 'kind': kind, 'payload': payload, 'state': PENDING, 'attempts': 0,
+                    'created_utc': _iso(), 'next_attempt_utc': _iso(), 'last_error': None,
+                    'sent_utc': None, 'remote_id': None}
+            rows.append(item)
+            self._write(rows)
+            return item, True
 
     def due(self, now=None):
         now = now or _now()
@@ -184,11 +197,12 @@ class Outbox:
                 if r['state'] == PENDING and (_parse(r['next_attempt_utc']) or now) <= now]
 
     def update(self, item_id, **fields):
-        rows = self._read()
-        for r in rows:
-            if r['id'] == item_id:
-                r.update(fields)
-        self._write(rows)
+        with _OUTBOX_LOCK:
+            rows = self._read()
+            for r in rows:
+                if r['id'] == item_id:
+                    r.update(fields)
+            self._write(rows)
 
     def counts(self):
         rows = self._read()

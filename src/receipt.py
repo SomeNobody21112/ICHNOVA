@@ -20,6 +20,7 @@ import datetime
 import hashlib
 import json
 import os
+import threading
 
 LEDGER_VERSION = 1
 GENESIS = '0' * 64
@@ -88,6 +89,39 @@ def last_hash(path):
                 except json.JSONDecodeError:
                     return tail
     return tail
+
+
+_CHAIN_LOCKS = {}
+_CHAIN_LOCKS_GUARD = threading.Lock()
+
+
+def _chain_lock(path):
+    key = os.path.abspath(path)
+    with _CHAIN_LOCKS_GUARD:
+        lock = _CHAIN_LOCKS.get(key)
+        if lock is None:
+            lock = _CHAIN_LOCKS[key] = threading.Lock()
+    return lock
+
+
+def append_chained(path, build):
+    """Read the head, build a receipt against it and append it, as one indivisible step.
+
+    The chain invariant is that entry N's `prev_hash` is entry N-1's `hash`. Reading the head and
+    appending are two separate operations, and the server is threaded: two analyses finishing at the
+    same moment both read the same head, both claim it, and the ledger forks. `verify_chain` then
+    reports a broken link at an entry nobody touched — a false tamper alarm, which for this system is
+    worse than a missed one, because the whole point of the receipt is that a break means something.
+
+    `build` is called with the head hash and must return the receipt to append.
+    """
+    # ponytail: one lock per ledger path, so one process is serialised. Two *processes* writing the
+    # same ledger can still fork it; an OS file lock (msvcrt.locking / fcntl.flock) is the upgrade
+    # path if the deployment ever runs more than one writer.
+    with _chain_lock(path):
+        receipt = build(last_hash(path))
+        append(receipt, path)
+        return receipt
 
 
 def read_ledger(path):

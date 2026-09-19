@@ -139,15 +139,22 @@ def build_pack(iq, fs, pack_id, source, capture_meta=None, truth=None, fs_source
     # Receipt: this decision, this capture, this engine, chained to the previous receipt.
     path = LEDGER if ledger_path is None else ledger_path
     decision, statistics = receipts.summarise(r, pack_id)
-    rec = receipts.build(capture_sha256=receipts.sha256_array(iq), engine=pack['engine'],
-                         decision=decision, statistics=statistics, source=source,
-                         prev_hash=receipts.last_hash(path),
-                         capture={'samples': int(len(iq)), 'fs_hz': float(fs) if fs is not None else None,
-                                  'fs_source': r['fs_source']})
+
+    def _receipt(prev_hash):
+        return receipts.build(capture_sha256=receipts.sha256_array(iq), engine=pack['engine'],
+                              decision=decision, statistics=statistics, source=source,
+                              prev_hash=prev_hash,
+                              capture={'samples': int(len(iq)), 'fs_hz': float(fs) if fs is not None else None,
+                                       'fs_source': r['fs_source']})
     try:
-        receipts.append(rec, path)
+        # Reading the head and appending must not be two steps: the server is threaded, and two
+        # analyses finishing together would otherwise both claim the same predecessor and fork the
+        # chain. See receipt.append_chained.
+        rec = receipts.append_chained(path, _receipt)
     except OSError:
-        pass                      # a read-only deployment still returns the receipt with the pack
+        # A read-only deployment still returns the receipt with the pack; it just is not stored, so
+        # it cannot honestly claim a place in the chain either.
+        rec = _receipt(receipts.GENESIS)
     pack['receipt'] = rec
     if truth is not None:
         pack['benchmark_truth'] = truth
