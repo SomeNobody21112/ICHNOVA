@@ -1,5 +1,50 @@
 # SIH26147 — CONSTITUTION CHANGELOG
 
+## v2.5.3 — 2026-09-19 — Platform amendment: authenticated API, approved CRM, evidence receipts
+
+No rule, weight, catalogue item or acceptance threshold changed. The document is brought into
+agreement with an engine and a web tier that had moved past it.
+
+- **§25.8 — the API is authenticated.** Passwords are stored with `hashlib.scrypt`
+  (n = 2¹⁴, r = 8, p = 1); sessions are HMAC-SHA256 tokens carrying an absolute expiry and a
+  revocation id; every endpoint but `/api/health` and the sign-in routes requires a token, and each
+  is checked against a role permission server-side. A fixed-window rate limiter answers 429 with
+  `Retry-After`. The standing limitation "unauthenticated API" is therefore **retired**; what
+  remains is that `http.server` terminates no TLS, so a deployment needs TLS in front of it.
+  `ICHNOVA_OPEN_API=1` restores the open behaviour for a single-user offline workstation.
+  Measured: 2,709 single-character forgeries of a valid signature, 0 accepted.
+
+- **§9.2 — one cloud integration approved.** The clause required any CRM to have its own amendment;
+  this is it. The Salesforce case hand-off (`server/crm.py`) writes a case to a local append-only
+  outbox, and delivery is a separate explicit step, so no analysis waits on it or fails without it.
+  The record is built from a fixed field list — decision, statistics, receipt hash — and
+  `assert_no_bulk_data` refuses any payload carrying IQ, payload bits, views, audio or oversized
+  fields. An item is marked SENT only on a Salesforce record id: an unconfigured or unreachable CRM
+  reports that it delivered nothing rather than claiming success. Credentials are environment-only.
+  No Salesforce organisation has ever been connected, so the integration is IMPLEMENTED, not LIVE.
+
+- **Three orthogonal reports recorded, none of which may change a verdict.**
+  `src/quality.py` grades the capture GOOD / DEGRADED / FAILED on clipping, DC offset, dropouts,
+  I/Q balance, non-finite samples and declared rate — reported beside the verdict, never part of it.
+  `src/sufficiency.py` states what would settle a refusal, in parity checks derived from the sign
+  test that refused it, and separates ACHIEVABLE from IMPOSSIBLE_IN_DOMAIN, STRUCTURALLY_REJECTED and
+  NO_TREND so no refusal asks for capture that cannot help. `src/receipt.py` chains decisions by
+  SHA-256 so a decision can be re-verified by someone who does not trust this system; the console
+  recomputes the chain in the browser.
+
+- **`server/sources.py` — signal provenance is declared, not assumed.** Five sources, each carrying
+  who operates it, under what terms, what it may feed (ENGINE / REFERENCE ONLY / METADATA ONLY) and
+  health measured on request. Only publicly offered, openly documented transmissions are listed.
+
+- **§24 row 34 re-measured** over the full 1,350-capture null set
+  (`reports/HIGHER_MODULATION_EXPERIMENT.md`). Enabling 8PSK/16-QAM decodes 0 of 100 8PSK captures
+  while raising the search a median 21.8× and runtime 7.2×; false accepts are 0/800 either way, so
+  the original concern was not the real one. The real cost is a wrong decode: `k5_060_003`, BPSK,
+  decodes bit-perfectly with the gate off and as 8PSK with a stronger p-value and a 40 %-wrong
+  payload with it on — a structural alias whose parity checks genuinely pass. The gate stays off,
+  now for a measured reason, and the path to changing that is named: a modulation classifier
+  confident enough to choose the constellation before the code search.
+
 ## v2.5.1 — 2026-09-18 — Status amendment: families F1–F4 in the engine
 
 No rule, weight or catalogue item changed. Acceptance families F1–F4 (§13.1) were implemented in

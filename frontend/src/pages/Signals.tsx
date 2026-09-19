@@ -7,7 +7,7 @@ import { AuditTrail, CaptureGate, Characteristics, DataQuality, DecisionRecord, 
 import { Icon, Loading, Panel, Stamp, Tabs, Tag } from '../components/ui'
 import { CODE_SHORT, fmtAgo, fmtBw, fmtDateTime, fmtFreq, fmtInt, STATUS_MEANING } from '../lib/format'
 import { cosine, GENOME_AXES, STATIONS } from '../lib/sim'
-import { stationName, useApp, usePack } from '../lib/store'
+import { stationName, useApp, useCan, usePack, whyNot } from '../lib/store'
 import type { SignalRecord } from '../lib/types'
 
 type LibTab = 'all' | 'known' | 'unknown' | 'recurrent' | 'archived' | 'reference' | 'benchmark'
@@ -95,7 +95,9 @@ function Similar({ rec }: { rec: SignalRecord }) {
 
 export function SignalDetail() {
   const { id } = useParams()
-  const { signals, reviews, review, audit, world, log } = useApp()
+  const { signals, reviews, review, audit, world, log, session } = useApp()
+  const mayReview = useCan('review')
+  const cannotReview = whyNot(session?.authRole, 'review')
   const [params, setParams] = useSearchParams()
   const nav = useNavigate()
   const rec = signals.find((s) => s.id === id)
@@ -117,9 +119,9 @@ export function SignalDetail() {
           </div>
           <div className="col" style={{ gap: 6, alignItems: 'flex-end' }}>
             <div className="row-wrap" style={{ justifyContent: 'flex-end' }}>
-              <button className="btn btn-good btn-sm" onClick={() => review(rec.id, 'Confirmed by analyst')}><Icon name="check" size={13} /> Confirm</button>
-              <button className="btn btn-sm" onClick={() => review(rec.id, 'Added to library')}>Add to library</button>
-              <button className="btn btn-sm" onClick={() => { log('Incident created from signal', rec.id); nav(incident ? `/app/incidents/${incident.id}` : '/app/incidents') }}><Icon name="incidents" size={13} /> {incident ? 'Open incident' : 'Create incident'}</button>
+              <button className="btn btn-good btn-sm" disabled={!mayReview} title={cannotReview} onClick={() => review(rec.id, 'Confirmed by analyst')}><Icon name="check" size={13} /> Confirm</button>
+              <button className="btn btn-sm" disabled={!mayReview} title={cannotReview} onClick={() => review(rec.id, 'Added to library')}>Add to library</button>
+              <button className="btn btn-sm" disabled={!mayReview} title={cannotReview} onClick={() => { log('Incident created from signal', rec.id); nav(incident ? `/app/incidents/${incident.id}` : '/app/incidents') }}><Icon name="incidents" size={13} /> {incident ? 'Open incident' : 'Create incident'}</button>
               <Link className="btn btn-sm" to={`/app/reports?signal=${rec.id}`}><Icon name="reports" size={13} /> Report</Link>
               {pack && <RaiseCase pack={pack} station={rec.stationId} />}
             </div>

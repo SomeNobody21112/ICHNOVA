@@ -3,7 +3,7 @@
 **Problem statement:** SIH26147 (Smart India Hackathon 2026; sponsor listed in the problem statement: NTRO)
 **Product:** ICHNOVA — *From noise to harmony* (blind signal analysis engine + operator console)
 **Document:** Master Project Constitution — **the single source of truth**
-**Version:** 2.5.1 (status amendment: acceptance families F1–F4 implemented; §24 rows 33–36b measured; 8PSK/16-QAM EXPERIMENTAL and off by default) · **Date:** 2026-09-18
+**Version:** 2.5.3 (authenticated API §25.8; Salesforce case hand-off approved under §9.2; capture quality, evidence sufficiency, receipts and the signal-source registry recorded; §24 row 34 re-measured on the full null set) · **Date:** 2026-09-19
 **Verified against:** branch `sih-readiness`. v2.5 text verified against `acf4201`; the v2.5.1 status rows are measured on the engine as committed, with the default path unchanged (0 decision differences on 1,350 null-set files, sealed 30/30, train 63/100). Evidence per phase in `reports/SIH_READINESS_EXECUTION.md`
 **Supersedes:** v2.0 (research-verified, 2026-09-16), v2.1–v2.4, and every earlier plan document where they disagree (§3)
 
@@ -141,7 +141,7 @@ A figure without a label must not be shown. Simulated data must never be describ
 | # | Constraint |
 |---|---|
 | 9.1 | **CPU only.** No GPU prerequisite. |
-| 9.2 | **Air-gap compatible engine.** No cloud, API or network dependency for analysis. (Public-receiver live reception and Google sign-in are optional console features; the engine and offline replays work without them.) **v2.5:** any other cloud integration (e.g. a CRM) may only consume exported evidence one way, may never be required for an analysis, and needs its own amendment. None is approved. |
+| 9.2 | **Air-gap compatible engine.** No cloud, API or network dependency for analysis. (Public-receiver live reception and Google sign-in are optional console features; the engine and offline replays work without them.) **v2.5:** any other cloud integration (e.g. a CRM) may only consume exported evidence one way, may never be required for an analysis, and needs its own amendment. **v2.5.3 approves exactly one: the Salesforce case hand-off (`server/crm.py`).** It satisfies the clause as written and stays bound by it: a case is written to a local append-only outbox and delivery is a separate explicit step, so no analysis waits on it or fails without it; the record carries only the decision, its statistics and the receipt hash, built from a fixed field list, and `assert_no_bulk_data` refuses any payload carrying IQ, payload bits, views, audio or oversized fields; credentials come from the environment only; and an item is marked SENT only on a Salesforce record id, so an unreachable or unconfigured CRM reports that it delivered nothing. No other cloud integration is approved. |
 | 9.3 | **Reproducible.** Every experiment records data, code version, configuration, seed, estimates, metrics, runtime and failures. Datasets regenerate byte-identically from seed. |
 | 9.4 | **Auditable.** Every decision carries its test statistic, threshold, hypothesis count and rejected alternatives. |
 | 9.5 | **Do not modify `src/generate.py`.** |
@@ -451,7 +451,7 @@ FSK tone-pair search: one STFT per shift class (30 s → 2.5 s on 125 s). RRC ta
 | 31 | Signal genome similarity | **EXPERIMENTAL** | Shown with label | Validation study |
 | 32 | Monitoring network, incidents, occupancy | **SIMULATED** | `sim.ts` | Real station feeds |
 | 33 | Frame sync / bit-stream correlation, header/payload map | **IMPLEMENTED, measured on synthetic captures** | Family F3 in the engine: ASM found blind at P = 512 and P = 2,072 with the frame map attached; a framed stream with no code is SIGNAL_NO_CODE; noise and an idle carrier refused; M₃ counts the whole declared domain | Real framed recording (row 42) |
-| 34 | 8PSK, 16-QAM identification and demodulation | **EXPERIMENTAL — implemented, gated, OFF BY DEFAULT** (`pipeline.SEARCH_HIGHER_MODULATIONS = False`) | Primitives verified (BER < 1e-3 at 20 dB, gates separate the classes). Enabled, both decode blind: 8PSK with block, diagonal and convolutional interleavers and 16-QAM with block, all at payload BER 0 at 20 dB; development sweep 18/96 bursts at Es/N0 11–20 dB with 0 wrong decodes. Measured cost of enabling it by default: bench-v1 sealed 25/30, null false accepts 1/900, one wrong K5 decode, runtime ~20×, because the gate opens on weak captures and M₁ grows ~10× | Default path needs a Constitution amendment: F1 sub-weights plus a gate with a power condition |
+| 34 | 8PSK, 16-QAM identification and demodulation | **EXPERIMENTAL — implemented, gated, OFF BY DEFAULT** (`pipeline.SEARCH_HIGHER_MODULATIONS = False`) | Primitives verified (BER < 1e-3 at 20 dB, gates separate the classes). Enabled, both decode blind: 8PSK with block, diagonal and convolutional interleavers and 16-QAM with block, all at payload BER 0 at 20 dB; development sweep 18/96 bursts at Es/N0 11–20 dB with 0 wrong decodes. **v2.5.3, measured over the full 1,350-capture null set** (`reports/HIGHER_MODULATION_EXPERIMENT.md`): enabling it costs 7.2× runtime and buys **nothing** — 0 of 100 8PSK captures decode, though the gate genuinely opens on 88 of them and the hypothesis count rises by a median 21.8×, because the multiple-testing bar rises by about the same factor. False accepts are **0/800 either way**, so the original concern was not the problem; the real one is that `k5_060_003`, a BPSK capture that decodes bit-perfectly with the gate off, decodes as 8PSK with a *stronger* p-value (10^−10.87 vs 10^−10.23) and a payload 40 % wrong — a structural alias (8PSK carries 3 bits/symbol, so a 9×20 interleaver explains what 3×20 truly explains) whose parity checks genuinely pass, which no statistical test can catch | Default path needs a modulation classifier confident enough to choose the constellation **before** the code search, so absent modulations never enter the pool |
 | 35 | Reed-Solomon (CCSDS, dual basis, depth I), concatenated RS + K7 | **IMPLEMENTED, measured on synthetic captures** | Encoder matches reedsolo on 28 vectors, dual basis matches Annex F. Full chain decoded blind (RS(255,223) E=16 I=1 + TM 131071 randomizer + ASM P=2,072 + inner K7): every parameter identified, 4/4 codewords, payload BER 0. Accepted on the exact tail P(≥ D decodes), never on decoder success; constant fill refused as degenerate | Real recording (row 42); bench-v2 |
 | 36 | Diagonal, convolutional and QPP pseudo-random interleavers; CCSDS TC LDPC (128,64) | **IMPLEMENTED, measured** | All four interleaver types are searched in the default path: bench-v1 sealed 30/30 and train 63/100 unchanged, null set 0/900 false accepts and 0/450 wrong decodes, wrong-structure accepts 0/225 (was 2/225 with block only), M₁ ≈ 2.4×. LDPC: H·Gᵀ = 0 and rank 64 at import; a TC LDPC CLTU decoded blind at offset 64 with 1,536/1,536 checks and payload BER 0 (polarity reported unresolved) | bench-v2 channel classes |
 | 36a | Sample-rate provenance (`fs_source`), no silent default | **LOCKED (v2.5)** | §10 | P0 |
@@ -477,7 +477,7 @@ FSK tone-pair search: one STFT per shift class (30 s → 2.5 s on 125 s). RRC ta
 5. Payload rotation resolved by assuming zero encoder start state; no frame sync.
 6. Viterbi convention bit-reversed vs MATLAB; standard conformance unverified.
 7. Real signals: the operator chooses where to listen; receiver filter delay uncalibrated (WWV +23 ms); Indian receivers deliver one sideband in IQ mode; availability depends on propagation and schedules.
-8. Web tier is `http.server`: no TLS, unauthenticated API, single process — demo grade.
+8. Web tier is `http.server`: single process, **no TLS** — demo grade. The API is authenticated since v2.5.3 (scrypt passwords, signed session tokens, role permissions, rate limiting), but a deployment still needs TLS terminated in front of it.
 9. Console monitoring-network data is simulated.
 
 ---
@@ -573,7 +573,11 @@ Impeccable anti-pattern detector (§32).
 | `GET /api/live/events` | Server-Sent Events stream |
 | `GET /api/live/sessions`, `/api/live/session/…`, `/api/live/file/…` | Session list, detail, saved capture |
 
-The API is unauthenticated (demo scope, §25.8).
+| `GET /api/ledger` | Evidence receipts as stored, one raw JSON line each, for independent chain verification |
+| `GET /api/sources` | Signal sources with provenance, licence, what they feed and measured health |
+| `GET /api/crm/status`, `POST /api/crm/queue`, `POST /api/crm/flush` | Salesforce case hand-off through the local outbox (§9.2) |
+
+Every endpoint requires authentication (§25.8) except `/api/health` and the sign-in routes; `ICHNOVA_OPEN_API=1` restores the old open behaviour for a single-user offline workstation. Permissions are checked server-side per endpoint against the role in the session token.
 
 ## 31. Tech Stack, Dependencies and Licensing
 
@@ -818,6 +822,7 @@ Possible application areas (**not deployment claims**): spectrum monitoring and 
 | 2.5 | 2026-09-17 | **SIH-readiness amendment: catalogue v1 (§12.1), weighted acceptance families (§13.1), bench-v2 sealed policy (§18.1), fs provenance (§10), P0 re-prioritisation (§35), cloud clause (§9.2); audit conflicts C1–C9 resolved** |
 | **2.5.2** | **2026-09-18** | **Console design system (§29.1): fixed type scale, one interaction vocabulary, elevation and motion discipline, themed browser surfaces, complete component states, no decorative kicker labels. Detector added to the quality gates (§32). Pages, routes, copy, provenance labels and disclaimers unchanged** |
 | **2.5.1** | **2026-09-18** | **Status amendment (no rule, weight or catalogue change): §24 rows 33, 35, 36, 36b move from LOCKED to IMPLEMENTED with measured evidence as families F1–F4 entered the engine; row 34 (8PSK/16-QAM) becomes EXPERIMENTAL and off by default, with the measured cost of enabling it; §12.1 marks the higher modulations as not in the default path** |
+| **2.5.3** | **2026-09-19** | **Platform amendment. §25.8: the API is authenticated (scrypt passwords, signed session tokens with expiry and revocation, per-endpoint role permissions, rate limiting), so the "unauthenticated API" limitation is retired and only the missing TLS remains. §9.2: the Salesforce case hand-off is approved as the one permitted cloud integration, bound by the clause it was written under. Capture quality (`src/quality.py`), evidence sufficiency (`src/sufficiency.py`), evidence receipts (`src/receipt.py`) and the signal-source registry (`server/sources.py`) are recorded, each reported separately from the decode verdict. §24 row 34 re-measured over the full null set: the cost of enabling 8PSK/16-QAM is a wrong decode from a structural alias, not the false accepts previously feared. No rule, weight, catalogue item or acceptance threshold changed** |
 
 Details: `SIH26147_CONSTITUTION_CHANGELOG.md`.
 

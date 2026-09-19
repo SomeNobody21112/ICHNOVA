@@ -8,7 +8,7 @@ import { Icon, Panel, Stamp, Tag } from '../components/ui'
 import { CODE_SHORT, fmtInt, fmtP, STATUS_MEANING } from '../lib/format'
 import { STATIONS } from '../lib/sim'
 import { api } from '../lib/api'
-import { useApp } from '../lib/store'
+import { useApp, useCan, whyNot } from '../lib/store'
 import type { EvidencePack, RealAnalysis } from '../lib/types'
 
 interface Sample { name: string; format: string; fs_hz: number; bytes: number; description: string; evidence_id: string }
@@ -37,6 +37,8 @@ function stageValue(key: string, p: EvidencePack) {
 
 export default function Analysis() {
   const { engine, session, addUpload, log, loadPack } = useApp()
+  const mayAnalyse = useCan('analyse')
+  const cannotAnalyse = whyNot(session?.authRole, 'analyse')
   const nav = useNavigate()
   const [samples, setSamples] = useState<Sample[]>([])
   const [file, setFile] = useState<File | null>(null)
@@ -202,7 +204,7 @@ export default function Analysis() {
               <div className="field full"><label>Sampling rate (Hz) {(file?.name ?? sample?.name ?? '').endsWith('.wav') ? '· read from the WAV header unless you enter a value' : '· a raw .iq file has no header: leave blank if unknown'}</label><input className="input mono" placeholder="Unknown — the engine works in samples per symbol" value={meta.fs} onChange={(e) => setMeta({ ...meta, fs: e.target.value })} /></div>
               <div className="field full"><label>Operator notes</label><textarea className="textarea" value={meta.notes} onChange={(e) => setMeta({ ...meta, notes: e.target.value })} placeholder="Observed intermittently on the evening watch…" /></div>
             </div>
-            <button className="btn btn-primary btn-lg" style={{ width: '100%', justifyContent: 'center', marginTop: 12 }} disabled={(!file && !sample && !real) || running} onClick={() => (real ? runReal(real) : run())}>
+            <button className="btn btn-primary btn-lg" style={{ width: '100%', justifyContent: 'center', marginTop: 12 }} disabled={(!file && !sample && !real) || running || !mayAnalyse} title={cannotAnalyse} onClick={() => (real ? runReal(real) : run())}>
               {running ? <><span className="spinner" /> Analysing…</> : <><Icon name="analysis" size={15} /> Analyse signal</>}
             </button>
           </Panel>

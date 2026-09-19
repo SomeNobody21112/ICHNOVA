@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { getToken, logout as apiLogout, onAuthChange } from './api'
+import { can, getToken, logout as apiLogout, onAuthChange, ROLE_LABEL } from './api'
 import { interleaverBits } from './format'
 import { buildWorld, simPack, STATIONS, type World } from './sim'
 import type { AuditEvent, BenchmarkData, EvidencePack, Level, Session, SignalRecord, Zone } from './types'
@@ -243,6 +243,24 @@ export function stationName(id: string) {
   if (id === BENCH_STATION) return 'Evaluation bench (offline)'
   const s = STATIONS.find((x) => x.id === id)
   return s ? `${s.id} · ${s.name}` : id
+}
+
+/**
+ * Whether the signed-in role may do something, for disabling controls the server would refuse.
+ *
+ * This is presentation only. The server checks the same permission against the role in the session
+ * token and is the authority; disabling a button here never stands in for that. A session with no
+ * server-issued role (the offline prototype paths) is allowed through, so the console still works
+ * where authentication is not in play.
+ */
+export function useCan(permission: string) {
+  const { session } = useApp()
+  return !session?.authRole || can(session.authRole, permission)
+}
+
+/** The sentence to put on a control the current role may not use. */
+export function whyNot(role: Session['authRole'], permission: string) {
+  return role ? `Your role (${ROLE_LABEL[role]}) may not ${permission}.` : undefined
 }
 
 export function usePack(id: string | undefined) {

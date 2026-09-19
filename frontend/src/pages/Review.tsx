@@ -4,12 +4,14 @@ import { Link } from 'react-router-dom'
 import { GenomeGlyph } from '../components/charts'
 import { Icon, Panel, Seg, Stamp, Tag } from '../components/ui'
 import { fmtAgo, fmtFreq } from '../lib/format'
-import { stationName, useApp } from '../lib/store'
+import { stationName, useApp, useCan, whyNot } from '../lib/store'
 
 type Filter = 'OPEN' | 'DONE'
 
 export default function Review() {
-  const { signals, reviews, review } = useApp()
+  const { signals, reviews, review, session } = useApp()
+  const mayReview = useCan('review')
+  const cannotReview = whyNot(session?.authRole, 'review')
   const [filter, setFilter] = useState<Filter>('OPEN')
   const queue = useMemo(() => signals.filter((s) => s.status !== 'DECODED' || s.investigate), [signals])
   const open = queue.filter((s) => !reviews[s.id])
@@ -49,11 +51,11 @@ export default function Review() {
                 {reviews[s.id] ? (
                   <div className="banner" style={{ padding: '8px 10px' }}><Icon name="check" className="ok" /><span>{reviews[s.id].action} · {reviews[s.id].by}</span></div>
                 ) : (
-                  <div className="row-wrap">
-                    <button className="btn btn-good btn-sm" onClick={() => review(s.id, 'Marked known')}>Mark known</button>
-                    <button className="btn btn-sm" onClick={() => review(s.id, 'Added to library')}>Add to library</button>
-                    <button className="btn btn-warn btn-sm" onClick={() => review(s.id, 'Deep analysis requested')}>Request deep analysis</button>
-                    <button className="btn btn-ghost btn-sm" onClick={() => review(s.id, 'Dismissed')}>Dismiss</button>
+                  <div className="row-wrap" title={mayReview ? undefined : cannotReview}>
+                    <button className="btn btn-good btn-sm" disabled={!mayReview} onClick={() => review(s.id, 'Marked known')}>Mark known</button>
+                    <button className="btn btn-sm" disabled={!mayReview} onClick={() => review(s.id, 'Added to library')}>Add to library</button>
+                    <button className="btn btn-warn btn-sm" disabled={!mayReview} onClick={() => review(s.id, 'Deep analysis requested')}>Request deep analysis</button>
+                    <button className="btn btn-ghost btn-sm" disabled={!mayReview} onClick={() => review(s.id, 'Dismissed')}>Dismiss</button>
                   </div>
                 )}
               </div>

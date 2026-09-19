@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { apiJson } from '../lib/api'
+import { useApp, useCan, whyNot } from '../lib/store'
 import type { EvidencePack } from '../lib/types'
 import { Icon, Panel } from './ui'
 
@@ -27,6 +28,9 @@ interface FlushReport { sent: number; retry: number; dead: number; attempted: nu
 
 /** Raise a case from a signal record. Writes locally; delivery is a separate, visible step. */
 export function RaiseCase({ pack, station }: { pack: EvidencePack; station?: string }) {
+  const { session } = useApp()
+  const mayReview = useCan('review')
+  const cannotReview = whyNot(session?.authRole, 'review')
   const [state, setState] = useState<{ busy: boolean; message: string | null; tone: 'ok' | 'warn' }>(
     { busy: false, message: null, tone: 'ok' })
 
@@ -69,8 +73,9 @@ export function RaiseCase({ pack, station }: { pack: EvidencePack; station?: str
 
   return (
     <>
-      <button className="btn btn-sm" onClick={() => void raiseCase()} disabled={state.busy || !pack.receipt}
-        data-loading={state.busy} title={pack.receipt ? undefined : 'This record has no receipt to reference'}>
+      <button className="btn btn-sm" onClick={() => void raiseCase()} disabled={state.busy || !pack.receipt || !mayReview}
+        data-loading={state.busy}
+        title={!mayReview ? cannotReview : pack.receipt ? undefined : 'This record has no receipt to reference'}>
         <Icon name="flag" size={13} /> {state.busy ? 'Raising…' : 'Raise case'}
       </button>
       {state.message && (
@@ -84,6 +89,9 @@ export function RaiseCase({ pack, station }: { pack: EvidencePack; station?: str
 
 /** The queue itself: what is waiting, what was delivered, and what needs a human. */
 export function CaseOutbox() {
+  const { session } = useApp()
+  const mayReview = useCan('review')
+  const cannotReview = whyNot(session?.authRole, 'review')
   const [data, setData] = useState<CrmStatus | null>(null)
   const [report, setReport] = useState<FlushReport | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -112,8 +120,8 @@ export function CaseOutbox() {
       title="Case hand-off"
       sub="Cases are written here first, so a flat network never loses one. Delivery is a separate step."
       right={
-        <button className="btn btn-sm" onClick={() => void deliver()} disabled={busy || !data?.outbox.pending}
-          data-loading={busy}>{busy ? 'Attempting…' : 'Attempt delivery'}</button>
+        <button className="btn btn-sm" onClick={() => void deliver()} disabled={busy || !data?.outbox.pending || !mayReview}
+          data-loading={busy} title={mayReview ? undefined : cannotReview}>{busy ? 'Attempting…' : 'Attempt delivery'}</button>
       }
     >
       {error && <div className="banner amber" role="alert"><Icon name="info" /><span>{error}</span></div>}

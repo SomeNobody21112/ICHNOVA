@@ -5,7 +5,7 @@ import { AmPanel, BlindCatalogue, CensusTable, DecodedTime, EvidenceSteps, Minut
 import { Icon, Panel, Seg, Stamp, Tag } from '../components/ui'
 import { useLiveFeed, type ReplayDoc, type ReplayIndexEntry, type StationsDoc } from '../lib/live'
 import { api } from '../lib/api'
-import { useApp } from '../lib/store'
+import { useApp, useCan, whyNot } from '../lib/store'
 
 type Source = { kind: 'replay'; id: string } | { kind: 'live'; session: string; stationKey: string; mode: 'iq' | 'band' }
 
@@ -21,7 +21,9 @@ function freq(khz: number) {
 }
 
 export default function Monitor() {
-  const { engine } = useApp()
+  const { engine, session } = useApp()
+  const mayReceive = useCan('live')
+  const cannotReceive = whyNot(session?.authRole, 'live')
   const [stations, setStations] = useState<StationsDoc | null>(null)
   const [index, setIndex] = useState<ReplayIndexEntry[]>([])
   const [source, setSource] = useState<Source | null>(null)
@@ -139,7 +141,7 @@ export default function Monitor() {
                       <div className="row" style={{ gap: 6, marginTop: 8 }}>
                         {rec && <button className="btn btn-sm" onClick={() => setSource({ kind: 'replay', id: rec.id })}><Icon name="play" size={11} /> Replay</button>}
                         <span className="grow" />
-                        <button className="btn btn-sm" disabled={!engine.online || starting !== null} onClick={() => goLive(key, m)} title={engine.online ? 'Receive now' : 'Start the local engine for live reception'}>
+                        <button className="btn btn-sm" disabled={!engine.online || starting !== null || !mayReceive} onClick={() => goLive(key, m)} title={!mayReceive ? cannotReceive : engine.online ? 'Receive now' : 'Start the local engine for live reception'}>
                           {starting === key + m ? <span className="spinner" /> : <span className="live-dot" />} Receive live
                         </button>
                       </div>

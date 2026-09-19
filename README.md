@@ -67,11 +67,13 @@ docker run --rm -p 7860:7860 ichnova        # http://127.0.0.1:7860
 `python server/app.py`). The image contains the engine, the server, the reference constants, the
 committed real recordings and the built console; benchmark data and evaluation scripts stay out.
 
-Before putting an instance on a public URL, note two limitations that have not changed
-(Constitution §9.2, §25.8):
+Before putting an instance on a public URL, note the limitations (Constitution §9.2, §25.8):
 
-- the API is **unauthenticated and has no TLS**, so anyone with the URL can upload captures and use CPU;
-  host it behind the platform's own access control (for example a private Hugging Face Space);
+- the API is **authenticated** — scrypt passwords, signed session tokens with an expiry, per-endpoint
+  role permissions and rate limiting — but it terminates **no TLS**, so put it behind a proxy or a
+  platform that does. Set `ICHNOVA_SECRET_KEY` so sessions survive a restart; without it a random key
+  is generated at start-up. `ICHNOVA_OPEN_API=1` restores the old open behaviour for a single-user
+  offline workstation;
 - the engine is **air-gap capable by design**. A hosted instance is a convenience for reviewers, not
   the deployment model, and the page keeps the "independent SIH prototype, not an official Government
   of India system" disclaimer.
@@ -102,6 +104,12 @@ The complete compiled brief — tech stack, user flows, workflows (data export, 
 | `src/timecodes.py` | Blind time-code receiver: WWV, WWVB, DCF77, MSF, JJY (epoch, symbols, ML frame decode, digit reliability) |
 | `src/fsk.py` | Blind FSK: tone pair, shift, baud, framing, ITA2/ASCII; CHU packets |
 | `src/broadcast.py`, `src/realsig.py` | AM characterisation; one entry point running every real-signal receiver |
+| `src/quality.py` | Capture gate: GOOD / DEGRADED / FAILED on clipping, DC, dropouts, I/Q balance — reported beside the verdict, never part of it |
+| `src/sufficiency.py` | What would settle a refusal, in parity checks derived from the test that refused it |
+| `src/receipt.py`, `server/verify_receipt.py` | SHA-256 receipt chain over decisions, and a CLI to verify a ledger independently |
+| `server/auth.py` | scrypt passwords, signed session tokens, role permissions, rate limiting |
+| `server/sources.py` | Signal sources with provenance, licence, what they feed (ENGINE / REFERENCE ONLY / METADATA ONLY) and measured health |
+| `server/crm.py` | Salesforce case hand-off through a local outbox: idempotent, retrying, and never reports a sync that did not happen |
 | `server/kiwi.py`, `server/live.py`, `server/stations.py` | Public-receiver IQ/waterfall clients, live sessions (SSE), station catalogue with official references |
 | `recordings/` | Real-signal recordings (IQ .wav + GPS sidecar) and official reference data (AIR transmitter list) |
 | `server/` | Local analysis API (`app.py`), evidence packs, frontend data export |

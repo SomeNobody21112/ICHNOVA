@@ -281,6 +281,20 @@ def test_authorised_analysis_still_works(server):
     assert pack['capture']['fs_source'] == 'wav_header'
 
 
+def test_console_permission_table_matches_the_server():
+    """The console disables controls the server would refuse, using its own copy of the permission
+    table. If the two drift, the UI starts lying about what the operator may do — in either
+    direction — so the copy is checked against the original rather than trusted."""
+    import re
+    src = open(os.path.join(ROOT, 'frontend', 'src', 'lib', 'api.ts'), encoding='utf-8').read()
+    block = re.search(r'ROLE_CAN:[^=]*=\s*\{(.*?)\n\}', src, re.S)
+    assert block, 'ROLE_CAN not found in frontend/src/lib/api.ts'
+    console = {role: set(re.findall(r"'([a-z]+)'", perms))
+               for role, perms in re.findall(r'(\w+):\s*\[([^\]]*)\]', block.group(1))}
+    server = {role: {p for p, roles in auth.PERMISSIONS.items() if role in roles} for role in auth.ROLES}
+    assert console == server, f'console {console} != server {server}'
+
+
 # ---------------------------------------------------------------- CRM hand-off over HTTP
 @pytest.fixture
 def local_outbox(tmp_path, monkeypatch):
