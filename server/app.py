@@ -8,6 +8,8 @@ POST /api/analyze?format=iq|wav[&fs=HZ]&name=...  (no fs for .iq → fs_source '
                                            the real-signal receivers (src/realsig.py) under pack.real
 GET  /api/ledger[?limit=N]               evidence receipts as stored, one raw JSON line each, so a
                                          client can recompute the hash chain without trusting us
+GET  /api/sources[?network=0]            signal sources with provenance, licence, what they feed
+                                         (ENGINE / REFERENCE ONLY / METADATA ONLY) and measured health
 GET  /api/live/stations                  live-receivable government transmitters (server/stations.py)
 POST /api/live/start?station=KEY[&mode=iq|band&seconds=S&receiver=URL]   → {session}
 GET  /api/live/events?session=ID         Server-Sent Events: spectrum rows, symbols, decodes, result
@@ -40,6 +42,7 @@ from evidence import LEDGER, ROOT, build_pack, engine_info, to_json_default   # 
 from modem import load_wav                                            # noqa: E402
 import live                                                           # noqa: E402
 import realsig                                                        # noqa: E402
+import sources                                                        # noqa: E402
 from stations import STATIONS                                         # noqa: E402
 
 DIST = os.path.join(ROOT, 'frontend', 'dist')
@@ -258,6 +261,11 @@ class Handler(SimpleHTTPRequestHandler):
             return self._json(200, {'path': os.path.relpath(LEDGER, ROOT).replace('\\', '/'),
                                     'total': len(lines), 'lines': lines[-limit:],
                                     'truncated': len(lines) > limit})
+        if path == '/api/sources':
+            # Health is measured on request, against the live services, so this can take a few
+            # seconds. `network=0` answers from what is known offline instead of waiting.
+            net = self._query().get('network', '1') != '0'
+            return self._json(200, {'sources': sources.status_all(timeout=8, include_network=net)})
         if path == '/api/live/stations':
             keys = ('name', 'operator', 'country', 'service', 'frequency_khz', 'site', 'analysis', 'capture_s', 'references')
             return self._json(200, {k: {kk: v[kk] for kk in keys} for k, v in STATIONS.items()})

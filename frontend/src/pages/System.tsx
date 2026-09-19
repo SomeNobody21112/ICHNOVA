@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { SignalSources } from '../components/sources'
 import { Icon, Panel, Tag } from '../components/ui'
 import { fmtDateTime } from '../lib/format'
 import { STATIONS } from '../lib/sim'
@@ -97,6 +98,8 @@ export default function System() {
           </Panel>
         </div>
       </div>
+
+      <div style={{ marginTop: 14 }}><SignalSources /></div>
 
       <Panel title="Audit trail" sub="Every sign-in, analysis, review and export on this workstation" style={{ marginTop: 14 }} flush right={<span className="muted mono" style={{ fontSize: 11 }}>{audit.length} events · stored locally</span>}>
         {audit.length ? (
