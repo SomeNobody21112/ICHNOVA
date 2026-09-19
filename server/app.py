@@ -48,6 +48,7 @@ import live                                                           # noqa: E4
 import realsig                                                        # noqa: E402
 import crm                                                            # noqa: E402
 import sources                                                        # noqa: E402
+import store_lock                                                     # noqa: E402
 from stations import STATIONS                                         # noqa: E402
 
 DIST = os.path.join(ROOT, 'frontend', 'dist')
@@ -463,6 +464,13 @@ if __name__ == '__main__':
     ap.add_argument('--port', type=int, default=int(os.environ.get('PORT', 8765)))
     ap.add_argument('--host', default=os.environ.get('HOST', '127.0.0.1'))
     a = ap.parse_args()
+    # One writer per results directory. The ledger and the outbox are serialised within a process;
+    # a second process on the same directory would fork the evidence chain, so it is refused here
+    # rather than discovered later by a verifier. The handle stays alive for the process lifetime.
+    try:
+        _writer_lock = store_lock.acquire(os.path.join(ROOT, 'results'))    # noqa: F841
+    except store_lock.AlreadyRunning as e:
+        raise SystemExit(f'refusing to start: {e}')
     print(f'Analysis server on http://{a.host}:{a.port}  (frontend: {DIST})')
     server = ThreadingHTTPServer((a.host, a.port), Handler)
     server.daemon_threads = True

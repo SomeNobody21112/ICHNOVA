@@ -4,8 +4,17 @@
 #
 # The application is not published on a host port: it is reachable only through the proxy. Secrets
 # come from the environment or from a .env file that is never committed. See deploy/README.md.
+#
+# ONE ICHNOVA INSTANCE PER RESULTS VOLUME. The receipt ledger and the CRM outbox are append-only
+# files serialised within a process. A second process on the same volume would fork the evidence
+# chain, so `deploy.replicas` must stay 1 and `docker compose up --scale ichnova=2` must not be
+# used. The application enforces this itself -- it takes an exclusive OS lock on the results
+# directory at start-up (server/store_lock.py) and a second instance exits rather than starting --
+# but the comment is here because the enforcement should not be the first time anyone finds out.
 services:
   ichnova:
+    deploy:
+      replicas: 1
     build:
       context: ..
       dockerfile: Dockerfile
