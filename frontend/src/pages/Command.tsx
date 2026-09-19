@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Donut, Heatmap, Sparkline } from '../components/charts'
 import IndiaMap, { type MapStation } from '../components/IndiaMap'
 import { RealProof } from '../components/realproof'
-import { Icon, Kpi, Panel, Stamp, Tag } from '../components/ui'
+import { Icon, Kpi, Panel, Tag } from '../components/ui'
 import { fmtAgo, fmtFreq } from '../lib/format'
 import { BANDS, DAY, occupancy, STATIONS, ZONES } from '../lib/sim'
 import { stationName, useApp } from '../lib/store'
@@ -14,6 +14,11 @@ export default function Command() {
   const now = world.now
   const inZone = (stationId: string) => !zone || STATIONS.find((s) => s.id === stationId)?.zone === zone
   const zs = useMemo(() => signals.filter((s) => s.provenance === 'SIMULATED' && inZone(s.stationId)), [signals, zone]) // eslint-disable-line react-hooks/exhaustive-deps
+  const outcomes = [
+    { value: zs.filter((s) => s.status === 'DECODED').length, color: 'var(--green)', label: 'Decoded' },
+    { value: zs.filter((s) => s.status === 'SIGNAL_NO_CODE').length, color: 'var(--cyan)', label: 'Signal, no code' },
+    { value: zs.filter((s) => s.status === 'UNKNOWN').length, color: 'var(--amber)', label: 'Unknown' },
+  ]
   const unknown = zs.filter((s) => s.status !== 'DECODED')
   const incidents = world.incidents.filter((i) => i.status !== 'CLOSED' && i.stationIds.some(inZone))
   const anomalies = world.anomalies.filter((a) => inZone(a.stationId))
@@ -121,13 +126,19 @@ export default function Command() {
             <div className="row mono muted" style={{ fontSize: 11, justifyContent: 'space-between', paddingLeft: 50 }}><span>−24 h</span><span>−12 h</span><span>now</span></div>
           </Panel>
           <Panel title="Outcomes" right={<Tag kind="SIMULATED" />}>
-            <div className="row" style={{ gap: 14 }}>
-              <Donut size={112} label={String(zs.length)} parts={[
-                { value: zs.filter((s) => s.status === 'DECODED').length, color: 'var(--green)', label: 'DECODED' },
-                { value: zs.filter((s) => s.status === 'SIGNAL_NO_CODE').length, color: 'var(--cyan)', label: 'NO CODE' },
-                { value: zs.filter((s) => s.status === 'UNKNOWN').length, color: 'var(--amber)', label: 'UNKNOWN' },
-              ]} />
-              <div className="col" style={{ gap: 6 }}><Stamp status="DECODED" /><Stamp status="SIGNAL_NO_CODE" /><Stamp status="UNKNOWN" /></div>
+            {/* A legend, not three verdict stamps: stamps are sized to announce one result and
+                spilled out of this narrow card; the legend also carries the counts. */}
+            <div className="row-wrap" style={{ gap: 16 }}>
+              <Donut size={112} label={String(zs.length)} parts={outcomes} />
+              <div className="col" style={{ gap: 8, minWidth: 0, fontSize: 12.5 }}>
+                {outcomes.map((o) => (
+                  <span key={o.label} className="row" style={{ gap: 8 }}>
+                    <i style={{ width: 8, height: 8, borderRadius: 2, background: o.color, flex: 'none' }} />
+                    <span className="muted">{o.label}</span>
+                    <b className="mono" style={{ marginLeft: 'auto', paddingLeft: 10 }}>{o.value}</b>
+                  </span>
+                ))}
+              </div>
             </div>
           </Panel>
           <Panel title="Signals per hour · 24 h" right={<Tag kind="SIMULATED" />}>
