@@ -4,172 +4,370 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=1920, height=1080" />
     <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <script src="data.js"></script>
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
       html, body {
-        width: 1920px; height: 1080px; overflow: hidden;
-        background: #0c0b0a;
+        width: 1920px; height: 1080px; overflow: hidden; background: #080806;
         font-family: ui-sans-serif, system-ui, "Segoe UI", sans-serif;
       }
       :root {
-        --text: #ede9e3;
-        --dim: #9a9187;
-        --gold: #d6a467;
-        --green: #5fbf8f;
-        --cyan: #6fb6c9;
-        --amber: #d9a441;
+        --text: #f2eee8; --dim: #a9a096; --gold: #e0aa6e;
+        --green: #63c98f; --cyan: #74bed1; --amber: #dfa845; --red: #e07b7e;
       }
       #root { width: 100%; height: 100%; position: relative; }
+      canvas { position: absolute; inset: 0; width: 1920px; height: 1080px; }
 
-      .scene {
-        position: absolute; inset: 0;
-        display: flex; flex-direction: column;
-        align-items: center; justify-content: center;
-        opacity: 0; padding: 0 160px; text-align: center;
-      }
+      .layer { position: absolute; inset: 0; opacity: 0; }
+      .center { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 0 170px; }
+
       .kicker {
-        font-family: ui-monospace, Consolas, "Courier New", monospace;
-        font-size: 22px; letter-spacing: 0.34em; text-transform: uppercase;
-        color: var(--dim); margin-bottom: 34px;
+        font-family: ui-monospace, Consolas, monospace; font-size: 21px;
+        letter-spacing: 0.36em; text-transform: uppercase; color: var(--dim);
       }
-      .line { font-size: 62px; font-weight: 500; color: var(--text); line-height: 1.24; letter-spacing: -0.02em; max-width: 1400px; }
-      .small { font-size: 34px; color: var(--dim); margin-top: 30px; line-height: 1.45; max-width: 1200px; }
-      .figure {
-        font-family: ui-monospace, Consolas, "Courier New", monospace;
-        font-size: 168px; font-weight: 600; letter-spacing: -0.045em; color: var(--gold);
-        line-height: 1;
-      }
-      .figure.sm { font-size: 118px; }
-      .caption {
-        font-family: ui-monospace, Consolas, "Courier New", monospace;
-        font-size: 26px; letter-spacing: 0.2em; text-transform: uppercase;
-        color: var(--dim); margin-top: 30px;
+      .line { font-size: 64px; font-weight: 500; color: var(--text); line-height: 1.2; letter-spacing: -0.022em; }
+      .line.sm { font-size: 46px; }
+      .sub { font-size: 31px; color: var(--dim); line-height: 1.5; max-width: 1180px; }
+      .mono { font-family: ui-monospace, Consolas, monospace; }
+
+      .hero-num {
+        font-family: ui-monospace, Consolas, monospace; font-size: 150px; font-weight: 700;
+        color: var(--gold); letter-spacing: -0.04em; line-height: 1;
       }
       .verdict {
-        font-family: ui-monospace, Consolas, "Courier New", monospace;
-        font-size: 86px; font-weight: 600; letter-spacing: 0.1em;
-        padding: 20px 46px; border: 2px solid; border-radius: 10px;
+        font-family: ui-monospace, Consolas, monospace; font-size: 74px; font-weight: 700;
+        letter-spacing: 0.12em; padding: 18px 44px; border: 2px solid; border-radius: 8px;
       }
-      .v-decoded { color: var(--green); border-color: #2f6b4f; background: rgba(95,191,143,0.07); }
-      .v-unknown { color: var(--amber); border-color: #6b5524; background: rgba(217,164,65,0.07); }
-      .v-nocode  { color: var(--cyan); border-color: #2c5a66; background: rgba(111,182,201,0.07); }
-      .row { display: flex; gap: 96px; align-items: center; justify-content: center; }
-      .stat { display: flex; flex-direction: column; align-items: center; gap: 14px; }
-      .stat b { font-family: ui-monospace, monospace; font-size: 84px; font-weight: 600; color: var(--text); }
-      .stat span { font-size: 24px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--dim); }
-      .wordmark { font-size: 30px; letter-spacing: 0.52em; text-transform: uppercase; color: var(--text); }
-      .rule { width: 132px; height: 2px; background: var(--gold); margin: 42px 0; }
+      .v-ok   { color: var(--green); border-color: #35734f; background: rgba(99,201,143,0.08); }
+      .v-unk  { color: var(--amber); border-color: #6f5a27; background: rgba(223,168,69,0.08); }
+      .v-no   { color: var(--cyan);  border-color: #2f5f6c; background: rgba(116,190,209,0.08); }
+
+      .chip {
+        font-family: ui-monospace, Consolas, monospace; font-size: 25px; color: var(--dim);
+        border: 1px solid #332e29; border-radius: 6px; padding: 10px 20px;
+      }
+      .row { display: flex; gap: 22px; align-items: center; justify-content: center; flex-wrap: wrap; }
+
+      .stat b { font-family: ui-monospace, Consolas, monospace; font-size: 92px; font-weight: 700; color: var(--text); display: block; }
+      .stat span { font-size: 22px; letter-spacing: 0.17em; text-transform: uppercase; color: var(--dim); }
+      .stat { min-width: 400px; }
+
+      .wordmark { font-size: 34px; letter-spacing: 0.56em; text-transform: uppercase; color: var(--text); }
+      .rule { width: 120px; height: 2px; background: var(--gold); }
       .foot {
-        position: absolute; bottom: 74px; left: 0; right: 0;
-        font-size: 22px; color: #a8a096; letter-spacing: 0.1em; text-align: center;
+        position: absolute; bottom: 62px; left: 0; right: 0; text-align: center;
+        font-size: 21px; color: #a8a096; letter-spacing: 0.1em;
       }
-      .mono { font-family: ui-monospace, Consolas, "Courier New", monospace; }
+      .vig { position: absolute; inset: 0; pointer-events: none;
+        background: radial-gradient(ellipse at 50% 46%, rgba(0,0,0,0) 38%, rgba(0,0,0,0.72) 100%); }
     </style>
   </head>
   <body>
-    <div id="root" data-composition-id="main" data-start="0" data-duration="64" data-width="1920" data-height="1080">
+    <div id="root" data-composition-id="main" data-start="0" data-duration="104" data-width="1920" data-height="1080">
 
-      <div class="scene" id="s1">
-        <div class="kicker">SIH26147</div>
-        <div class="wordmark">I C H N O V A</div>
-        <div class="rule"></div>
-        <div class="line">This is a radio recording.<br />We were told nothing about it.</div>
+      <canvas id="cv" width="1920" height="1080"></canvas>
+      <div class="vig"></div>
+
+      <!-- 1 cold open -->
+      <div class="layer center" id="L1">
+        <div class="kicker" style="margin-bottom:30px">SIH26147 · blind signal analysis</div>
+        <div class="line">Somewhere in this noise,<br />something is transmitting.</div>
       </div>
 
-      <div class="scene" id="s2">
-        <div class="kicker">What the engine is given</div>
-        <div class="line">No station. No code.<br />Not even the sample rate.</div>
-        <div class="small">It has to work out how the signal was built, from the signal alone.</div>
+      <!-- 2 told nothing -->
+      <div class="layer center" id="L2" style="justify-content:flex-end; padding-bottom:132px">
+        <div class="line sm">No station. No protocol. No sample rate.</div>
+        <div class="sub" style="margin-top:22px">The engine is given the samples, and nothing else.</div>
       </div>
 
-      <div class="scene" id="s3">
-        <div class="verdict v-decoded">DECODED</div>
-        <div class="small" style="margin-top: 46px">QPSK &nbsp;·&nbsp; convolutional K=7 &nbsp;·&nbsp; 10 × 12 interleaver</div>
-        <div class="caption">recovered blind</div>
+      <!-- 3 constellation -->
+      <div class="layer" id="L3" style="display:flex; align-items:center; justify-content:flex-start; padding-left:150px">
+        <div style="text-align:left; max-width:620px">
+          <div class="kicker" style="margin-bottom:26px">Symbols, recovered</div>
+          <div class="line sm">It finds the rate,<br />the offset, the phase —<br />and the picture resolves.</div>
+          <div class="row" style="justify-content:flex-start; margin-top:34px">
+            <div class="chip">QPSK</div><div class="chip">6 samples / symbol</div>
+          </div>
+        </div>
       </div>
 
-      <div class="scene" id="s4">
-        <div class="figure">50,916</div>
-        <div class="caption">hypotheses tested on one capture</div>
-        <div class="small">Try enough explanations and one will fit by chance — so the bar moves to account for every one of them.</div>
+      <!-- 4 hero: the landscape -->
+      <div class="layer" id="L4">
+        <div style="position:absolute; top:88px; left:0; right:0; text-align:center">
+          <div class="kicker">Every explanation, tested</div>
+        </div>
+        <div style="position:absolute; top:150px; left:0; right:0; text-align:center">
+          <div class="hero-num" id="counter" style="font-size:132px">0</div>
+        </div>
+        <div style="position:absolute; bottom:132px; left:0; right:0; text-align:center">
+          <div class="sub" style="margin:0 auto">Try enough explanations and one fits by chance.<br />So the bar moves to account for every one of them.</div>
+        </div>
       </div>
 
-      <div class="scene" id="s5">
-        <div class="kicker">And it still cleared the moved bar</div>
-        <div class="line">That is the only reason<br />it is allowed to answer.</div>
+      <!-- 5 cleared -->
+      <div class="layer center" id="L5">
+        <div class="kicker" style="margin-bottom:28px">The accepted hypothesis</div>
+        <div class="hero-num" style="font-size:118px">10<span style="font-size:64px">−16.3</span></div>
+        <div class="sub" style="margin-top:26px">Nine orders of magnitude past a bar already corrected<br />for all 50,916 hypotheses.</div>
       </div>
 
-      <div class="scene" id="s6">
-        <div class="kicker">Same code. Shorter capture.</div>
-        <div class="verdict v-unknown">UNKNOWN</div>
-        <div class="small" style="margin-top: 44px">A real K=7 transmission — with only 32 coded bits of it.</div>
+      <!-- 6 decoded -->
+      <div class="layer center" id="L6">
+        <div class="verdict v-ok">DECODED</div>
+        <div class="row" style="margin-top:44px">
+          <div class="chip">QPSK</div><div class="chip">convolutional K=7</div><div class="chip">10 × 12 interleaver</div>
+        </div>
+        <div class="sub" style="margin-top:34px">Recovered blind, from the samples alone.</div>
       </div>
 
-      <div class="scene" id="s7">
-        <div class="kicker">It refuses, and says why</div>
-        <div class="line">“More signal would not help.”</div>
-        <div class="small">32 coded bits can never clear the bar. The engine says so instead of guessing.</div>
+      <!-- 7 short capture -->
+      <div class="layer" id="L7">
+        <div style="position:absolute; top:88px; left:0; right:0; text-align:center">
+          <div class="kicker">Same code · a shorter capture</div>
+        </div>
+        <div style="position:absolute; bottom:132px; left:0; right:0; text-align:center">
+          <div class="sub" style="margin:0 auto">Nothing reaches the bar. Not one of 4,356.</div>
+        </div>
       </div>
 
-      <div class="scene" id="s8">
-        <div class="kicker">Real radio · NICT Japan, received blind</div>
-        <div class="figure sm">+1.9 ms</div>
-        <div class="caption">agreement with the receiver’s GPS clock</div>
-        <div class="small">A time station decoded without being told the protocol, checked against something the engine never saw.</div>
+      <!-- 8 refusal -->
+      <div class="layer center" id="L8">
+        <div class="verdict v-unk">UNKNOWN</div>
+        <div class="line sm" style="margin-top:40px">“More signal would not help.”</div>
+        <div class="sub" style="margin-top:22px">32 coded bits can never clear the bar — so it says so,<br />instead of guessing.</div>
       </div>
 
-      <div class="scene" id="s9">
-        <div class="kicker">Same engine · same night · WWVB</div>
-        <div class="verdict v-nocode">SIGNAL&nbsp;·&nbsp;NO&nbsp;CODE</div>
-        <div class="small" style="margin-top: 44px">It found the structure and refused to state a time.<br />The refusal was the correct answer.</div>
+      <!-- 9 real radio -->
+      <div class="layer center" id="L9">
+        <div class="kicker" style="margin-bottom:26px">Real radio · NICT Japan · received blind</div>
+        <div class="hero-num">+1.9 ms</div>
+        <div class="sub" style="margin-top:26px">A time station decoded without being told the protocol —<br />checked against the receiver’s GPS clock, which the engine never saw.</div>
       </div>
 
-      <div class="scene" id="s10">
-        <div class="row">
-          <div class="stat"><b>0 / 120</b><span>false accepts, sealed</span></div>
-          <div class="stat"><b>0 / 900</b><span>false accepts, null set</span></div>
+      <!-- 10 wwvb -->
+      <div class="layer center" id="L10">
+        <div class="kicker" style="margin-bottom:26px">Same engine · same night · WWVB</div>
+        <div class="verdict v-no">SIGNAL&nbsp;·&nbsp;NO&nbsp;CODE</div>
+        <div class="sub" style="margin-top:34px">It found the structure and refused to state a time.<br />The refusal was the right answer.</div>
+      </div>
+
+      <!-- 11 receipts -->
+      <div class="layer" id="L11">
+        <div style="position:absolute; top:96px; left:0; right:0; text-align:center">
+          <div class="kicker">Every decision, hash-chained</div>
+        </div>
+        <div style="position:absolute; bottom:136px; left:0; right:0; text-align:center">
+          <div class="sub" id="chainmsg" style="margin:0 auto">Your browser recomputes the chain. You don’t have to trust the server.</div>
+        </div>
+      </div>
+
+      <!-- 12 stats -->
+      <div class="layer center" id="L12">
+        <div class="row" style="gap:70px">
+          <div class="stat"><b>0 / 120</b><span>false accepts · sealed</span></div>
+          <div class="stat"><b>0 / 900</b><span>false accepts · null set</span></div>
           <div class="stat"><b>0 / 180</b><span>wrong under degradation</span></div>
         </div>
-        <div class="small" style="margin-top: 60px">Degrade a capture and it moves toward refusal — not toward a wrong answer.</div>
+        <div class="sub" style="margin-top:56px">Degrade a capture and it moves toward refusal — never toward a wrong answer.</div>
       </div>
 
-      <div class="scene" id="s11">
-        <div class="kicker">Every decision is hash-chained</div>
-        <div class="line">Your browser re-checks it.<br />You don’t have to trust the server.</div>
-        <div class="small mono" style="margin-top: 36px; color:#d9686b">alter one record → “entry 2: content does not match its hash”</div>
-      </div>
-
-      <div class="scene" id="s12">
+      <!-- 13 close -->
+      <div class="layer center" id="L13">
+        <div class="wordmark">I C H N O V A</div>
+        <div class="rule" style="margin:36px 0"></div>
         <div class="line">Most systems answer.<br />This one also knows when not to.</div>
-        <div class="rule"></div>
-        <div class="small">No field deployment. No accuracy percentage claimed.<br />Every limitation is written down in the repository.</div>
       </div>
 
       <div class="foot" id="foot">ICHNOVA · an independent Smart India Hackathon prototype · not an official Government of India system</div>
     </div>
 
     <script>
-      const tl = gsap.timeline({ paused: true });
+      const D = window.ICHNOVA;
+      const cv = document.getElementById('cv');
+      const ctx = cv.getContext('2d');
+      const W = 1920, H = 1080;
+      const S = { t: 0 };                       // driven by the timeline; every visual reads this
+
+      const lerp = (a, b, t) => a + (b - a) * t;
+      const clamp01 = (x) => x < 0 ? 0 : x > 1 ? 1 : x;
+      const seg = (t, a, b) => clamp01((t - a) / (b - a));
+      const ease = (x) => x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2;
+
+      // Deterministic jitter so every render of a frame is identical.
+      function rnd(i) { const x = Math.sin(i * 12.9898) * 43758.5453; return x - Math.floor(x); }
+
+      // ---------- visual 1: IQ trace scrolling
+      function drawTrace(p, alpha) {
+        const i = D.decoded.ts_i, q = D.decoded.ts_q, n = i.length;
+        ctx.save(); ctx.globalAlpha = alpha; ctx.lineWidth = 2;
+        for (const [arr, col, yo] of [[i, 'rgba(224,170,110,', -70], [q, 'rgba(116,190,209,', 70]]) {
+          ctx.beginPath(); ctx.strokeStyle = col + '0.85)';
+          for (let k = 0; k < n; k++) {
+            const x = (k / (n - 1)) * W * 1.6 - p * W * 0.6;
+            const y = H / 2 + yo + arr[k] * 150;
+            k === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+          }
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      // ---------- visual 2: waterfall built from the real spectrogram
+      function drawWaterfall(p, alpha) {
+        const spec = D.decoded.spec, rows = spec.length, cols = spec[0].length;
+        let lo = 1e9, hi = -1e9;
+        for (const r of spec) for (const v of r) { if (v < lo) lo = v; if (v > hi) hi = v; }
+        const cw = W / cols, chh = 46, top = H / 2 - (rows * chh) / 2;
+        const shown = Math.floor(rows * clamp01(p * 1.25));
+        ctx.save(); ctx.globalAlpha = alpha;
+        for (let r = 0; r < shown; r++) {
+          for (let c = 0; c < cols; c++) {
+            const v = (spec[r][c] - lo) / (hi - lo);
+            const a = Math.pow(v, 1.7);
+            ctx.fillStyle = 'rgba(' + Math.round(lerp(28, 234, a)) + ',' + Math.round(lerp(26, 176, a)) + ',' + Math.round(lerp(24, 112, a)) + ',' + (0.25 + 0.75 * a) + ')';
+            ctx.fillRect(c * cw, top + r * chh, cw + 1, chh + 1);
+          }
+        }
+        ctx.restore();
+      }
+
+      // ---------- visual 3: constellation resolving out of noise
+      function drawConstellation(p, alpha) {
+        const pts = D.decoded.const, cx = W * 0.72, cy = H / 2, R = 250;
+        ctx.save(); ctx.globalAlpha = alpha;
+        ctx.strokeStyle = 'rgba(255,255,255,0.10)'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(cx - R, cy); ctx.lineTo(cx + R, cy);
+        ctx.moveTo(cx, cy - R); ctx.lineTo(cx, cy + R); ctx.stroke();
+        const e = ease(p);
+        pts.forEach((pt, k) => {
+          const sx = (rnd(k) - 0.5) * 2.6, sy = (rnd(k + 99) - 0.5) * 2.6;
+          const x = cx + lerp(sx, pt[0], e) * R * 0.78;
+          const y = cy - lerp(sy, pt[1], e) * R * 0.78;
+          ctx.fillStyle = 'rgba(116,190,209,' + (0.35 + 0.55 * e) + ')';
+          ctx.beginPath(); ctx.arc(x, y, 5.5, 0, 7); ctx.fill();
+        });
+        ctx.restore();
+      }
+
+      // ---------- visual 4 + 5: the hypothesis landscape (the hero shot)
+      function drawLandscape(key, p, alpha, showBar, glowBest) {
+        const d = D[key], L = d.landscape, n = L.length;
+        const top = 352, bot = H - 232, left = 150, right = W - 150;
+        // Most hypotheses sit near p = 1, so a linear axis crushes them into a band at the top.
+        // A square-root axis spreads the bulk and still leaves the winner alone at the bottom.
+        const span = Math.max(Math.abs(Math.min(d.best, d.bar)) * 1.12, 8);
+        const y = (v) => top + Math.sqrt(clamp01(Math.abs(Math.min(v, 0)) / span)) * (bot - top);
+        ctx.save(); ctx.globalAlpha = alpha;
+        const shown = Math.floor(n * clamp01(p * 1.15));
+        for (let k = 0; k < shown; k++) {
+          const fall = clamp01((p * 1.15 - k / n) * 7);
+          const x = left + rnd(k) * (right - left);
+          const yy = lerp(top - 120, y(L[k]), ease(fall));
+          const below = L[k] <= d.bar;
+          ctx.fillStyle = below ? 'rgba(232,178,116,0.85)' : 'rgba(186,176,164,0.34)';
+          ctx.beginPath(); ctx.arc(x, yy, below ? 3.0 : 2.4, 0, 7); ctx.fill();
+        }
+        if (showBar > 0) {
+          const by = y(d.bar);
+          ctx.globalAlpha = alpha * showBar;
+          ctx.strokeStyle = 'rgba(223,168,69,0.95)'; ctx.lineWidth = 2.5;
+          ctx.setLineDash([14, 10]);
+          ctx.beginPath(); ctx.moveTo(left, by); ctx.lineTo(right, by); ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.fillStyle = 'rgba(223,168,69,0.95)';
+          ctx.font = '600 24px ui-monospace, Consolas, monospace';
+          ctx.textAlign = 'left';
+          ctx.fillText('ACCEPTANCE BAR  10^' + d.bar.toFixed(2), left, by - 18);
+        }
+        if (glowBest > 0) {
+          const gx = left + 0.5 * (right - left), gy = y(d.best);
+          ctx.globalAlpha = alpha;
+          const g = ctx.createRadialGradient(gx, gy, 0, gx, gy, 90 * glowBest);
+          g.addColorStop(0, 'rgba(99,201,143,0.85)'); g.addColorStop(1, 'rgba(99,201,143,0)');
+          ctx.fillStyle = g; ctx.beginPath(); ctx.arc(gx, gy, 90 * glowBest, 0, 7); ctx.fill();
+          ctx.fillStyle = '#63c98f'; ctx.beginPath(); ctx.arc(gx, gy, 7, 0, 7); ctx.fill();
+        }
+        ctx.restore();
+      }
+
+      // ---------- visual 6: the receipt chain
+      function drawChain(p, alpha, breakAt) {
+        const N = 6, bw = 180, bh = 118, gap = 74;
+        const total = N * bw + (N - 1) * gap, x0 = (W - total) / 2, y0 = H / 2 - bh / 2;
+        ctx.save(); ctx.globalAlpha = alpha;
+        ctx.font = '600 19px ui-monospace, Consolas, monospace'; ctx.textAlign = 'center';
+        for (let k = 0; k < N; k++) {
+          const app = clamp01((p * 1.3 - k * 0.12) * 4);
+          if (app <= 0) continue;
+          const x = x0 + k * (bw + gap);
+          const broken = breakAt >= 0 && k === breakAt;
+          ctx.globalAlpha = alpha * app;
+          ctx.strokeStyle = broken ? 'rgba(224,123,126,0.95)' : 'rgba(224,170,110,0.75)';
+          ctx.lineWidth = 2;
+          ctx.fillStyle = broken ? 'rgba(224,123,126,0.10)' : 'rgba(224,170,110,0.06)';
+          ctx.beginPath(); ctx.roundRect(x, y0, bw, bh, 8); ctx.fill(); ctx.stroke();
+          ctx.fillStyle = broken ? '#e07b7e' : '#a9a096';
+          ctx.fillText(broken ? 'ALTERED' : 'SHA-256', x + bw / 2, y0 + 50);
+          ctx.fillStyle = broken ? '#e07b7e' : '#f2eee8';
+          ctx.fillText(['7b607f', '0bd641', 'd5ce7f', '82ebeb', '3c19aa', '5db9c8'][k], x + bw / 2, y0 + 82);
+          if (k < N - 1) {
+            const lk = clamp01((p * 1.3 - k * 0.12 - 0.06) * 4);
+            ctx.globalAlpha = alpha * lk;
+            ctx.strokeStyle = (breakAt >= 0 && k + 1 === breakAt) ? 'rgba(224,123,126,0.9)' : 'rgba(224,170,110,0.5)';
+            ctx.beginPath(); ctx.moveTo(x + bw, y0 + bh / 2); ctx.lineTo(x + bw + gap, y0 + bh / 2); ctx.stroke();
+          }
+        }
+        ctx.restore();
+      }
+
+      // ---------- the frame router
+      function render() {
+        const t = S.t;
+        ctx.clearRect(0, 0, W, H);
+
+        if (t < 14) drawTrace(seg(t, 0, 14), Math.min(seg(t, 0, 1.2), 1 - seg(t, 11.5, 14)));
+        if (t >= 6 && t < 16) drawWaterfall(seg(t, 6.5, 13), Math.min(seg(t, 6.5, 7.6), 1 - seg(t, 14.4, 16)));
+        if (t >= 15 && t < 25) drawConstellation(seg(t, 15.4, 21.5), Math.min(seg(t, 15.2, 16.2), 1 - seg(t, 23.4, 25)));
+        if (t >= 24 && t < 44) {
+          drawLandscape('decoded', seg(t, 24.6, 33), Math.min(seg(t, 24.4, 25.4), 1 - seg(t, 42.4, 44)),
+                        seg(t, 32.5, 34), seg(t, 35.5, 37));
+        }
+        if (t >= 51 && t < 61) {
+          drawLandscape('short', seg(t, 51.2, 57), Math.min(seg(t, 51.0, 52.0), 1 - seg(t, 59.4, 61)),
+                        seg(t, 54.5, 56), 0);
+        }
+        if (t >= 81 && t < 91) drawChain(seg(t, 81.2, 86), Math.min(seg(t, 81.0, 82.0), 1 - seg(t, 89.4, 91)),
+                                          t >= 87.0 ? 2 : -1);
+      }
+
+      // ---------- timeline
+      const tl = gsap.timeline({ paused: true, onUpdate: render });
+      tl.to(S, { t: 104, duration: 104, ease: 'none' }, 0);
 
       const beats = [
-        ['#s1', 0.0, 5.0], ['#s2', 5.0, 5.0], ['#s3', 10.0, 6.0], ['#s4', 16.0, 6.0],
-        ['#s5', 22.0, 5.0], ['#s6', 27.0, 5.5], ['#s7', 32.5, 5.5], ['#s8', 38.0, 6.0],
-        ['#s9', 44.0, 5.5], ['#s10', 49.5, 6.0], ['#s11', 55.5, 4.5], ['#s12', 60.0, 4.0],
+        ['#L1', 1.0, 4.6], ['#L2', 8.4, 5.6], ['#L3', 16.2, 7.2], ['#L4', 25.0, 10.4],
+        ['#L5', 37.0, 6.2], ['#L6', 44.6, 5.6], ['#L7', 51.4, 8.0], ['#L8', 60.4, 6.4],
+        ['#L9', 67.8, 5.8], ['#L10', 74.4, 5.8], ['#L11', 81.2, 9.2], ['#L12', 91.2, 5.2],
+        ['#L13', 97.2, 5.4],
       ];
-
       beats.forEach(function (b) {
         var sel = b[0], start = b[1], hold = b[2];
-        tl.fromTo(sel, { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.55, ease: 'power2.out' }, start);
-        tl.to(sel, { opacity: 0, y: -14, duration: 0.45, ease: 'power2.in' }, start + hold - 0.45);
+        tl.fromTo(sel, { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.6, ease: 'power2.out' }, start);
+        tl.to(sel, { opacity: 0, y: -12, duration: 0.5, ease: 'power2.in' }, start + hold - 0.5);
       });
 
-      tl.fromTo('#s4 .figure', { scale: 0.96 }, { scale: 1, duration: 0.8, ease: 'power2.out' }, 16.0);
-      tl.fromTo('#s8 .figure', { scale: 0.96 }, { scale: 1, duration: 0.8, ease: 'power2.out' }, 38.0);
-      tl.fromTo('#s10 .stat b', { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.6, stagger: 0.18, ease: 'power2.out' }, 49.8);
-      tl.fromTo('#foot', { opacity: 0 }, { opacity: 1, duration: 1.0 }, 0.4);
+      // The counter ticks to the real hypothesis count.
+      const C = { v: 0 };
+      tl.to(C, {
+        v: D.decoded.n_hyp, duration: 7.0, ease: 'power1.out',
+        onUpdate: function () { document.getElementById('counter').textContent = Math.round(C.v).toLocaleString('en-US'); }
+      }, 25.6);
+
+      tl.fromTo('#foot', { opacity: 0 }, { opacity: 1, duration: 1.2 }, 0.6);
 
       window.__timelines['main'] = tl;
       tl.seek(0);
+      render();
     </script>
   </body>
 </html>
