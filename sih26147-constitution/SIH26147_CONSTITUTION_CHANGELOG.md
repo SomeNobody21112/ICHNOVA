@@ -1,5 +1,35 @@
 # SIH26147 — CONSTITUTION CHANGELOG
 
+## v2.5.4 — 2026-09-20 — Deployment amendment: one writer, honest freshness, TLS configured
+
+No rule, weight, catalogue item or acceptance threshold changed. The document is brought level with
+a hardening pass and a verification pass that both landed after v2.5.3.
+
+- **§9.12 — one writer per results directory.** The receipt ledger and the CRM outbox are
+  append-only files whose head is read before each append. Two processes on one results directory
+  each append against the head they read, which forks the evidence chain — precisely what a receipt
+  exists to prevent. The response was not to make every append cross-process safe, but to make the
+  unsafe configuration impossible: `server/store_lock.py` takes an exclusive OS lock on the
+  directory at start-up (`fcntl.flock` on POSIX, `msvcrt.locking` on Windows) and a second process
+  refuses to start, naming the holder. `deploy/docker-compose.yml` pins `deploy.replicas: 1` with
+  the reason. Proven by starting two servers, not by reading the code. Two hosts against one shared
+  network filesystem remains unsafe and **NOT ESTABLISHED**.
+
+- **§9.13 — reachable is not fresh.** A source that answers is not a source that is delivering. A
+  reachable receiver network with no recent data now reports STALE rather than a green light, and
+  "last received" is read from what this installation actually received.
+
+- **Limitation 8 rewritten.** A TLS reverse proxy is **CONFIGURED** in `deploy/` and consistent with
+  the application it fronts, but has **never been exercised or served traffic** — no Docker daemon
+  and no native nginx on the development machine. It is not upgraded to LIVE on the strength of
+  being written down. Container base-image CVEs are **NOT ESTABLISHED**: no image scanner is
+  available. Python and Node dependency scans are clean.
+
+- **Limitation 8a added.** Rate limiting and session revocation are in-process and in memory. They
+  protect one process and are not a distributed quota; a restart clears both, which invalidates every
+  issued session when `ICHNOVA_SECRET_KEY` is unset — the safe direction. No database was introduced
+  to make demo sessions persistent, because §9.2 keeps the engine air-gap capable.
+
 ## v2.5.3 — 2026-09-19 — Platform amendment: authenticated API, approved CRM, evidence receipts
 
 No rule, weight, catalogue item or acceptance threshold changed. The document is brought into

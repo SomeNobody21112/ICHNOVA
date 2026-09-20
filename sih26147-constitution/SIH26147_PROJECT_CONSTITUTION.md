@@ -3,7 +3,7 @@
 **Problem statement:** SIH26147 (Smart India Hackathon 2026; sponsor listed in the problem statement: NTRO)
 **Product:** ICHNOVA — *From noise to harmony* (blind signal analysis engine + operator console)
 **Document:** Master Project Constitution — **the single source of truth**
-**Version:** 2.5.3 (authenticated API §25.8; Salesforce case hand-off approved under §9.2; capture quality, evidence sufficiency, receipts and the signal-source registry recorded; §24 row 34 re-measured on the full null set) · **Date:** 2026-09-19
+**Version:** 2.5.4 (deployment invariants: one writer per results directory §9.12, reachable-is-not-fresh §9.13; TLS reverse proxy CONFIGURED but never exercised; in-memory rate limiting and revocation recorded as a limitation) · **Date:** 2026-09-20
 **Verified against:** branch `sih-readiness`. v2.5 text verified against `acf4201`; the v2.5.1 status rows are measured on the engine as committed, with the default path unchanged (0 decision differences on 1,350 null-set files, sealed 30/30, train 63/100). Evidence per phase in `reports/SIH_READINESS_EXECUTION.md`
 **Supersedes:** v2.0 (research-verified, 2026-09-16), v2.1–v2.4, and every earlier plan document where they disagree (§3)
 
@@ -151,6 +151,8 @@ A figure without a label must not be shown. Simulated data must never be describ
 | 9.9 | **No claim of being an official government system**; no imitation of government branding, emblems or domains. |
 | 9.10 | **Authorised use only** (§39). |
 | 9.11 | **No feature-count competition.** One convincing capability beats many unproven ones. |
+| 9.12 | **One writer per results directory** (v2.5.4). The receipt ledger and the CRM outbox are append-only files whose head is read before each append. Two processes sharing a results directory each append against the head they read, forking the evidence chain — the one thing a receipt exists to prevent. `server/store_lock.py` takes an exclusive OS lock on the directory at start-up and a second process refuses to start; `deploy/docker-compose.yml` pins `deploy.replicas: 1` with the reason. Horizontal scaling needs either a results directory per process or a different store, and is **NOT ESTABLISHED**. Two hosts against one shared network filesystem is unsafe and unaddressed. |
+| 9.13 | **Reachable is not fresh** (v2.5.4). A source's health reports what this installation actually received, not merely whether the service answers. A reachable source with no recent data is STALE, never a green light. |
 
 ---
 
@@ -477,7 +479,8 @@ FSK tone-pair search: one STFT per shift class (30 s → 2.5 s on 125 s). RRC ta
 5. Payload rotation resolved by assuming zero encoder start state; no frame sync.
 6. Viterbi convention bit-reversed vs MATLAB; standard conformance unverified.
 7. Real signals: the operator chooses where to listen; receiver filter delay uncalibrated (WWV +23 ms); Indian receivers deliver one sideband in IQ mode; availability depends on propagation and schedules.
-8. Web tier is `http.server`: single process, **no TLS** — demo grade. The API is authenticated since v2.5.3 (scrypt passwords, signed session tokens, role permissions, rate limiting), but a deployment still needs TLS terminated in front of it.
+8. Web tier is `http.server`: single process, **no TLS of its own** — demo grade. The API is authenticated since v2.5.3 (scrypt passwords, signed session tokens, role permissions, rate limiting). Since v2.5.4 a TLS reverse proxy is **CONFIGURED** in `deploy/` (nginx, 308 redirect, forwarded headers matched to `Handler._client`, SSE buffering off, upload cap matched to `MAX_UPLOAD`) — but it has **never been exercised or served traffic**: no Docker daemon and no native nginx on the development machine. TLS status is CONFIGURED, not live. Container base-image CVEs are **NOT ESTABLISHED** (no image scanner available); Python and Node dependencies scan clean.
+8a. Rate limiting and session revocation are **in-process and in memory** (v2.5.4). They protect a single process; they are not a distributed quota. A restart clears both — which invalidates every issued session when `ICHNOVA_SECRET_KEY` is unset, and is the safe direction. Deliberately no database: §9.2 keeps the engine air-gap capable.
 9. Console monitoring-network data is simulated.
 
 ---
@@ -822,6 +825,7 @@ Possible application areas (**not deployment claims**): spectrum monitoring and 
 | 2.5 | 2026-09-17 | **SIH-readiness amendment: catalogue v1 (§12.1), weighted acceptance families (§13.1), bench-v2 sealed policy (§18.1), fs provenance (§10), P0 re-prioritisation (§35), cloud clause (§9.2); audit conflicts C1–C9 resolved** |
 | **2.5.2** | **2026-09-18** | **Console design system (§29.1): fixed type scale, one interaction vocabulary, elevation and motion discipline, themed browser surfaces, complete component states, no decorative kicker labels. Detector added to the quality gates (§32). Pages, routes, copy, provenance labels and disclaimers unchanged** |
 | **2.5.1** | **2026-09-18** | **Status amendment (no rule, weight or catalogue change): §24 rows 33, 35, 36, 36b move from LOCKED to IMPLEMENTED with measured evidence as families F1–F4 entered the engine; row 34 (8PSK/16-QAM) becomes EXPERIMENTAL and off by default, with the measured cost of enabling it; §12.1 marks the higher modulations as not in the default path** |
+| **2.5.4** | **2026-09-20** | **Deployment amendment. §9.12: one writer per results directory — the ledger and outbox fork if two processes share one, so an OS lock makes the unsafe configuration impossible rather than merely documented, and `deploy.replicas: 1` is pinned. §9.13: a reachable source is not a fresh one; health reports what was actually received. §25.8 limitation 8 records the TLS reverse proxy as CONFIGURED and never exercised, and container base-image CVEs as NOT ESTABLISHED; limitation 8a records rate limiting and revocation as in-process and in-memory by design. No rule, weight, catalogue item or acceptance threshold changed** |
 | **2.5.3** | **2026-09-19** | **Platform amendment. §25.8: the API is authenticated (scrypt passwords, signed session tokens with expiry and revocation, per-endpoint role permissions, rate limiting), so the "unauthenticated API" limitation is retired and only the missing TLS remains. §9.2: the Salesforce case hand-off is approved as the one permitted cloud integration, bound by the clause it was written under. Capture quality (`src/quality.py`), evidence sufficiency (`src/sufficiency.py`), evidence receipts (`src/receipt.py`) and the signal-source registry (`server/sources.py`) are recorded, each reported separately from the decode verdict. §24 row 34 re-measured over the full null set: the cost of enabling 8PSK/16-QAM is a wrong decode from a structural alias, not the false accepts previously feared. No rule, weight, catalogue item or acceptance threshold changed** |
 
 Details: `SIH26147_CONSTITUTION_CHANGELOG.md`.
