@@ -246,7 +246,57 @@ of "novel" is scoped to a literature search it documents.
 
 ---
 
-## 10. What is still open
+## 10. Re-verification and a live run — 2026-09-20
+
+A later pass re-checked this document's claims rather than trusting them, and closed one open item.
+
+**Re-verified by running it, not by reading it:**
+
+| Claim | Result |
+|---|---|
+| 175 tests pass | **175 passed** in 155 s |
+| Frontend typecheck and build clean | `tsc --noEmit` exit 0; build succeeded |
+| Node dependencies clean | `npm audit --omit=dev`: **0 vulnerabilities** |
+| CLI receipt verifier | Shipped ledger: exit 0, 6 checked. Tampered copy: **exit 1**, names index 2 |
+| Mobile landing fix present | `.land-hero` at ≤1100 px uses `minmax(0, 1fr)` |
+| One-writer enforcement present | `server/store_lock.py` in place |
+| No completion theatre in the UI | No fake percentage, sync or LIVE indicator found |
+| Everything pushed | `origin/main` = `origin/sih-readiness` = local HEAD |
+
+The tamper test asserts the file bytes actually changed **before** verifying, so it cannot pass
+vacuously — the trap §4 describes. Both tamper tests ran on copies in a scratch directory; the
+repository's own ledgers were never modified, and `git status` is clean.
+
+**Live source exercised end to end — the gap §9 of the brief asked to close.**
+
+A 12-second capture was taken from a public KiwiSDR at 720 kHz and put through the whole chain:
+
+| Stage | Result |
+|---|---|
+| SOURCE | Public KiwiSDR, Cha-Am, Thailand — 2,135 km from the Chennai transmitter, GPS-timed |
+| INGEST | 144,384 samples @ 11,998.881 Hz; rate declared by the receiver |
+| QUALITY | **GOOD**, no issues |
+| AM receiver | Carrier offset −1.473 Hz, **carrier-to-noise 61.3 dB**, modulation depth 0.283, audio bandwidth 4,447 Hz |
+| ANALYSIS | 0 FEC hypotheses reached the code search |
+| DECISION | **SIGNAL_NO_CODE** |
+| EVIDENCE | Receipt `5db9c8207a7ccbfb`, capture `9095ae2af2aa5d8a`, chain verifies clean |
+
+This is the system behaving as designed on real radio: a strong AM broadcast carrier is plainly
+present, and the engine declined to claim a catalogue code for it, because an AM broadcast has none.
+
+**What this does not establish.** The only receiver available was 2,135 km away, far outside the
+800 km range configured for the Chennai transmitter. At that distance on 720 kHz the carrier heard is
+**not established to be All India Radio Chennai** — it may be another medium-wave station, or
+skywave. What is established is a live public-SDR capture, a real AM carrier, a GOOD quality gate, an
+honest SIGNAL_NO_CODE and a verifiable receipt. **Station identity: NOT ESTABLISHED.**
+
+**Still blocked, unchanged:** the Docker daemon is not running, nginx is not installed, and none of
+`trivy`, `grype` or `pip-audit` is present. TLS remains **CONFIGURED, never exercised**, and
+container base-image CVEs remain **NOT ESTABLISHED**. No substitute was run and labelled as either.
+
+---
+
+## 11. What is still open
 
 1. **TLS has never served traffic.** Needs a Docker daemon or a native nginx.
 2. **Container base images are unscanned.** Needs an image scanner.
