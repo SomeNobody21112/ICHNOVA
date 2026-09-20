@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en" data-resolution="landscape">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body {
+        width: 1920px; height: 1080px; overflow: hidden;
+        background: #0c0b0a;
+        font-family: ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+      }
+      :root {
+        --text: #ede9e3;
+        --dim: #9a9187;
+        --gold: #d6a467;
+        --green: #5fbf8f;
+        --cyan: #6fb6c9;
+        --amber: #d9a441;
+      }
+      #root { width: 100%; height: 100%; position: relative; }
+
+      .scene {
+        position: absolute; inset: 0;
+        display: flex; flex-direction: column;
+        align-items: center; justify-content: center;
+        opacity: 0; padding: 0 160px; text-align: center;
+      }
+      .kicker {
+        font-family: ui-monospace, Consolas, "Courier New", monospace;
+        font-size: 22px; letter-spacing: 0.34em; text-transform: uppercase;
+        color: var(--dim); margin-bottom: 34px;
+      }
+      .line { font-size: 62px; font-weight: 500; color: var(--text); line-height: 1.24; letter-spacing: -0.02em; max-width: 1400px; }
+      .small { font-size: 34px; color: var(--dim); margin-top: 30px; line-height: 1.45; max-width: 1200px; }
+      .figure {
+        font-family: ui-monospace, Consolas, "Courier New", monospace;
+        font-size: 168px; font-weight: 600; letter-spacing: -0.045em; color: var(--gold);
+        line-height: 1;
+      }
+      .figure.sm { font-size: 118px; }
+      .caption {
+        font-family: ui-monospace, Consolas, "Courier New", monospace;
+        font-size: 26px; letter-spacing: 0.2em; text-transform: uppercase;
+        color: var(--dim); margin-top: 30px;
+      }
+      .verdict {
+        font-family: ui-monospace, Consolas, "Courier New", monospace;
+        font-size: 86px; font-weight: 600; letter-spacing: 0.1em;
+        padding: 20px 46px; border: 2px solid; border-radius: 10px;
+      }
+      .v-decoded { color: var(--green); border-color: #2f6b4f; background: rgba(95,191,143,0.07); }
+      .v-unknown { color: var(--amber); border-color: #6b5524; background: rgba(217,164,65,0.07); }
+      .v-nocode  { color: var(--cyan); border-color: #2c5a66; background: rgba(111,182,201,0.07); }
+      .row { display: flex; gap: 96px; align-items: center; justify-content: center; }
+      .stat { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+      .stat b { font-family: ui-monospace, monospace; font-size: 84px; font-weight: 600; color: var(--text); }
+      .stat span { font-size: 24px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--dim); }
+      .wordmark { font-size: 30px; letter-spacing: 0.52em; text-transform: uppercase; color: var(--text); }
+      .rule { width: 132px; height: 2px; background: var(--gold); margin: 42px 0; }
+      .foot {
+        position: absolute; bottom: 74px; left: 0; right: 0;
+        font-size: 22px; color: #a8a096; letter-spacing: 0.1em; text-align: center;
+      }
+      .mono { font-family: ui-monospace, Consolas, "Courier New", monospace; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="64" data-width="1920" data-height="1080">
+
+      <div class="scene" id="s1">
+        <div class="kicker">SIH26147</div>
+        <div class="wordmark">I C H N O V A</div>
+        <div class="rule"></div>
+        <div class="line">This is a radio recording.<br />We were told nothing about it.</div>
+      </div>
+
+      <div class="scene" id="s2">
+        <div class="kicker">What the engine is given</div>
+        <div class="line">No station. No code.<br />Not even the sample rate.</div>
+        <div class="small">It has to work out how the signal was built, from the signal alone.</div>
+      </div>
+
+      <div class="scene" id="s3">
+        <div class="verdict v-decoded">DECODED</div>
+        <div class="small" style="margin-top: 46px">QPSK &nbsp;·&nbsp; convolutional K=7 &nbsp;·&nbsp; 10 × 12 interleaver</div>
+        <div class="caption">recovered blind</div>
+      </div>
+
+      <div class="scene" id="s4">
+        <div class="figure">50,916</div>
+        <div class="caption">hypotheses tested on one capture</div>
+        <div class="small">Try enough explanations and one will fit by chance — so the bar moves to account for every one of them.</div>
+      </div>
+
+      <div class="scene" id="s5">
+        <div class="kicker">And it still cleared the moved bar</div>
+        <div class="line">That is the only reason<br />it is allowed to answer.</div>
+      </div>
+
+      <div class="scene" id="s6">
+        <div class="kicker">Same code. Shorter capture.</div>
+        <div class="verdict v-unknown">UNKNOWN</div>
+        <div class="small" style="margin-top: 44px">A real K=7 transmission — with only 32 coded bits of it.</div>
+      </div>
+
+      <div class="scene" id="s7">
+        <div class="kicker">It refuses, and says why</div>
+        <div class="line">“More signal would not help.”</div>
+        <div class="small">32 coded bits can never clear the bar. The engine says so instead of guessing.</div>
+      </div>
+
+      <div class="scene" id="s8">
+        <div class="kicker">Real radio · NICT Japan, received blind</div>
+        <div class="figure sm">+1.9 ms</div>
+        <div class="caption">agreement with the receiver’s GPS clock</div>
+        <div class="small">A time station decoded without being told the protocol, checked against something the engine never saw.</div>
+      </div>
+
+      <div class="scene" id="s9">
+        <div class="kicker">Same engine · same night · WWVB</div>
+        <div class="verdict v-nocode">SIGNAL&nbsp;·&nbsp;NO&nbsp;CODE</div>
+        <div class="small" style="margin-top: 44px">It found the structure and refused to state a time.<br />The refusal was the correct answer.</div>
+      </div>
+
+      <div class="scene" id="s10">
+        <div class="row">
+          <div class="stat"><b>0 / 120</b><span>false accepts, sealed</span></div>
+          <div class="stat"><b>0 / 900</b><span>false accepts, null set</span></div>
+          <div class="stat"><b>0 / 180</b><span>wrong under degradation</span></div>
+        </div>
+        <div class="small" style="margin-top: 60px">Degrade a capture and it moves toward refusal — not toward a wrong answer.</div>
+      </div>
+
+      <div class="scene" id="s11">
+        <div class="kicker">Every decision is hash-chained</div>
+        <div class="line">Your browser re-checks it.<br />You don’t have to trust the server.</div>
+        <div class="small mono" style="margin-top: 36px; color:#d9686b">alter one record → “entry 2: content does not match its hash”</div>
+      </div>
+
+      <div class="scene" id="s12">
+        <div class="line">Most systems answer.<br />This one also knows when not to.</div>
+        <div class="rule"></div>
+        <div class="small">No field deployment. No accuracy percentage claimed.<br />Every limitation is written down in the repository.</div>
+      </div>
+
+      <div class="foot" id="foot">ICHNOVA · an independent Smart India Hackathon prototype · not an official Government of India system</div>
+    </div>
+
+    <script>
+      const tl = gsap.timeline({ paused: true });
+
+      const beats = [
+        ['#s1', 0.0, 5.0], ['#s2', 5.0, 5.0], ['#s3', 10.0, 6.0], ['#s4', 16.0, 6.0],
+        ['#s5', 22.0, 5.0], ['#s6', 27.0, 5.5], ['#s7', 32.5, 5.5], ['#s8', 38.0, 6.0],
+        ['#s9', 44.0, 5.5], ['#s10', 49.5, 6.0], ['#s11', 55.5, 4.5], ['#s12', 60.0, 4.0],
+      ];
+
+      beats.forEach(function (b) {
+        var sel = b[0], start = b[1], hold = b[2];
+        tl.fromTo(sel, { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.55, ease: 'power2.out' }, start);
+        tl.to(sel, { opacity: 0, y: -14, duration: 0.45, ease: 'power2.in' }, start + hold - 0.45);
+      });
+
+      tl.fromTo('#s4 .figure', { scale: 0.96 }, { scale: 1, duration: 0.8, ease: 'power2.out' }, 16.0);
+      tl.fromTo('#s8 .figure', { scale: 0.96 }, { scale: 1, duration: 0.8, ease: 'power2.out' }, 38.0);
+      tl.fromTo('#s10 .stat b', { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.6, stagger: 0.18, ease: 'power2.out' }, 49.8);
+      tl.fromTo('#foot', { opacity: 0 }, { opacity: 1, duration: 1.0 }, 0.4);
+
+      window.__timelines['main'] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>
