@@ -76,7 +76,7 @@ These are benchmark measurements on a named synthetic dataset, not a general acc
 | `reports/FINAL_FEATURE_AUDIT.md` | Written, then corrected twice as later measurements superseded it | Done |
 | Fix every screenshot bug | Ten bugs: oversized badges, overflow, empty CSV, blank print, grey button cards, and more | Done, each verified in the browser |
 | Complete the "planned" items | Three were already built and mislabelled; QAM measured; blind fs bounded | Done |
-| Git hygiene and push to main | No blanket `git add`, no secrets committed, fast-forward only | Done — `main` = `08ee9a7` |
+| Git hygiene and push to main | No blanket `git add`, no secrets committed, fast-forward only | Done — `origin/main` verified with `git ls-remote` after each push |
 
 ---
 

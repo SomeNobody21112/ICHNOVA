@@ -8,6 +8,12 @@ Audited at commit `4435908`, engine `v0.3.0`. Every number below was measured du
 nothing is carried over from an earlier report without being re-run. Where something was not
 measured, the row says so rather than estimating.
 
+**Amended since.** Rows 14 and 15 of the requirement matrix were rewritten after this audit, when the
+8PSK/16-QAM gate was measured over the full null set and the CCSDS chain gained end-to-end tests; the
+defect list gained the stale-coverage finding. The test count in §6 is the count at audit time and has
+since risen. Later passes are recorded in `HARDENING_AND_DEPLOYMENT_PASS.md` and
+`FINAL_VERIFICATION_PASS.md`, and the current figure lives there. Everything else stands as measured.
+
 ---
 
 ## 1. What the labels mean
