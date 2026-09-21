@@ -1,11 +1,11 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Characteristics, WhyPanel } from '../components/evidence'
+import { Characteristics, Verdict, WhyPanel } from '../components/evidence'
 import { AmPanel, BlindCatalogue, Teletype } from '../components/liveviz'
 import type { ReplayDoc, ReplayIndexEntry, ResultEv } from '../lib/live'
 import { Icon, Panel, Stamp, Tag } from '../components/ui'
-import { CODE_SHORT, fmtInt, fmtP, STATUS_MEANING } from '../lib/format'
+import { CODE_SHORT, fmtInt, fmtP } from '../lib/format'
 import { STATIONS } from '../lib/sim'
 import { api } from '../lib/api'
 import { useApp, useCan, whyNot } from '../lib/store'
@@ -236,9 +236,7 @@ export default function Analysis() {
                 <Panel title="4 · Real-signal receivers" sub="Time codes, start-stop FSK and AM characterisation, run blind over the whole recording"
                   right={replay ? <Tag kind="BENCHMARK">Recorded result</Tag> : <Tag kind="LIVE">Engine result</Tag>}>
                   <div className="row-wrap" style={{ gap: 20, alignItems: 'center' }}>
-                    <motion.div initial={{ scale: 1.25, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 260, damping: 18 }}>
-                      <Stamp status={realResult.answer.status} size="xl" />
-                    </motion.div>
+                    <Stamp status={realResult.answer.status} size="xl" />
                     <div className="grow" style={{ minWidth: 240 }}>
                       <div className="result-summary">{realResult.answer.summary}</div>
                       {realResult.answer.verification && <div className="mono" style={{ fontSize: 12, marginTop: 6, color: 'var(--green)' }}>arrival − decoded = {realResult.answer.verification.arrival_minus_decoded_ms.toFixed(1)} ms by the receiver&apos;s {realResult.answer.verification.timing === 'gps' ? 'GPS' : 'network'} clock</div>}
@@ -254,17 +252,7 @@ export default function Analysis() {
             {pack && !realResult && (
               <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
                 <Panel title="4 · Decision" right={<span className="mono muted" style={{ fontSize: 11.5 }}>{pack.id} · {pack.result.runtime.toFixed(2)} s</span>}>
-                  <div className="row-wrap" style={{ gap: 20, alignItems: 'center' }}>
-                    <motion.div initial={{ scale: 1.25, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 260, damping: 18 }}>
-                      <Stamp status={pack.result.status} size="xl" />
-                    </motion.div>
-                    <div className="grow" style={{ minWidth: 240 }}>
-                      <div style={{ fontSize: 15 }}>{STATUS_MEANING[pack.result.status]}</div>
-                      <div className="muted" style={{ fontSize: 12.5, marginTop: 4 }}>
-                        {fmtInt(pack.accept.n_hypotheses)} hypotheses evaluated · best p {fmtP(pack.accept.log10_p)} against a bar of {fmtP(pack.accept.log10_threshold)}
-                      </div>
-                    </div>
-                  </div>
+                  <Verdict pack={pack} />
                   <div className="row-wrap" style={{ marginTop: 16 }}>
                     <button className="btn btn-primary" onClick={openRecord}><Icon name="signals" size={14} /> Open signal record</button>
                     <button className="btn" onClick={() => setShowTech(!showTech)}><Icon name="eye" size={14} /> {showTech ? 'Hide' : 'Show'} technical evidence</button>
@@ -275,7 +263,7 @@ export default function Analysis() {
                 {showTech && (
                   <div className="grid g-2" style={{ marginTop: 14 }}>
                     <Characteristics pack={pack} />
-                    <WhyPanel pack={pack} />
+                    <WhyPanel pack={pack} inVerdict />
                   </div>
                 )}
               </motion.div>

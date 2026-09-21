@@ -1,12 +1,16 @@
-import { createContext, useCallback, useContext, useLayoutEffect, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useState, type ReactNode } from 'react'
 
 export type Theme = 'light' | 'dark'
+/** What the operator chose. 'system' follows the operating system and keeps following it. */
+export type ThemePref = Theme | 'system'
 export const TEXT_SCALES = [0.9, 1, 1.12, 1.25] as const
+const THEME_COLOR: Record<Theme, string> = { light: '#f7f8f6', dark: '#0b0c0d' }
 
 interface ThemeCtx {
+  /** The theme actually applied (system resolved). Canvases redraw on this. */
   theme: Theme
-  setTheme: (t: Theme) => void
-  toggle: () => void
+  pref: ThemePref
+  setPref: (p: ThemePref) => void
   scale: number
   setScale: (s: number) => void
 }
@@ -26,30 +30,39 @@ function write(key: string, value: unknown) {
   try { localStorage.setItem(key, JSON.stringify(value)) } catch { /* private mode: session only */ }
 }
 
-export function initialTheme(): Theme {
-  const saved = read<Theme | null>('ichnova.theme', null)
-  if (saved === 'light' || saved === 'dark') return saved
-  return typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+const systemDark = () => typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-color-scheme: dark)').matches
+
+export function initialPref(): ThemePref {
+  const saved = read<ThemePref | null>('ichnova.theme', null)
+  return saved === 'light' || saved === 'dark' || saved === 'system' ? saved : 'system'
 }
 
 /** Theme and text size, remembered per browser; mirrors the accessibility bars of DoT portals. */
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>(initialTheme)
+  const [pref, setPrefState] = useState<ThemePref>(initialPref)
+  const [sysDark, setSysDark] = useState(systemDark)
   const [scale, setScaleState] = useState<number>(() => {
     const s = read<number>('ichnova.textScale', 1)
     return (TEXT_SCALES as readonly number[]).includes(s) ? s : 1
   })
+  useEffect(() => {
+    const mq = window.matchMedia?.('(prefers-color-scheme: dark)')
+    if (!mq) return
+    const on = () => setSysDark(mq.matches)
+    mq.addEventListener('change', on)
+    return () => mq.removeEventListener('change', on)
+  }, [])
+  const theme: Theme = pref === 'system' ? (sysDark ? 'dark' : 'light') : pref
   useLayoutEffect(() => {
     const root = document.documentElement
     root.dataset.theme = theme
     root.style.colorScheme = theme
-    const meta = document.querySelector('meta[name="theme-color"]')
-    if (meta) meta.setAttribute('content', theme === 'dark' ? '#0c0b0a' : '#f5f2eb')
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', THEME_COLOR[theme])
   }, [theme])
   useLayoutEffect(() => { document.documentElement.style.setProperty('--ui-scale', String(scale)) }, [scale])
-  const setTheme = useCallback((t: Theme) => { setThemeState(t); write('ichnova.theme', t) }, [])
+  const setPref = useCallback((p: ThemePref) => { setPrefState(p); write('ichnova.theme', p) }, [])
   const setScale = useCallback((s: number) => { setScaleState(s); write('ichnova.textScale', s) }, [])
-  const value = useMemo(() => ({ theme, setTheme, toggle: () => setTheme(theme === 'dark' ? 'light' : 'dark'), scale, setScale }), [theme, setTheme, scale, setScale])
+  const value = useMemo(() => ({ theme, pref, setPref, scale, setScale }), [theme, pref, setPref, scale, setScale])
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }
 

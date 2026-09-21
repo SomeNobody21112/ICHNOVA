@@ -6,6 +6,7 @@ import '@fontsource/ibm-plex-sans-condensed/600.css'
 import '@fontsource/ibm-plex-mono/400.css'
 import '@fontsource/ibm-plex-mono/500.css'
 import './styles.css'
+import { MotionConfig } from 'framer-motion'
 import { StrictMode, type ReactNode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
@@ -36,6 +37,9 @@ function RequireAuth({ children }: { children: ReactNode }) {
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
+    {/* framer-motion does not read the CSS media query: this makes every motion component honour
+        the operating system's reduced-motion setting (opacity stays, movement goes). */}
+    <MotionConfig reducedMotion="user">
     <ThemeProvider>
     <BrowserRouter>
       <AppProvider>
@@ -64,5 +68,6 @@ createRoot(document.getElementById('root')!).render(
       </AppProvider>
     </BrowserRouter>
     </ThemeProvider>
+    </MotionConfig>
   </StrictMode>,
 )

@@ -1,5 +1,20 @@
 # SIH26147 — Session Progress Report
 
+## UI polish pass — 22 September 2026 (console only; engine untouched)
+
+- **Themes:** new light palette (paper `#f7f8f6`, ink `#18201d`, bronze `#8a5a24`) designed on its own instead of the earlier beige/brown; dark refined to a neutral instrument black. Theme control is now Light / Dark / **System**, persisted, applied before first paint. All text tokens computed at ≥ 4.5:1 in both themes (the brief's suggested muted greys measured ~4.1:1 and were darkened/lightened to pass).
+- **Outcomes:** DECODED (green, check), SIGNAL · NO CODE (cyan, waveform), UNKNOWN (amber, dashed question mark) each carry shape + word + colour. UNKNOWN is styled as a deliberate outcome, never as an error.
+- **Verdict first:** signal record Overview and the Analysis decision open on a `Verdict` block (verdict → why → evidence → technical). Refusals show the engine's own sufficiency reason and "what would prove it"; `IMPOSSIBLE_IN_DOMAIN` is set apart.
+- **Evidence spine:** the existing six stages (no new ones) are numbered, joined by one rule and state their result in words.
+- **Receipt:** laid out as a decision receipt with values read from the receipt and pack; verification reports RECEIPT VERIFIED / VERIFICATION FAILED in a live region. Structural checks come from one helper shared with the validation drawer.
+- **Provenance tags:** shape per category; the pulsing "live" glow removed.
+- **Accessibility:** tabs with arrow keys, drawer focus trap and return, keyboard-openable rows, account panel as a disclosure (Escape / outside click), 24 px utility targets, input borders ≥ 3:1, framer-motion honours reduced motion.
+- **Header:** subtle "Independent SIH prototype" under the wordmark; "Engine ready / offline".
+- **Out of scope by decision:** map and globe views unchanged; no agenda overlay exists in the code.
+- **Checks:** `tsc -b` clean, `vite build` passes, backend 175 / 175 tests pass, oxlint warnings only (none new beyond one fast-refresh notice). **Not re-measured visually:** the 120-page viewport sweep of `FINAL_VERIFICATION_PASS.md` was not repeated for this pass.
+
+---
+
 ## Session 6 — ICHNOVA brand, themes, calmer console
 
 - **Brand:** ICHNOVA mark, wordmark and lockup drawn as SVG from the brand sheet (`frontend/src/components/brand.tsx`); gold on dark, ink on light; favicon.

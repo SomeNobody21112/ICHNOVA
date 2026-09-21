@@ -1,10 +1,10 @@
 import { motion } from 'framer-motion'
 import { useCallback, useMemo, useState, type ReactNode } from 'react'
-import { CODE_FULL, CODE_SHORT, fmtDateTime, fmtFs, fmtInt, fmtInterleaver, fmtP, fmtSymRate, interleaverBits, pct } from '../lib/format'
+import { CODE_FULL, CODE_SHORT, fmtDateTime, fmtFs, fmtInt, fmtInterleaver, fmtP, fmtSymRate, interleaverBits, pct, STATUS_LABEL, STATUS_MEANING } from '../lib/format'
 import { GENESIS, loadLedgers, verifyChain, verifyLine, type Receipt } from '../lib/receipt'
 import type { AuditEvent, EvidencePack, Hyp, Provenance, QualityStatus } from '../lib/types'
 import { Constellation, HBars, Landscape, LinePlot, Spectrogram } from './charts'
-import { Drawer, Icon, Meter, Panel, Tag } from './ui'
+import { Drawer, Icon, Meter, Panel, Stamp, StatusGlyph, Tag } from './ui'
 
 export const provOf = (p: EvidencePack): Provenance => (p.source.kind === 'UPLOAD' ? 'LIVE' : p.source.kind)
 const LOG_ALPHA = (p: EvidencePack) => Math.log10(p.accept.alpha)
@@ -14,6 +14,19 @@ export type Topic = 'detection' | 'sps' | 'modulation' | 'cfo' | 'fec' | 'interl
 const TOPIC_TITLE: Record<Topic, string> = {
   detection: 'Signal detection', sps: 'Symbol structure', modulation: 'Modulation', cfo: 'Carrier frequency offset',
   fec: 'FEC hypotheses', interleaver: 'Interleaver & coverage', validation: 'Statistical validation',
+}
+
+/** The three structural checks the acceptance rule applies to the first significant hypothesis.
+ *  One source for the validation drawer, the receipt and the verdict, so they cannot disagree. */
+export function structuralChecks(pack: EvidencePack) {
+  const h = pack.accept.accepted_hypothesis ?? pack.diagnostics.top_hypotheses[0]
+  if (!h) return []
+  const rules = pack.accept.rules
+  return [
+    { label: 'Modulation consistency', ok: !h.structural_rejection?.startsWith('modulation'), detail: `exact binomial, α = ${pack.accept.alpha}` },
+    { label: 'Block length', ok: h.covered_symbols >= h.active_symbols - rules.bl_delta_symbols, detail: `covers ${h.covered_symbols.toFixed(0)} of ~${h.active_symbols} symbols` },
+    { label: 'Soft path metric', ok: h.path_metric >= rules.pm_floor, detail: `${h.path_metric.toFixed(3)} ${h.path_metric >= rules.pm_floor ? '≥' : '<'} floor ${rules.pm_floor}` },
+  ]
 }
 
 function Check({ ok, children, na }: { ok: boolean; children: ReactNode; na?: boolean }) {
@@ -146,9 +159,7 @@ export function TopicDetail({ pack, topic }: { pack: EvidencePack; topic: Topic 
       </dl>
       {checks && (
         <ul className="why-list">
-          <Check ok={!checks.structural_rejection?.startsWith('modulation')}>Modulation consistency (exact binomial, α = {pack.accept.alpha})</Check>
-          <Check ok={checks.covered_symbols >= checks.active_symbols - pack.accept.rules.bl_delta_symbols}>Block length: covers {checks.covered_symbols.toFixed(0)} of ~{checks.active_symbols} symbols</Check>
-          <Check ok={checks.path_metric >= pack.accept.rules.pm_floor}>Soft path metric {checks.path_metric.toFixed(3)} {checks.path_metric >= pack.accept.rules.pm_floor ? '≥' : '<'} floor {pack.accept.rules.pm_floor}</Check>
+          {structuralChecks(pack).map((c) => <Check key={c.label} ok={c.ok}>{c.label}: {c.detail}</Check>)}
         </ul>
       )}
       {pack.accept.significant_but_rejected.length > 0 && (
@@ -237,14 +248,15 @@ export function Characteristics({ pack }: { pack: EvidencePack }) {
 }
 
 // ---------------------------------------------------------------- why panel
-export function WhyPanel({ pack }: { pack: EvidencePack }) {
+/** `inVerdict`: the Verdict above already states the refusal, so the banner is not repeated. */
+export function WhyPanel({ pack, inVerdict }: { pack: EvidencePack; inVerdict?: boolean }) {
   const r = pack.result, d = pack.diagnostics, a = pack.accept
   const la = LOG_ALPHA(pack)
   const acc = a.accepted_hypothesis
   const best = acc ?? d.top_hypotheses[0]
   const detected = d.detection_log10_p <= la
   const sig = a.log10_p <= a.log10_threshold
-  const title = r.status === 'DECODED' ? 'Why was this signal accepted?' : r.status === 'SIGNAL_NO_CODE' ? 'Why signal, but no code?' : 'Why UNKNOWN?'
+  const title = r.status === 'DECODED' ? 'Evidence behind the acceptance' : r.status === 'SIGNAL_NO_CODE' ? 'Evidence: signal, but no code' : 'Evidence behind UNKNOWN'
   return (
     <Panel title={title} right={<Tag kind={provOf(pack)} />}>
       <ul className="why-list">
@@ -274,13 +286,72 @@ export function WhyPanel({ pack }: { pack: EvidencePack }) {
         <dt>Acceptance threshold</dt><dd>{a.alpha.toFixed(4)}</dd>
         <dt>Coverage</dt><dd>{acc ? pct(acc.covered_symbols / Math.max(1, acc.active_symbols)) : '—'}</dd>
       </dl>
-      {r.status !== 'DECODED' && (
+      {r.status !== 'DECODED' && !inVerdict && (
         <motion.div className="refusal" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.16 }}>
           <strong>THE SYSTEM REFUSED TO GUESS.</strong>
           <span className="dim">{r.status === 'SIGNAL_NO_CODE' ? 'A signal is present, but no code could be established. No payload is asserted.' : 'The evidence does not support any interpretation. No payload is asserted.'}</span>
         </motion.div>
       )}
     </Panel>
+  )
+}
+
+// ---------------------------------------------------------------- verdict
+/** Verdict first, then why, in the engine's own numbers. Every figure is read from the pack; nothing
+ *  here is a demo constant. For a refusal the explanation is the sufficiency analysis, verbatim. */
+export function Verdict({ pack }: { pack: EvidencePack }) {
+  const r = pack.result, a = pack.accept, s = pack.sufficiency
+  const acc = a.accepted_hypothesis
+  const pass = r.status === 'DECODED'
+  const sig = a.log10_p <= a.log10_threshold
+  const structure = pass ? [
+    r.modulation,
+    r.code ? CODE_FULL[r.code] ?? r.code : null,
+    r.interleaver ? `${fmtInterleaver(r.interleaver, 'short')} block interleaver` : null,
+    r.sps ? `${r.sps} samples/symbol · ${fmtSymRate(r.sps, pack.capture.fs_hz)}` : null,
+  ].filter(Boolean) as string[] : []
+  const checks = structuralChecks(pack)
+  return (
+    <section className={`verdict verdict-${r.status}`} aria-labelledby={`verdict-${pack.id}`}>
+      <div className="verdict-head">
+        <div className="verdict-word" id={`verdict-${pack.id}`}>
+          <StatusGlyph status={r.status} size={30} />
+          <span>{STATUS_LABEL[r.status]}</span>
+        </div>
+        <Tag kind={provOf(pack)} />
+      </div>
+      <p className="verdict-meaning">{STATUS_MEANING[r.status]}</p>
+      {structure.length > 0 && <ul className="verdict-structure">{structure.map((x) => <li key={x}>{x}</li>)}</ul>}
+      {!pass && (
+        <p className="verdict-lede">
+          The system tested <b className="mono">{fmtInt(a.n_hypotheses)}</b> hypotheses, but{' '}
+          {sig ? 'the candidate that reached significance failed a structural check.' : 'no candidate cleared the acceptance bar.'}{' '}
+          No payload is asserted: it deliberately did not guess.
+        </p>
+      )}
+
+      <div className="section-label verdict-q">{pass ? 'Why was this accepted?' : 'Why was nothing accepted?'}</div>
+      <dl className="verdict-why">
+        <div><dt>hypotheses tested</dt><dd className="mono">{fmtInt(a.n_hypotheses)}</dd></div>
+        <div><dt>observed p-value (best)</dt><dd className="mono">{fmtP(a.log10_p)}</dd></div>
+        <div><dt>corrected threshold α / M</dt><dd className="mono">{fmtP(a.log10_threshold)}</dd></div>
+        <div><dt>acceptance</dt>
+          <dd className={`verdict-pass ${pass ? 'ok' : 'no'}`}><Icon name={pass ? 'check' : 'dash'} size={14} />{pass ? 'PASS' : sig ? 'REJECTED ON STRUCTURE' : 'BAR NOT MET'}</dd></div>
+      </dl>
+      {pass && acc && checks.length > 0 && (
+        <p className="verdict-foot muted">
+          {CODE_SHORT(acc.code)} parity: {fmtInt(acc.n_positive)} of {fmtInt(acc.n_checks)} checks satisfied · structural checks passed: {checks.filter((c) => c.ok).map((c) => c.label.toLowerCase()).join(', ')}
+        </p>
+      )}
+
+      {!pass && s && (s.reason || s.what_would_prove_it) && (
+        <div className={`verdict-need${s.verdict === 'IMPOSSIBLE_IN_DOMAIN' ? ' impossible' : ''}`}>
+          <div className="section-label">{SUFFICIENCY_TITLE[s.verdict] ?? s.verdict}</div>
+          {s.reason && <p>{s.reason}</p>}
+          {s.what_would_prove_it && <><div className="section-label" style={{ marginTop: 10 }}>What would prove it?</div><p>{s.what_would_prove_it}</p></>}
+        </div>
+      )}
+    </section>
   )
 }
 
@@ -297,13 +368,15 @@ export function EvidenceChain({ pack }: { pack: EvidencePack }) {
     d.all_hypotheses?.code.forEach((k) => (c[k] = (c[k] ?? 0) + 1))
     return c
   }, [d.all_hypotheses])
-  const nodes: { id: NodeId; icon: string; title: string; sum: string; tone: string }[] = [
-    { id: 'raw', icon: 'raw', title: 'Raw IQ', sum: `${fmtInt(pack.capture.samples)} samples · ${fmtFs(pack.capture)} · ${(pack.capture.format ?? 'iq').toUpperCase()}`, tone: 'info' },
-    { id: 'detect', icon: 'detect', title: 'Signal detected', sum: detected ? `Spectral line p ${fmtP(d.detection_log10_p)}` : 'Presence not established', tone: detected ? 'ok' : 'warn' },
-    { id: 'structure', icon: 'structure', title: 'Symbol structure', sum: `${d.sps_candidates.length} rate · ${d.cfo_candidates.length} CFO · 2 modulation candidates`, tone: 'info' },
-    { id: 'fec', icon: 'fec', title: 'FEC hypotheses', sum: `${fmtInt(a.n_hypotheses)} tested · K7 ${fmtInt(codeCounts.K7)} · K5 ${fmtInt(codeCounts.K5)} · K3 ${fmtInt(codeCounts.K3)}`, tone: 'info' },
-    { id: 'validation', icon: 'stats', title: 'Statistical validation', sum: `bar ${fmtP(a.log10_threshold)} · best ${fmtP(a.log10_p)}${a.significant_but_rejected.length ? ` · ${a.significant_but_rejected.length} rejected` : ''}`, tone: r.status === 'DECODED' ? 'ok' : a.significant_but_rejected.length ? 'fail' : 'warn' },
-    { id: 'decision', icon: 'decision', title: 'Decision', sum: r.status === 'DECODED' ? `${CODE_SHORT(r.code)} · ${r.interleaver?.join('×')} · ${r.modulation}` : r.status === 'SIGNAL_NO_CODE' ? 'Signal, no code established' : 'Unknown: no interpretation asserted', tone: r.status === 'DECODED' ? 'ok' : 'warn' },
+  // `state` says in words what the tone says in colour: the spine is readable without colour.
+  const validationState = r.status === 'DECODED' ? 'PASS' : a.significant_but_rejected.length ? 'REJECTED' : 'BAR NOT MET'
+  const nodes: { id: NodeId; icon: string; title: string; sum: string; tone: string; state: string }[] = [
+    { id: 'raw', icon: 'raw', title: 'Raw IQ', sum: `${fmtInt(pack.capture.samples)} samples · ${fmtFs(pack.capture)} · ${(pack.capture.format ?? 'iq').toUpperCase()}`, tone: 'info', state: 'RECORDED' },
+    { id: 'detect', icon: 'detect', title: 'Signal detected', sum: detected ? `Spectral line p ${fmtP(d.detection_log10_p)}` : 'Presence not established', tone: detected ? 'ok' : 'warn', state: detected ? 'ESTABLISHED' : 'NOT ESTABLISHED' },
+    { id: 'structure', icon: 'structure', title: 'Symbol structure', sum: `${d.sps_candidates.length} rate · ${d.cfo_candidates.length} CFO · 2 modulation candidates`, tone: 'info', state: 'CANDIDATES' },
+    { id: 'fec', icon: 'fec', title: 'FEC hypotheses', sum: `${fmtInt(a.n_hypotheses)} tested · K7 ${fmtInt(codeCounts.K7)} · K5 ${fmtInt(codeCounts.K5)} · K3 ${fmtInt(codeCounts.K3)}`, tone: 'info', state: 'TESTED' },
+    { id: 'validation', icon: 'stats', title: 'Statistical validation', sum: `bar ${fmtP(a.log10_threshold)} · best ${fmtP(a.log10_p)}${a.significant_but_rejected.length ? ` · ${a.significant_but_rejected.length} rejected` : ''}`, tone: r.status === 'DECODED' ? 'ok' : a.significant_but_rejected.length ? 'fail' : 'warn', state: validationState },
+    { id: 'decision', icon: 'decision', title: 'Decision', sum: r.status === 'DECODED' ? `${CODE_SHORT(r.code)} · ${r.interleaver?.join('×')} · ${r.modulation}` : r.status === 'SIGNAL_NO_CODE' ? 'Signal, no code established' : 'Unknown: no interpretation asserted', tone: r.status === 'DECODED' ? 'ok' : r.status === 'SIGNAL_NO_CODE' ? 'info' : 'warn', state: STATUS_LABEL[r.status] },
   ]
   const detail: Record<NodeId, ReactNode> = {
     raw: <ViewsPanel pack={pack} />,
@@ -315,10 +388,10 @@ export function EvidenceChain({ pack }: { pack: EvidencePack }) {
   }
   return (
     <div className="grid" style={{ gridTemplateColumns: 'minmax(300px, 380px) minmax(0, 1fr)', alignItems: 'start' }}>
-      <div className="chain">
+      <div className="chain" role="group" aria-label="Evidence chain, in the order the engine applied it">
         {nodes.map((n, i) => (
           <motion.div key={n.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.16 }}>
-            {i > 0 && <div className="chain-link" />}
+            {i > 0 && <div className="chain-link" aria-hidden="true" />}
             {n.id === 'fec' && (
               <div className="chain-branches" style={{ marginBottom: 0 }}>
                 {['K7', 'K5', 'K3'].map((k) => (
@@ -326,11 +399,14 @@ export function EvidenceChain({ pack }: { pack: EvidencePack }) {
                 ))}
               </div>
             )}
-            {n.id === 'fec' && <div className="chain-link" />}
-            <button className={`chain-node${sel === n.id ? ' on' : ''}`} onClick={() => setSel(n.id)}>
+            {n.id === 'fec' && <div className="chain-link" aria-hidden="true" />}
+            <button className={`chain-node${sel === n.id ? ' on' : ''}`} aria-pressed={sel === n.id} onClick={() => setSel(n.id)}>
               <span className={`chain-icon ${n.tone}`}><Icon name={n.icon} /></span>
-              <span><div className="chain-title">{n.title}</div><div className="chain-sum">{n.sum}</div></span>
-              <Icon name="chevron" size={14} />
+              <span style={{ minWidth: 0 }}>
+                <span className="chain-top"><span className="chain-idx mono">{String(i + 1).padStart(2, '0')}</span><span className="chain-title">{n.title}</span></span>
+                <span className="chain-sum">{n.sum}</span>
+              </span>
+              <span className={`chain-state ${n.tone}`}>{n.state}</span>
             </button>
             {n.id === 'structure' && (
               <div className="chain-branches">
@@ -597,7 +673,9 @@ const SUFFICIENCY_TITLE: Record<string, string> = {
 }
 
 /** What would turn this refusal into a decision, in the engine's own units. */
-export function WhatWouldProveIt({ pack }: { pack: EvidencePack }) {
+/** `detailOnly` drops the prose (the Verdict already states the reason and the requirement) and
+ *  keeps the measurements behind them. */
+export function WhatWouldProveIt({ pack, detailOnly }: { pack: EvidencePack; detailOnly?: boolean }) {
   const s = pack.sufficiency
   if (pack.result.status === 'DECODED') {
     return <div className="empty">This capture was accepted. Nothing further is required.</div>
@@ -606,10 +684,10 @@ export function WhatWouldProveIt({ pack }: { pack: EvidencePack }) {
   const r = s.required, me = s.measured
   return (
     <div className="col" style={{ gap: 12 }}>
-      <div>
+      {!detailOnly && <div>
         <div className="section-label">{SUFFICIENCY_TITLE[s.verdict] ?? s.verdict}</div>
         <p style={{ margin: '6px 0 0' }}>{s.reason}</p>
-      </div>
+      </div>}
       {me.parity_checks != null && (
         <div className="statbar">
           <div><span className="kpi-label">Parity checks</span><b className="mono">{fmtInt(me.parity_checks)}</b></div>
@@ -618,10 +696,11 @@ export function WhatWouldProveIt({ pack }: { pack: EvidencePack }) {
           <div><span className="kpi-label">Bar</span><b className="mono">{fmtP(s.bar_log10_p ?? 0)}</b></div>
         </div>
       )}
-      <div>
+      {!detailOnly && <div>
         <div className="section-label">What would prove it</div>
         <p style={{ margin: '6px 0 0' }}>{s.what_would_prove_it}</p>
-      </div>
+      </div>}
+      {detailOnly && !me.parity_checks && !r?.achievable && <div className="empty">No further measurement is recorded for this refusal beyond the explanation above.</div>}
       {r?.achievable && (
         <dl className="kv">
           <dt>Parity checks now</dt><dd>{fmtInt(r.parity_checks_now ?? 0)}</dd>
@@ -692,15 +771,31 @@ export function ReceiptPanel({ pack }: { pack: EvidencePack }) {
     }
   }
   const failed = state.steps.some((s) => s.ok === false)
+  const a = pack.accept
+  const pass = pack.result.status === 'DECODED'
+  const checks = structuralChecks(pack)
+  // The receipt's own figures where it recorded them; the pack's where an older receipt did not.
+  const stat = (k: keyof Receipt['statistics']) => rc.statistics[k] ?? null
   return (
-    <div className="col" style={{ gap: 12 }}>
-      <dl className="kv">
-        <dt>Receipt</dt><dd className="mono">{rc.hash.slice(0, 32)}…</dd>
-        <dt>Previous receipt</dt><dd className="mono">{rc.prev_hash === GENESIS ? 'none: first entry in the ledger' : `${rc.prev_hash.slice(0, 32)}…`}</dd>
-        <dt>Capture</dt><dd className="mono">{rc.capture.sha256.slice(0, 32)}…</dd>
-        <dt>Written</dt><dd>{fmtDateTime(new Date(rc.created_utc).getTime())}</dd>
-        <dt>Records</dt><dd>{rc.decision.status}{rc.decision.code ? ` · ${CODE_SHORT(rc.decision.code)}` : ''} · {fmtInt(Number(rc.statistics.n_hypotheses ?? 0))} hypotheses · p {fmtP(Number(rc.statistics.log10_p ?? 0))}</dd>
-      </dl>
+    <div className="col" style={{ gap: 14 }}>
+      <div className="receipt">
+        <div className="receipt-head"><Icon name="shield" size={15} /><span>Verifiable decision receipt</span></div>
+        <dl className="receipt-rows">
+          <div><dt>Result</dt><dd><Stamp status={pack.result.status} /></dd></div>
+          <div><dt>Capture</dt><dd className="mono" title={rc.capture.sha256}>sha256 {rc.capture.sha256.slice(0, 16)}…</dd></div>
+          <div><dt>Hypotheses tested</dt><dd className="mono">{fmtInt(stat('n_hypotheses') ?? a.n_hypotheses)}</dd></div>
+          <div><dt>Acceptance</dt><dd className={pass ? 'ok' : 'no'}><b>{pass ? 'PASS' : a.log10_p <= a.log10_threshold ? 'REJECTED ON STRUCTURE' : 'BAR NOT MET'}</b></dd></div>
+          <div><dt>Threshold α / M</dt><dd className="mono">{fmtP(stat('log10_threshold') ?? a.log10_threshold)}</dd></div>
+          <div><dt>Observed</dt><dd className="mono">{fmtP(stat('log10_p') ?? a.log10_p)}</dd></div>
+          <div><dt>Structural checks</dt><dd>{checks.length ? checks.map((c) => (
+            <span key={c.label} className={`receipt-check ${c.ok ? 'ok' : 'no'}`}><Icon name={c.ok ? 'check' : 'cross'} size={12} />{c.label}</span>
+          )) : <span className="muted">not reached: no candidate hypothesis</span>}</dd></div>
+          <div><dt>Receipt</dt><dd className="mono" title={rc.hash}>{rc.hash.slice(0, 32)}…</dd></div>
+          <div><dt>Previous receipt</dt><dd className="mono">{rc.prev_hash === GENESIS ? 'none: first entry in the ledger' : `${rc.prev_hash.slice(0, 24)}…`}</dd></div>
+          <div><dt>Written</dt><dd className="mono">{fmtDateTime(new Date(rc.created_utc).getTime())}</dd></div>
+          {rc.decision.code && <div><dt>Recorded code</dt><dd className="mono">{CODE_SHORT(rc.decision.code)}</dd></div>}
+        </dl>
+      </div>
       <div className="row" style={{ gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
         <button className="btn btn-primary" onClick={() => void verify()} disabled={state.busy} data-loading={state.busy}>
           {state.busy ? 'Verifying…' : 'Verify receipt'}
@@ -709,24 +804,29 @@ export function ReceiptPanel({ pack }: { pack: EvidencePack }) {
           Hashes are recomputed here, in your browser. The server is not asked whether it is honest.
         </span>
       </div>
-      {state.error && <div className="banner amber" role="alert"><Icon name="info" /><span>{state.error}</span></div>}
-      {state.steps.length > 0 && (
-        <>
-          <ul className="why-list">
-            {state.steps.map((s) => (
-              <Check key={s.label} ok={s.ok === true} na={s.ok === null}>
-                {s.label}<div className="muted" style={{ fontSize: 12.5 }}>{s.detail}</div>
-              </Check>
-            ))}
-          </ul>
-          <div className={`banner ${failed ? 'amber' : 'muted'}`}>
-            <Icon name="info" />
-            <span>{failed
-              ? 'Verification failed. Treat this decision as unproven: the record does not match what it claims.'
-              : 'Every hash recomputed here matches the stored ledger. The record has not been altered since it was written.'}</span>
+      {state.error && <div className="banner amber" role="alert"><Icon name="info" /><span>Verification could not be completed: {state.error}</span></div>}
+      <div role="status" aria-live="polite">
+        {state.steps.length > 0 && (
+          <div className="col" style={{ gap: 12 }}>
+            <div className={`verify-result ${failed ? 'bad' : 'ok'}`}>
+              <Icon name={failed ? 'cross' : 'check'} size={20} />
+              <div>
+                <b>{failed ? 'VERIFICATION FAILED' : 'RECEIPT VERIFIED'}</b>
+                <span>{failed
+                  ? 'Treat this decision as unproven: the record does not match what it claims. The failing step is marked below.'
+                  : 'Every hash recomputed in this browser matches the stored ledger. The record has not been altered since it was written.'}</span>
+              </div>
+            </div>
+            <ul className="why-list">
+              {state.steps.map((s) => (
+                <Check key={s.label} ok={s.ok === true} na={s.ok === null}>
+                  {s.label}<div className="muted" style={{ fontSize: 12.5 }}>{s.detail}</div>
+                </Check>
+              ))}
+            </ul>
           </div>
-        </>
-      )}
+        )}
+      </div>
       <p className="muted" style={{ fontSize: 12.5, margin: 0 }}>
         A receipt proves that this decision belongs to this capture and this engine configuration, and
         that the ledger has not been edited since. It is not a signature, and it does not prove the

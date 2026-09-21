@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { STATUS_LABEL } from '../lib/format'
+import { STATUS_LABEL, STATUS_MEANING } from '../lib/format'
 import type { Provenance, Status } from '../lib/types'
 
 const P = { fill: 'none', stroke: 'currentColor', strokeWidth: 1.6, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const }
@@ -48,6 +48,7 @@ const ICONS: Record<string, ReactNode> = {
   flag: <><path d="M5 21V4M5 4h11l-2 4 2 4H5" {...P} /></>,
   sun: <><circle cx="12" cy="12" r="4" {...P} /><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8" {...P} /></>,
   moon: <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" {...P} />,
+  auto: <><circle cx="12" cy="12" r="8" {...P} /><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor" /></>,
   arrow: <path d="M5 12h14M13 6l6 6-6 6" {...P} />,
 }
 
@@ -77,12 +78,27 @@ export function Tag({ kind, children }: { kind: Provenance; children?: ReactNode
   return <span className={cls} title={TAG_TITLE[kind]}>{children ?? TAG_TEXT[kind]}</span>
 }
 
+/** The three outcomes are epistemic, not success/warning/error: each has its own shape, so the
+ *  meaning survives without colour. A check for an established reading, a waveform for "a signal is
+ *  there but no code is", an open question mark for "not enough evidence to say". */
+export const STATUS_GLYPH: Record<Status, ReactNode> = {
+  DECODED: <><circle cx="12" cy="12" r="9" fill="currentColor" opacity="0.18" /><circle cx="12" cy="12" r="9" {...P} strokeWidth={2} /><path d="M7.5 12.5l3 3 6-6.5" {...P} strokeWidth={2.4} /></>,
+  SIGNAL_NO_CODE: <><circle cx="12" cy="12" r="9" {...P} strokeWidth={2} /><path d="M5.5 12c1.6 0 1.6-4 3.25-4S10.4 16 12 16s1.6-8 3.25-8 1.65 4 3.25 4" {...P} strokeWidth={2} /></>,
+  UNKNOWN: <><circle cx="12" cy="12" r="9" {...P} strokeWidth={2} strokeDasharray="3.2 2.6" /><path d="M9.6 9.6a2.5 2.5 0 1 1 3.4 2.3c-.7.3-1 .8-1 1.5v.6" {...P} strokeWidth={2.2} /><circle cx="12" cy="16.9" r="1.2" fill="currentColor" /></>,
+}
+
+export function StatusGlyph({ status, size = 14 }: { status: Status; size?: number }) {
+  return <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden="true" className="stamp-glyph">{STATUS_GLYPH[status]}</svg>
+}
+
 export function Stamp({ status, size, investigate }: { status: Status; size?: 'lg' | 'xl'; investigate?: boolean }) {
   return (
     // Wraps rather than overflowing: the verdict and the flag share a narrow column on the record
     // page, and the flag stays at base size so it reads as secondary to the verdict.
     <span className="row-wrap" style={{ gap: 6 }}>
-      <span className={`stamp stamp-${status}${size ? ` stamp-${size}` : ''}`}>{STATUS_LABEL[status]}</span>
+      <span className={`stamp stamp-${status}${size ? ` stamp-${size}` : ''}`} title={STATUS_MEANING[status]}>
+        <StatusGlyph status={status} size={size === 'xl' ? 20 : size === 'lg' ? 15 : 13} />{STATUS_LABEL[status]}
+      </span>
       {investigate && <span className="stamp stamp-INVESTIGATE">INVESTIGATE</span>}
     </span>
   )
@@ -114,6 +130,7 @@ export function CountUp({ value, duration = 900, format = (n: number) => Math.ro
   const [v, setV] = useState(0)
   const from = useRef(0)
   useEffect(() => {
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) { from.current = value; setV(value); return }
     const start = performance.now()
     const a = from.current
     let raf = 0
@@ -148,10 +165,20 @@ export function Kpi({ label, value, note, accent, tag, spark }: {
 export function Tabs<T extends string>({ tabs, value, onChange }: {
   tabs: { id: T; label: ReactNode; count?: number }[]; value: T; onChange: (t: T) => void
 }) {
+  // Arrow keys move between tabs (WAI-ARIA tabs pattern); only the selected tab is in the tab order.
+  const onKey = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const i = tabs.findIndex((t) => t.id === value)
+    const j = e.key === 'ArrowRight' ? i + 1 : e.key === 'ArrowLeft' ? i - 1 : e.key === 'Home' ? 0 : e.key === 'End' ? tabs.length - 1 : null
+    if (j == null) return
+    e.preventDefault()
+    const next = tabs[(j + tabs.length) % tabs.length]
+    onChange(next.id)
+    requestAnimationFrame(() => (e.currentTarget.querySelector<HTMLButtonElement>('[aria-selected="true"]'))?.focus())
+  }
   return (
-    <div className="tabs" role="tablist">
+    <div className="tabs" role="tablist" onKeyDown={onKey}>
       {tabs.map((t) => (
-        <button key={t.id} role="tab" aria-selected={value === t.id} className={`tab${value === t.id ? ' on' : ''}`} onClick={() => onChange(t.id)}>
+        <button key={t.id} role="tab" aria-selected={value === t.id} tabIndex={value === t.id ? 0 : -1} className={`tab${value === t.id ? ' on' : ''}`} onClick={() => onChange(t.id)}>
           {t.label}{t.count != null && <span className="count">{t.count}</span>}
         </button>
       ))}
@@ -161,30 +188,44 @@ export function Tabs<T extends string>({ tabs, value, onChange }: {
 
 export function Seg<T extends string>({ options, value, onChange }: { options: { id: T; label: string }[]; value: T; onChange: (v: T) => void }) {
   return (
-    <div className="seg">
+    <div className="seg" role="group">
       {options.map((o) => (
-        <button key={o.id} className={value === o.id ? 'on' : ''} onClick={() => onChange(o.id)}>{o.label}</button>
+        <button key={o.id} className={value === o.id ? 'on' : ''} aria-pressed={value === o.id} onClick={() => onChange(o.id)}>{o.label}</button>
       ))}
     </div>
   )
 }
 
 export function Drawer({ open, onClose, title, children, right }: { open: boolean; onClose: () => void; title: ReactNode; children: ReactNode; right?: ReactNode }) {
+  const closeRef = useRef<HTMLButtonElement>(null)
+  const panelRef = useRef<HTMLElement>(null)
   useEffect(() => {
-    const k = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
+    if (!open) return
+    // Focus moves into the dialog on open and returns to whatever opened it on close.
+    const opener = document.activeElement as HTMLElement | null
+    closeRef.current?.focus()
+    const k = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { onClose(); return }
+      if (e.key !== 'Tab' || !panelRef.current) return
+      const f = panelRef.current.querySelectorAll<HTMLElement>('button:not(:disabled), a[href], input, select, textarea, [tabindex]:not([tabindex="-1"])')
+      if (!f.length) return
+      const first = f[0], last = f[f.length - 1]
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus() }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus() }
+    }
     window.addEventListener('keydown', k)
-    return () => window.removeEventListener('keydown', k)
-  }, [onClose])
+    return () => { window.removeEventListener('keydown', k); opener?.focus?.() }
+  }, [open, onClose])
   return (
     <AnimatePresence>
       {open && (
         <>
           <motion.div className="scrim" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} />
-          <motion.aside className="drawer" initial={{ x: 60, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: 60, opacity: 0 }} transition={{ type: 'spring', stiffness: 380, damping: 36 }} role="dialog" aria-modal="true">
+          <motion.aside ref={panelRef} className="drawer" initial={{ x: 24, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: 24, opacity: 0 }} transition={{ duration: 0.2, ease: [0.2, 0.8, 0.2, 1] }} role="dialog" aria-modal="true" aria-labelledby="drawer-title">
             <div className="drawer-head">
-              <div className="grow">{title}</div>
+              <div className="grow" id="drawer-title">{title}</div>
               {right}
-              <button className="btn btn-ghost btn-sm" onClick={onClose} aria-label="Close"><Icon name="cross" size={14} /></button>
+              <button ref={closeRef} className="btn btn-ghost btn-sm" onClick={onClose} aria-label="Close"><Icon name="cross" size={14} /></button>
             </div>
             <div className="drawer-body">{children}</div>
           </motion.aside>

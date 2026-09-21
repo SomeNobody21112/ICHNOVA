@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { useMemo, useState, useEffect } from 'react'
+import { useMemo, useRef, useState, useEffect } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { PRODUCT } from '../brand'
 import { BrandMark, Wordmark } from '../components/brand'
@@ -79,6 +79,17 @@ export default function Shell() {
   const { session, signOut, level, setLevel, engine, signals, world, reviews, setTour, tour } = useApp()
   const [collapsed, setCollapsed] = useState(false)
   const [menu, setMenu] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+  // The account panel is a disclosure: it closes on Escape or a click outside, not on mouse-out,
+  // which dropped it the moment a keyboard or touch user moved toward it.
+  useEffect(() => {
+    if (!menu) return
+    const key = (e: KeyboardEvent) => { if (e.key === 'Escape') setMenu(false) }
+    const down = (e: PointerEvent) => { if (!menuRef.current?.contains(e.target as Node)) setMenu(false) }
+    window.addEventListener('keydown', key)
+    window.addEventListener('pointerdown', down)
+    return () => { window.removeEventListener('keydown', key); window.removeEventListener('pointerdown', down) }
+  }, [menu])
   const loc = useLocation()
   const nav = useNavigate()
   const parts = loc.pathname.split('/')
@@ -96,7 +107,7 @@ export default function Shell() {
           <BrandMark size={34} title={PRODUCT.name} />
           {/* The rail is 236px: the wordmark alone reads cleanly there. The tagline stays on the
               landing page and in the app footer, where it has room to be set properly. */}
-          <div className="brand-text"><Wordmark height={14} /></div>
+          <div className="brand-text"><Wordmark height={14} /><span className="brand-sub">Independent SIH prototype</span></div>
         </Link>
         <nav className="nav">
           {NAV.map((g) => (
@@ -131,16 +142,16 @@ export default function Shell() {
             </select>
           </label>
           <span className="engine-pill hide-sm" title={engine.online ? `Local engine ${engine.version} · ${engine.commit}` : 'Local analysis server not reachable: recorded results only'}>
-            <i className={`dot ${engine.online ? 'dot-ok' : 'dot-warn'}`} />{engine.online ? 'Engine online' : 'Engine offline'}
+            <i className={`dot ${engine.online ? 'dot-ok' : 'dot-warn'}`} aria-hidden="true" />Engine <b>{engine.online ? 'ready' : 'offline'}</b>
           </span>
           {!tour.active && <button className="btn btn-sm hide-sm" onClick={() => setTour({ active: true, scene: 0 })}><Icon name="play" size={12} /> Guided tour</button>}
-          <div style={{ position: 'relative' }}>
-            <button className="btn btn-ghost btn-sm" onClick={() => setMenu(!menu)} aria-haspopup="menu" aria-expanded={menu}>
+          <div style={{ position: 'relative' }} ref={menuRef}>
+            <button className="btn btn-ghost btn-sm" onClick={() => setMenu(!menu)} aria-expanded={menu} aria-controls="user-panel" aria-label={`Account: ${session?.name ?? ''}`}>
               {session?.picture ? <img src={session.picture} alt="" width={24} height={24} style={{ borderRadius: '50%' }} referrerPolicy="no-referrer" /> : <span className="center" style={{ width: 24, height: 24, borderRadius: '50%', background: 'var(--accent-soft)', color: 'var(--accent)', fontSize: 11, fontWeight: 600 }}>{session?.name.slice(0, 1)}</span>}
               <span className="nowrap hide-sm" style={{ maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis' }}>{session?.name}</span>
             </button>
             {menu && (
-              <div className="panel" role="menu" style={{ position: 'absolute', right: 0, top: 40, width: 290, zIndex: 50, padding: 14 }} onMouseLeave={() => setMenu(false)}>
+              <div className="panel raised" id="user-panel" role="region" aria-label="Account" style={{ position: 'absolute', right: 0, top: 40, width: 290, maxWidth: 'calc(100vw - 24px)', zIndex: 50, padding: 14 }}>
                 <div style={{ fontWeight: 600 }}>{session?.name}</div>
                 <div className="muted" style={{ fontSize: 12.5 }}>{session?.email}</div>
                 <div className="hr" />

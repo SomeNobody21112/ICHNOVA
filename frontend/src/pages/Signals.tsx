@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { GenomeGlyph } from '../components/charts'
 import { RaiseCase } from '../components/crm'
-import { AuditTrail, CaptureGate, Characteristics, DataQuality, DecisionRecord, EvidenceChain, HypothesisExplorer, provOf, ReceiptPanel, ViewsPanel, WhatWouldProveIt, WhyPanel } from '../components/evidence'
+import { AuditTrail, CaptureGate, Characteristics, DataQuality, DecisionRecord, EvidenceChain, HypothesisExplorer, provOf, ReceiptPanel, Verdict, ViewsPanel, WhatWouldProveIt, WhyPanel } from '../components/evidence'
 import { Icon, Loading, Panel, Stamp, Tabs, Tag } from '../components/ui'
 import { CODE_SHORT, fmtAgo, fmtBw, fmtDateTime, fmtFreq, fmtInt, STATUS_MEANING } from '../lib/format'
 import { cosine, GENOME_AXES, STATIONS } from '../lib/sim'
@@ -50,7 +50,7 @@ export function SignalLibrary() {
           <table className="tbl">
             <thead><tr><th>Signal</th><th>Status</th><th>Fingerprint</th><th>Station</th><th className="num">Frequency</th><th className="num">Bandwidth</th><th>Modulation</th><th>Structure</th><th className="num">Hypotheses</th><th className="num">Seen</th><th className="num">Last seen</th><th>Data</th></tr></thead>
             <tbody>{rows.slice(0, 400).map((s) => (
-              <tr key={s.id} className="click" onClick={() => nav(`/app/signals/${s.id}`)}>
+              <tr key={s.id} className="click" tabIndex={0} aria-label={`Open signal ${s.id}`} onClick={() => nav(`/app/signals/${s.id}`)} onKeyDown={(e) => { if (e.key === 'Enter') nav(`/app/signals/${s.id}`) }}>
                 <td className="mono nowrap">{s.id}</td>
                 <td className="nowrap"><Stamp status={s.status} investigate={s.investigate} />{reviews[s.id] && <div className="muted" style={{ fontSize: 11 }}>reviewed: {reviews[s.id].action}</div>}</td>
                 <td><GenomeGlyph values={s.genome} size={34} color={s.status === 'DECODED' ? 'var(--green)' : s.status === 'UNKNOWN' ? 'var(--amber)' : 'var(--cyan)'} /></td>
@@ -82,7 +82,7 @@ function Similar({ rec }: { rec: SignalRecord }) {
   return (
     <div className="list">
       {sims.map(({ s, score }) => (
-        <div key={s.id} className="list-item" onClick={() => nav(`/app/signals/${s.id}`)} style={{ gridTemplateColumns: 'auto 1fr auto auto' }}>
+        <div key={s.id} className="list-item" role="link" tabIndex={0} onClick={() => nav(`/app/signals/${s.id}`)} onKeyDown={(e) => { if (e.key === 'Enter') nav(`/app/signals/${s.id}`) }} style={{ gridTemplateColumns: 'auto 1fr auto auto' }}>
           <GenomeGlyph values={s.genome} compare={rec.genome} size={34} />
           <div><div className="mono" style={{ fontSize: 12 }}>{s.id}</div><div className="muted" style={{ fontSize: 11.5 }}>{stationName(s.stationId)} · {fmtFreq(s.centerHz)}</div></div>
           <Stamp status={s.status} />
@@ -147,24 +147,28 @@ export function SignalDetail() {
             <div className="banner muted" style={{ marginBottom: 12 }}><Icon name="info" /><span>This record is <b>simulated</b> for the monitoring demonstration; its evidence is illustrative. Open an <Link to="/app/signals/BENCH-QPSK-K7">engine evidence record</Link> for real receiver output.</span></div>
           )}
           {tab === 'overview' && (
-            <div className="grid" style={{ gridTemplateColumns: 'minmax(0, 1.1fr) minmax(0, 0.9fr)', alignItems: 'start' }}>
-              <div className="col" style={{ gap: 14 }}>
-                <Characteristics pack={pack} />
-                <Panel title="Capture quality" sub="Whether the recording can be trusted as a measurement. Reported beside the verdict, never part of it." right={<Tag kind={provOf(pack)} />}>
-                  <CaptureGate pack={pack} />
-                  <div className="hr" />
-                  <DataQuality pack={pack} stationClock={station?.clock} />
-                </Panel>
-              </div>
-              <div className="col" style={{ gap: 14 }}>
-                <WhyPanel pack={pack} />
-                {pack.result.status !== 'DECODED' && (
-                  <Panel title="What would prove it?" sub="Derived from the test that refused this capture" right={<Tag kind={provOf(pack)} />}>
-                    <WhatWouldProveIt pack={pack} />
+            // Reading order: verdict, why, evidence, technical detail.
+            <div className="col" style={{ gap: 14 }}>
+              <Verdict pack={pack} />
+              <div className="grid" style={{ gridTemplateColumns: 'minmax(0, 0.95fr) minmax(0, 1.05fr)', alignItems: 'start' }}>
+                <div className="col" style={{ gap: 14 }}>
+                  <WhyPanel pack={pack} inVerdict />
+                  {pack.result.status !== 'DECODED' && (
+                    <Panel title="The measurements behind the refusal" sub="Derived from the test that refused this capture" right={<Tag kind={provOf(pack)} />}>
+                      <WhatWouldProveIt pack={pack} detailOnly />
+                    </Panel>
+                  )}
+                  {incident && <Panel title="Linked incident"><Link to={`/app/incidents/${incident.id}`} className="row"><span className={`pri pri-${incident.priority}`}>{incident.priority}</span><span>{incident.id} · {incident.title}</span></Link></Panel>}
+                </div>
+                <div className="col" style={{ gap: 14 }}>
+                  <Characteristics pack={pack} />
+                  <Panel title="Capture quality" sub="Whether the recording can be trusted as a measurement. Reported beside the verdict, never part of it." right={<Tag kind={provOf(pack)} />}>
+                    <CaptureGate pack={pack} />
+                    <div className="hr" />
+                    <DataQuality pack={pack} stationClock={station?.clock} />
                   </Panel>
-                )}
-                {incident && <Panel title="Linked incident"><Link to={`/app/incidents/${incident.id}`} className="row"><span className={`pri pri-${incident.priority}`}>{incident.priority}</span><span>{incident.id} · {incident.title}</span></Link></Panel>}
-                <Panel title="Similar signals" sub="Fingerprint cosine similarity" right={<Tag kind="EXPERIMENTAL" />} flush><Similar rec={rec} /></Panel>
+                  <Panel title="Similar signals" sub="Fingerprint cosine similarity" right={<Tag kind="EXPERIMENTAL" />} flush><Similar rec={rec} /></Panel>
+                </div>
               </div>
             </div>
           )}

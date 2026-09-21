@@ -256,3 +256,13 @@ dependency, and the air-gap design intact.
 
 **ICHNOVA is frozen for SIH. Further feature engineering is out of scope unless new evidence reveals
 a Class A correctness failure.**
+
+---
+
+### Addendum — 22 September 2026: console presentation pass
+
+A UI-only pass changed how the console presents existing results (themes, status shapes, verdict-first
+layout, receipt layout, keyboard and reduced-motion handling). **No engine, acceptance criterion,
+benchmark or evidence semantics changed**: no file under `src/`, `server/`, `eval/` or `tests/` was
+touched. Re-checked: 175 / 175 tests, frontend typecheck and build pass. The 120-page viewport sweep
+was not repeated for this pass. Details: `PROGRESS.md`.
