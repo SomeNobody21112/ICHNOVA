@@ -39,6 +39,13 @@ export default function Spectrum() {
     bandSignals.slice(0, 8).forEach((s, j) => { const p = s.centerHz ? (Math.log(s.centerHz) - Math.log(b.lo)) / (Math.log(b.hi) - Math.log(b.lo)) : 0; if (Math.abs(k / 200 - p) < 0.012) v += 24 - j })
     return v
   })
+  // Band summary, read off the trace drawn above it.
+  const sorted = [...psd].sort((x, y) => x - y)
+  const floor = sorted[Math.floor(sorted.length / 2)]
+  const peak = sorted[sorted.length - 1]
+  const busy = psd.filter((v) => v > floor + 10).length / psd.length
+  const counts = { DECODED: 0, SIGNAL_NO_CODE: 0, UNKNOWN: 0 }
+  bandSignals.forEach((s) => { counts[s.status] += 1 })
   return (
     <div className="page">
       <div className="page-head">
@@ -55,8 +62,20 @@ export default function Spectrum() {
 
       {view === 'spectrum' && (
         <div className="grid" style={{ gridTemplateColumns: 'minmax(0, 1fr) 320px' }}>
-          <Panel title={`Spectrum · ${b.label}`}>
-            <LinePlot series={[{ x: psd.map((_, k) => k), y: psd, color: 'var(--cyan)', fill: true }]} height={320} yLabel="dBm" xLabel="frequency (log)" />
+          {/* Spectrum over waterfall on one frequency axis: the standard receiver layout. The
+              waterfall fills what used to be empty space and shows when each peak was on air. */}
+          <Panel title={`Spectrum · ${b.label}`} sub="Power now (top) and over time (below), same frequency axis. Boxes are detections: select one to open its record.">
+            <LinePlot series={[{ x: psd.map((_, k) => k), y: psd, color: 'var(--cyan)', fill: true }]} height={190} yLabel="dBm" />
+            <dl className="band-summary">
+              <div><dt>noise floor</dt><dd className="mono">{floor.toFixed(1)} dBm</dd></div>
+              <div><dt>strongest peak</dt><dd className="mono">{peak.toFixed(1)} dBm</dd></div>
+              <div><dt>above floor + 10 dB</dt><dd className="mono">{Math.round(busy * 100)}% of band</dd></div>
+              <div><dt>detections</dt><dd>{bandSignals.length} · <span style={{ color: 'var(--green)' }}>{counts.DECODED} decoded</span> · <span style={{ color: 'var(--cyan)' }}>{counts.SIGNAL_NO_CODE} no code</span> · <span style={{ color: 'var(--amber)' }}>{counts.UNKNOWN} unknown</span></dd></div>
+            </dl>
+            <div style={{ paddingLeft: 46, paddingRight: 10 }}>
+              <LiveWaterfall height={210} channels={160} events={events} seed={si + bi * 7} onEvent={(id) => nav(`/app/signals/${id}`)} />
+              <div className="freq-axis mono">{[0, 0.25, 0.5, 0.75, 1].map((t) => <span key={t}>{fmtFreq(b.lo * Math.pow(b.hi / b.lo, t))}</span>)}</div>
+            </div>
           </Panel>
           <Panel title="Detected in band" flush>
             <div className="list">{bandSignals.slice(0, 10).map((s) => (
