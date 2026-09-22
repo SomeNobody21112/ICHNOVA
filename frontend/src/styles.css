@@ -1006,3 +1006,4 @@ details.more[open] > summary::before { content: '−'; }
 .card-link .btn, .card-link .banner, .card-link button, .card-link a:not(.card-link-target) { position: relative; z-index: 1; }
 .station-click { cursor: pointer; }
 .station-click:hover { border-color: var(--line-3); }
+.route-pending { display: flex; align-items: center; gap: 10px; padding: 28px; color: var(--muted); font-size: var(--t-sm); }

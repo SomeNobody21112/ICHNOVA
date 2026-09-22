@@ -133,9 +133,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     fetch('/benchmark.json').then((r) => r.json()).then(setBenchmark).catch(() => setBenchmark(null))
-    fetch('/evidence/index.json').then((r) => r.json()).then(async (idx: { id: string }[]) => {
-      const loaded = await Promise.all(idx.map((e) => fetch(`/evidence/${e.id}.json`).then((r) => r.json() as Promise<EvidencePack>)))
-      loaded.forEach((p) => packs.set(p.id, p))
+    fetch('/evidence/index.json').then((r) => r.json()).then(async (idx: { id: string; summary?: EvidencePack }[]) => {
+      // The library is built from the index's per-pack summaries (a few hundred bytes each; the
+      // fields benchmarkRecord reads). A full pack (megabytes: every hypothesis, every view) is
+      // fetched only when a record is opened, by loadPack. An index without summaries (an older
+      // export) falls back to loading the full packs. Summaries are never put in `packs`, so an
+      // opened record always gets the complete evidence.
+      const slim = idx.length > 0 && idx.every((e) => e.summary)
+      const loaded = slim
+        ? idx.map((e) => e.summary as EvidencePack)
+        : await Promise.all(idx.map((e) => fetch(`/evidence/${e.id}.json`).then((r) => r.json() as Promise<EvidencePack>)))
+      if (!slim) loaded.forEach((p) => packs.set(p.id, p))
       const base = Date.now() - 2 * 3600 * 1000
       const records: SignalRecord[] = []
       loaded.forEach((p, i) => {

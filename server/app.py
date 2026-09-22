@@ -25,6 +25,7 @@ GET  /*                                  built frontend (frontend/dist) with SPA
 """
 
 import argparse
+import gzip
 import json
 import os
 import queue
@@ -89,6 +90,10 @@ def _parse_fs(value):
     if not (np.isfinite(fs) and fs > 0):
         raise ValueError(f'fs must be a positive number of Hz, got {value!r}')
     return fs
+
+COMPRESSIBLE = ('.js', '.css', '.html', '.json', '.jsonl', '.svg', '.txt', '.map')
+_GZ_CACHE = {}
+
 
 class Handler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
@@ -231,12 +236,15 @@ class Handler(SimpleHTTPRequestHandler):
     def end_headers(self):
         """Evidence data and the app shell must never come from a stale browser cache.
 
-        They carry no validators, so browsers apply heuristic caching: after re-exporting the
-        evidence the console kept showing the previous run's numbers and commit. Hashed files under
-        /assets/ change name whenever they change, so they stay cacheable."""
+        API replies are never stored. Static evidence and the app shell are revalidated on every use
+        (no-cache + the ETag set in _static): never stale, but an unchanged file costs a 304 instead of
+        a re-download. Hashed files under /assets/ change name whenever they change, so _static marks
+        them immutable."""
         p = urlparse(self.path).path
-        if '/assets/' not in p and (p.endswith(('.json', '.jsonl', '.html')) or '.' not in os.path.basename(p)):
+        if p.startswith('/api/'):
             self.send_header('Cache-Control', 'no-store, must-revalidate')
+        elif '/assets/' not in p and (p.endswith(('.json', '.jsonl', '.html')) or '.' not in os.path.basename(p)):
+            self.send_header('Cache-Control', 'no-cache')
         # The console is self-contained: no third-party scripts, styles, fonts or frames, and
         # connections are same-origin only, so the browser cannot be steered to an external service.
         self.send_header('Content-Security-Policy',
@@ -324,7 +332,48 @@ class Handler(SimpleHTTPRequestHandler):
             return self._json(404, {'error': 'unknown endpoint'})
         if path == '/' or not os.path.exists(os.path.join(DIST, path.lstrip('/'))):
             self.path = '/index.html'
-        return super().do_GET()
+        return self._static()
+
+    def _static(self):
+        """A built console file, gzip-compressed when the client accepts it, with an ETag.
+
+        The evidence packs are several megabytes of JSON that compress to a fraction of that, and the
+        standard-library handler sends everything uncompressed with no validator. Compressed bytes are
+        cached per (file, mtime, size), so a file is compressed once, not per request."""
+        fs_path = self.translate_path(self.path)          # the stdlib path mapping, traversal-safe
+        if os.path.isdir(fs_path):
+            fs_path = os.path.join(fs_path, 'index.html')
+        if not os.path.isfile(fs_path):
+            return super().do_GET()                       # the stdlib's own 404
+        st = os.stat(fs_path)
+        etag = f'"{st.st_mtime_ns:x}-{st.st_size:x}"'
+        url_path = urlparse(self.path).path
+        immutable = url_path.startswith('/assets/')
+        if etag in [t.strip() for t in (self.headers.get('If-None-Match') or '').split(',')]:
+            self.send_response(304)
+            self.send_header('ETag', etag)
+            if immutable:
+                self.send_header('Cache-Control', 'public, max-age=31536000, immutable')
+            self.end_headers()
+            return
+        with open(fs_path, 'rb') as f:
+            data = f.read()
+        gz = (os.path.splitext(fs_path)[1].lower() in COMPRESSIBLE and len(data) > 1024
+              and 'gzip' in (self.headers.get('Accept-Encoding') or '').lower())
+        if gz:
+            key = (fs_path, st.st_mtime_ns, st.st_size)
+            data = _GZ_CACHE.get(key) or _GZ_CACHE.setdefault(key, gzip.compress(data, compresslevel=6))
+        self.send_response(200)
+        self.send_header('Content-Type', self.guess_type(fs_path))
+        self.send_header('Content-Length', str(len(data)))
+        self.send_header('ETag', etag)
+        self.send_header('Vary', 'Accept-Encoding')
+        if gz:
+            self.send_header('Content-Encoding', 'gzip')
+        if immutable:
+            self.send_header('Cache-Control', 'public, max-age=31536000, immutable')
+        self.end_headers()
+        self.wfile.write(data)
 
     def do_POST(self):
         url = urlparse(self.path)

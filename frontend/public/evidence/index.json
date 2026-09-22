@@ -4,41 +4,538 @@
   "status": "DECODED",
   "description": "DECODED QPSK capture: K=7 code and 10\u00d712 interleaver accepted.",
   "hypotheses": 50916,
-  "file": "data/sealed/test_018.iq"
+  "file": "data/sealed/test_018.iq",
+  "summary": {
+   "id": "BENCH-QPSK-K7",
+   "source": {
+    "kind": "BENCHMARK",
+    "note": "DECODED QPSK capture: K=7 code and 10\u00d712 interleaver accepted."
+   },
+   "capture": {
+    "station": null,
+    "center_freq_hz": null,
+    "bandwidth_hz": null
+   },
+   "result": {
+    "status": "DECODED",
+    "modulation": "QPSK",
+    "sps": 6,
+    "cfo": -0.005691964285714286,
+    "code": "conv_k7_r12_171_133",
+    "interleaver": [
+     10,
+     12
+    ]
+   },
+   "accept": {
+    "accepted_hypothesis": {
+     "code": "conv_k7_r12_171_133",
+     "interleaver": [
+      10,
+      12
+     ],
+     "interleaver_spec": {
+      "type": "block",
+      "rows": 10,
+      "cols": 12,
+      "bits": 120
+     },
+     "sps": 6,
+     "cfo": -0.005691964285714286,
+     "modulation": "QPSK",
+     "rotation": 3.141592653589793,
+     "phase": -1.3527503587854564,
+     "symbol_snr_db": 6.540611833098561,
+     "n_checks": 54,
+     "n_positive": 54,
+     "log10_p": -16.25561976585499,
+     "syndrome_z": 7.066667642104871,
+     "covered_bits": 120,
+     "total_observed_bits": 140,
+     "coverage_ratio": 0.8571428571428571,
+     "consistency": 1.0,
+     "path_metric": 0.9999999999999992,
+     "mdl_savings_bits": 44.36416853598811,
+     "uncoded_mdl_savings_bits": 0.0,
+     "active_symbols": 60,
+     "covered_symbols": 60.0,
+     "bpsk_presence_log10p": -0.3687919342408341,
+     "bpsk_contradiction_log10p": -16.432864126878318,
+     "structural_rejection": null
+    },
+    "n_hypotheses": 50916,
+    "log10_p": -16.25561976585499,
+    "log10_threshold": -7.007884273478222,
+    "significant_but_rejected": []
+   },
+   "diagnostics": {
+    "top_hypotheses": [
+     {
+      "code": "conv_k7_r12_171_133",
+      "interleaver": [
+       10,
+       12
+      ],
+      "interleaver_spec": {
+       "type": "block",
+       "rows": 10,
+       "cols": 12,
+       "bits": 120
+      },
+      "sps": 6,
+      "cfo": -0.005691964285714286,
+      "modulation": "QPSK",
+      "rotation": 3.141592653589793,
+      "phase": -1.3527503587854564,
+      "symbol_snr_db": 6.540611833098561,
+      "n_checks": 54,
+      "n_positive": 54,
+      "log10_p": -16.25561976585499,
+      "syndrome_z": 7.066667642104871,
+      "covered_bits": 120,
+      "total_observed_bits": 140,
+      "coverage_ratio": 0.8571428571428571,
+      "consistency": 1.0,
+      "path_metric": 0.9999999999999992,
+      "mdl_savings_bits": 44.36416853598811,
+      "uncoded_mdl_savings_bits": 0.0,
+      "active_symbols": 60,
+      "covered_symbols": 60.0,
+      "bpsk_presence_log10p": -0.3687919342408341,
+      "bpsk_contradiction_log10p": -16.432864126878318,
+      "structural_rejection": null
+     }
+    ],
+    "detection_log10_p": 0.0
+   }
+  }
  },
  {
   "id": "BENCH-BPSK-K5",
   "status": "DECODED",
   "description": "DECODED capture with a K=5 code, identified from the catalogue.",
   "hypotheses": 52572,
-  "file": "data/nullset/k5_120_001.iq"
+  "file": "data/nullset/k5_120_001.iq",
+  "summary": {
+   "id": "BENCH-BPSK-K5",
+   "source": {
+    "kind": "BENCHMARK",
+    "note": "DECODED capture with a K=5 code, identified from the catalogue."
+   },
+   "capture": {
+    "station": null,
+    "center_freq_hz": null,
+    "bandwidth_hz": null
+   },
+   "result": {
+    "status": "DECODED",
+    "modulation": "BPSK",
+    "sps": 8,
+    "cfo": -0.0013822115384615385,
+    "code": "conv_k5_r12_23_35",
+    "interleaver": [
+     10,
+     12
+    ]
+   },
+   "accept": {
+    "accepted_hypothesis": {
+     "code": "conv_k5_r12_23_35",
+     "interleaver": [
+      10,
+      12
+     ],
+     "interleaver_spec": {
+      "type": "block",
+      "rows": 10,
+      "cols": 12,
+      "bits": 120
+     },
+     "sps": 8,
+     "cfo": -0.0013822115384615385,
+     "modulation": "BPSK",
+     "rotation": 0.0,
+     "phase": 0.9822773381516409,
+     "symbol_snr_db": 9.441441659114052,
+     "n_checks": 56,
+     "n_positive": 56,
+     "log10_p": -16.857679757182947,
+     "syndrome_z": 7.483314773547883,
+     "covered_bits": 120,
+     "total_observed_bits": 130,
+     "coverage_ratio": 0.9230769230769231,
+     "consistency": 1.0,
+     "path_metric": 0.9999999999999998,
+     "mdl_savings_bits": 44.31799299995589,
+     "uncoded_mdl_savings_bits": 0.0,
+     "active_symbols": 120,
+     "covered_symbols": 120.0,
+     "bpsk_presence_log10p": -18.061799739838865,
+     "bpsk_contradiction_log10p": 0.0,
+     "structural_rejection": null
+    },
+    "n_hypotheses": 52572,
+    "log10_p": -16.857679757182947,
+    "log10_threshold": -7.021784494889781,
+    "significant_but_rejected": []
+   },
+   "diagnostics": {
+    "top_hypotheses": [
+     {
+      "code": "conv_k5_r12_23_35",
+      "interleaver": [
+       10,
+       12
+      ],
+      "interleaver_spec": {
+       "type": "block",
+       "rows": 10,
+       "cols": 12,
+       "bits": 120
+      },
+      "sps": 8,
+      "cfo": -0.0013822115384615385,
+      "modulation": "BPSK",
+      "rotation": 0.0,
+      "phase": 0.9822773381516409,
+      "symbol_snr_db": 9.441441659114052,
+      "n_checks": 56,
+      "n_positive": 56,
+      "log10_p": -16.857679757182947,
+      "syndrome_z": 7.483314773547883,
+      "covered_bits": 120,
+      "total_observed_bits": 130,
+      "coverage_ratio": 0.9230769230769231,
+      "consistency": 1.0,
+      "path_metric": 0.9999999999999998,
+      "mdl_savings_bits": 44.31799299995589,
+      "uncoded_mdl_savings_bits": 0.0,
+      "active_symbols": 120,
+      "covered_symbols": 120.0,
+      "bpsk_presence_log10p": -18.061799739838865,
+      "bpsk_contradiction_log10p": 0.0,
+      "structural_rejection": null
+     }
+    ],
+    "detection_log10_p": -80.44393982833675
+   }
+  }
  },
  {
   "id": "BENCH-UNCODED",
   "status": "SIGNAL_NO_CODE",
   "description": "Uncoded BPSK: signal detected, no catalogue code established.",
   "hypotheses": 32076,
-  "file": "data/nullset/uncoded_bpsk_120_000.iq"
+  "file": "data/nullset/uncoded_bpsk_120_000.iq",
+  "summary": {
+   "id": "BENCH-UNCODED",
+   "source": {
+    "kind": "BENCHMARK",
+    "note": "Uncoded BPSK: signal detected, no catalogue code established."
+   },
+   "capture": {
+    "station": null,
+    "center_freq_hz": null,
+    "bandwidth_hz": null
+   },
+   "result": {
+    "status": "SIGNAL_NO_CODE",
+    "modulation": "BPSK",
+    "sps": 5,
+    "cfo": -0.0015024038461538462,
+    "code": null,
+    "interleaver": null
+   },
+   "accept": {
+    "accepted_hypothesis": null,
+    "n_hypotheses": 32076,
+    "log10_p": -5.314890729285043,
+    "log10_threshold": -6.807210200468143,
+    "significant_but_rejected": []
+   },
+   "diagnostics": {
+    "top_hypotheses": [
+     {
+      "code": "conv_k5_r12_23_35",
+      "interleaver": null,
+      "interleaver_spec": {
+       "type": "diagonal",
+       "rows": 10,
+       "cols": 24,
+       "bits": 240
+      },
+      "sps": 4,
+      "cfo": 0.006370192307692308,
+      "modulation": "QPSK",
+      "rotation": 1.5707963267948966,
+      "phase": -0.7109801533347127,
+      "symbol_snr_db": 5.678936677862033,
+      "n_checks": 116,
+      "n_positive": 82,
+      "log10_p": -5.314890729285043,
+      "syndrome_z": 5.342388358307344,
+      "covered_bits": 240,
+      "total_observed_bits": 260,
+      "coverage_ratio": 0.9230769230769231,
+      "consistency": 0.8458333333333333,
+      "path_metric": 0.8131829830992056,
+      "mdl_savings_bits": -140.70631263291253,
+      "uncoded_mdl_savings_bits": 0.0,
+      "active_symbols": 120,
+      "covered_symbols": 120.0,
+      "bpsk_presence_log10p": -9.41612602783344,
+      "bpsk_contradiction_log10p": -0.362828469352273,
+      "structural_rejection": "modulation: BPSK signature present, QPSK hypothesis contradicted"
+     }
+    ],
+    "detection_log10_p": -24.0558003490332
+   }
+  }
  },
  {
   "id": "BENCH-SHORT-K7",
   "status": "UNKNOWN",
   "description": "A real K=7 transmission too short to prove (32 coded bits): refused.",
   "hypotheses": 4356,
-  "file": "data/train/test_024.iq"
+  "file": "data/train/test_024.iq",
+  "summary": {
+   "id": "BENCH-SHORT-K7",
+   "source": {
+    "kind": "BENCHMARK",
+    "note": "A real K=7 transmission too short to prove (32 coded bits): refused."
+   },
+   "capture": {
+    "station": null,
+    "center_freq_hz": null,
+    "bandwidth_hz": null
+   },
+   "result": {
+    "status": "UNKNOWN",
+    "modulation": null,
+    "sps": null,
+    "cfo": null,
+    "code": null,
+    "interleaver": null
+   },
+   "accept": {
+    "accepted_hypothesis": null,
+    "n_hypotheses": 4356,
+    "log10_p": -4.418539921951662,
+    "log10_threshold": -5.940117866747719,
+    "significant_but_rejected": []
+   },
+   "diagnostics": {
+    "top_hypotheses": [
+     {
+      "code": "conv_k5_r12_23_35",
+      "interleaver": [
+       2,
+       23
+      ],
+      "interleaver_spec": {
+       "type": "block",
+       "rows": 2,
+       "cols": 23,
+       "bits": 46
+      },
+      "sps": 8,
+      "cfo": -0.010516826923076924,
+      "modulation": "QPSK",
+      "rotation": 3.141592653589793,
+      "phase": -0.4061102849195911,
+      "symbol_snr_db": 0.9809525258219527,
+      "n_checks": 19,
+      "n_positive": 18,
+      "log10_p": -4.418539921951662,
+      "syndrome_z": 1.0943292327710779,
+      "covered_bits": 46,
+      "total_observed_bits": 52,
+      "coverage_ratio": 0.8846153846153846,
+      "consistency": 0.8043478260869565,
+      "path_metric": 0.7677297393537226,
+      "mdl_savings_bits": -11.270015017891199,
+      "uncoded_mdl_savings_bits": 0.0,
+      "active_symbols": 16,
+      "covered_symbols": 23.0,
+      "bpsk_presence_log10p": -0.01554301205218383,
+      "bpsk_contradiction_log10p": -25.404312229132927,
+      "structural_rejection": "soft path metric 0.768 below floor 0.926"
+     }
+    ],
+    "detection_log10_p": -1.3883472181370828
+   }
+  }
  },
  {
   "id": "BENCH-WRONGSTRUCT",
   "status": "SIGNAL_NO_CODE",
   "description": "K=3 capture where a structurally inconsistent interleaver was significant and rejected.",
   "hypotheses": 9687,
-  "file": "data/nullset/k3_384_012.iq"
+  "file": "data/nullset/k3_384_012.iq",
+  "summary": {
+   "id": "BENCH-WRONGSTRUCT",
+   "source": {
+    "kind": "BENCHMARK",
+    "note": "K=3 capture where a structurally inconsistent interleaver was significant and rejected."
+   },
+   "capture": {
+    "station": null,
+    "center_freq_hz": null,
+    "bandwidth_hz": null
+   },
+   "result": {
+    "status": "SIGNAL_NO_CODE",
+    "modulation": "BPSK",
+    "sps": 5,
+    "cfo": -0.008264593908629441,
+    "code": null,
+    "interleaver": null
+   },
+   "accept": {
+    "accepted_hypothesis": null,
+    "n_hypotheses": 9687,
+    "log10_p": -8.407145351647053,
+    "log10_threshold": -6.2872192954008055,
+    "significant_but_rejected": [
+     {
+      "code": "conv_k3_r12_7_5",
+      "interleaver": [
+       16,
+       14
+      ],
+      "modulation": "BPSK",
+      "sps": 5,
+      "log10_p": -8.407145351647053,
+      "structural_rejection": "block length: covers 224 of ~384 transmitted symbols"
+     }
+    ]
+   },
+   "diagnostics": {
+    "top_hypotheses": [
+     {
+      "code": "conv_k3_r12_7_5",
+      "interleaver": [
+       16,
+       14
+      ],
+      "interleaver_spec": {
+       "type": "block",
+       "rows": 16,
+       "cols": 14,
+       "bits": 224
+      },
+      "sps": 5,
+      "cfo": -0.008629441624365483,
+      "modulation": "BPSK",
+      "rotation": 0.0,
+      "phase": -1.283898170686589,
+      "symbol_snr_db": 10.669430854840204,
+      "n_checks": 110,
+      "n_positive": 85,
+      "log10_p": -8.407145351647053,
+      "syndrome_z": 5.9180169577241815,
+      "covered_bits": 224,
+      "total_observed_bits": 394,
+      "coverage_ratio": 0.5685279187817259,
+      "consistency": 0.8839285714285714,
+      "path_metric": 0.9262546249871677,
+      "mdl_savings_bits": -270.4466836483616,
+      "uncoded_mdl_savings_bits": 0.0,
+      "active_symbols": 384,
+      "covered_symbols": 224.0,
+      "bpsk_presence_log10p": -57.79775916748441,
+      "bpsk_contradiction_log10p": 0.0,
+      "structural_rejection": "block length: covers 224 of ~384 transmitted symbols"
+     }
+    ],
+    "detection_log10_p": -299.69897000433605
+   }
+  }
  },
  {
   "id": "BENCH-NOISE",
   "status": "UNKNOWN",
   "description": "Receiver noise only: no evidence of a signal.",
   "hypotheses": 67950,
-  "file": "data/nullset/noise_060_052.iq"
+  "file": "data/nullset/noise_060_052.iq",
+  "summary": {
+   "id": "BENCH-NOISE",
+   "source": {
+    "kind": "BENCHMARK",
+    "note": "Receiver noise only: no evidence of a signal."
+   },
+   "capture": {
+    "station": null,
+    "center_freq_hz": null,
+    "bandwidth_hz": null
+   },
+   "result": {
+    "status": "UNKNOWN",
+    "modulation": null,
+    "sps": null,
+    "cfo": null,
+    "code": null,
+    "interleaver": null
+   },
+   "accept": {
+    "accepted_hypothesis": null,
+    "n_hypotheses": 67950,
+    "log10_p": -7.546201620532382,
+    "log10_threshold": -7.133219456732494,
+    "significant_but_rejected": [
+     {
+      "code": "conv_k7_r12_171_133",
+      "interleaver": [
+       14,
+       19
+      ],
+      "modulation": "QPSK",
+      "sps": 4,
+      "log10_p": -7.546201620532382,
+      "structural_rejection": "soft path metric 0.851 below floor 0.926"
+     }
+    ]
+   },
+   "diagnostics": {
+    "top_hypotheses": [
+     {
+      "code": "conv_k7_r12_171_133",
+      "interleaver": [
+       14,
+       19
+      ],
+      "interleaver_spec": {
+       "type": "block",
+       "rows": 14,
+       "cols": 19,
+       "bits": 266
+      },
+      "sps": 4,
+      "cfo": 0.004092261904761905,
+      "modulation": "QPSK",
+      "rotation": 0.0,
+      "phase": -0.8855045610179095,
+      "symbol_snr_db": -2.7476852464611987,
+      "n_checks": 127,
+      "n_positive": 94,
+      "log10_p": -7.546201620532382,
+      "syndrome_z": 1.7990250499045117,
+      "covered_bits": 266,
+      "total_observed_bits": 420,
+      "coverage_ratio": 0.6333333333333333,
+      "consistency": 0.8421052631578947,
+      "path_metric": 0.8508596784956747,
+      "mdl_savings_bits": 76.16493554634661,
+      "uncoded_mdl_savings_bits": 0.0,
+      "active_symbols": 76,
+      "covered_symbols": 133.0,
+      "bpsk_presence_log10p": -0.1633919036692031,
+      "bpsk_contradiction_log10p": -1.8106340831785097,
+      "structural_rejection": "soft path metric 0.851 below floor 0.926"
+     }
+    ],
+    "detection_log10_p": -0.7292820457699349
+   }
+  }
  }
 ]

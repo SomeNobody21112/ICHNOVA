@@ -70,6 +70,24 @@ def truth_of(gt):
     return t
 
 
+def pack_summary(pack):
+    """The slice of a pack the signal library needs (frontend `benchmarkRecord`), a few hundred
+    bytes instead of megabytes: the console lists records from these at start-up and fetches the
+    full pack only when a record is opened. Values are copied, never recomputed."""
+    acc, diag, res = pack['accept'], pack['diagnostics'], pack['result']
+    return {
+        'id': pack['id'],
+        'source': {k: pack['source'].get(k) for k in ('kind', 'note')},
+        'capture': {k: pack['capture'].get(k) for k in ('station', 'center_freq_hz', 'bandwidth_hz')},
+        'result': {k: res.get(k) for k in ('status', 'modulation', 'sps', 'cfo', 'code', 'interleaver')},
+        'accept': {'accepted_hypothesis': acc.get('accepted_hypothesis'), 'n_hypotheses': acc['n_hypotheses'],
+                   'log10_p': acc['log10_p'], 'log10_threshold': acc['log10_threshold'],
+                   'significant_but_rejected': acc.get('significant_but_rejected', [])[:1]},
+        'diagnostics': {'top_hypotheses': diag.get('top_hypotheses', [])[:1],
+                        'detection_log10_p': diag['detection_log10_p']},
+    }
+
+
 def export_packs():
     os.makedirs(os.path.join(PUB, 'evidence'), exist_ok=True)
     os.makedirs(os.path.join(PUB, 'samples'), exist_ok=True)
@@ -95,7 +113,8 @@ def export_packs():
                           ledger_path=ledger)
         json.dump(pack, open(os.path.join(PUB, 'evidence', pid + '.json'), 'w'), default=to_json_default)
         index.append({'id': pid, 'status': pack['result']['status'], 'description': desc,
-                      'hypotheses': pack['accept']['n_hypotheses'], 'file': rel + '.iq'})
+                      'hypotheses': pack['accept']['n_hypotheses'], 'file': rel + '.iq',
+                      'summary': json.loads(json.dumps(pack_summary(pack), default=to_json_default))})
         name = pid.lower() + '.iq'
         shutil.copy(path, os.path.join(PUB, 'samples', name))
         samples.append({'name': name, 'format': 'iq', 'fs_hz': 1e6, 'bytes': os.path.getsize(path),

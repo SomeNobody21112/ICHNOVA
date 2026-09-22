@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { useMemo, useRef, useState, useEffect } from 'react'
+import { Suspense, useMemo, useRef, useState, useEffect } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { PRODUCT } from '../brand'
 import { BrandMark, Wordmark } from '../components/brand'
@@ -174,7 +174,9 @@ export default function Shell() {
         <main className="content" id="main" tabIndex={-1}>
           <AnimatePresence mode="wait">
             <motion.div key={loc.pathname} className="route" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }}>
-              <Outlet />
+              <Suspense fallback={<div className="route-pending" role="status" aria-live="polite"><span className="spinner" /> Loading…</div>}>
+                <Outlet />
+              </Suspense>
             </motion.div>
           </AnimatePresence>
           <footer className="app-foot">
