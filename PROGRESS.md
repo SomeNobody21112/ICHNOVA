@@ -1,5 +1,14 @@
 # SIH26147 — Session Progress Report
 
+## Speed, motion and roadmap Phase 2 — 22 September 2026
+
+- **Load time, nothing removed:** start-up no longer downloads every evidence pack (~14 MB) to list the library; `evidence/index.json` carries a per-pack summary (14.7 kB for all six, copied fields) and full packs load when a record is opened. Each screen is its own chunk (first visit ~146 kB gzip instead of ~249 kB), the rest prefetched when idle. `server/app.py` now serves the console gzip-compressed (a 4.3 MB pack travels as 228 kB) with ETags: JSON/HTML revalidate (304) instead of re-downloading, hashed assets are immutable, `/api/` stays `no-store`.
+- **Motion:** line plots draw in, meters/bars/donut grow, canvases fade in, evidence stages arrive in sequence, blocks below the fold rise in once on scroll. Nothing loops; reduced motion and print show end states.
+- **Roadmap Phase 2 (EXPERIMENTAL):** `src/fingerprint.py` builds a 16-feature fingerprint from the engine's own measurements (never ground truth) and a nearest-neighbour library; not imported by the decision path. `eval/similarity.py` ran the engine on the 1,350 labelled null-set captures with a protocol fixed before the run (seed-split reference/query, reference-only scaling): nearest fingerprint is the same class **54.2%** of the time (95% CI 50.5–57.9%) vs 20.4% random and 31.5% verdict-only; 39.8% vs 10.7% with noise excluded; 70.4% at 384 coded bits. Features were not tuned against these results. Report: `reports/PHASE2_SIMILARITY_REPORT.md`. Synthetic captures only.
+- **Checks:** 178 / 178 backend tests (3 new), `tsc -b` clean, `vite build` passes, gzip/304/immutable/traversal verified with curl.
+
+---
+
 ## UI polish pass — 22 September 2026 (console only; engine untouched)
 
 - **Themes:** new light palette (paper `#f7f8f6`, ink `#18201d`, bronze `#8a5a24`) designed on its own instead of the earlier beige/brown; dark refined to a neutral instrument black. Theme control is now Light / Dark / **System**, persisted, applied before first paint. All text tokens computed at ≥ 4.5:1 in both themes (the brief's suggested muted greys measured ~4.1:1 and were darkened/lightened to pass).

@@ -266,3 +266,19 @@ layout, receipt layout, keyboard and reduced-motion handling). **No engine, acce
 benchmark or evidence semantics changed**: no file under `src/`, `server/`, `eval/` or `tests/` was
 touched. Re-checked: 175 / 175 tests, frontend typecheck and build pass. The 120-page viewport sweep
 was not repeated for this pass. Details: `PROGRESS.md`.
+
+### Addendum — 22 September 2026: speed and roadmap Phase 2
+
+Still **no change to any decision, acceptance criterion, benchmark or evidence semantic.** What was
+added or changed outside the console:
+
+- `src/fingerprint.py` (new, EXPERIMENTAL): fingerprints from a finished engine result. It is not
+  imported by `pipeline.py`, `blind_id.py` or the server, so it cannot influence a verdict; a test
+  asserts it leaves the result unchanged.
+- `eval/similarity.py` (new): Phase 2 evaluation on the synthetic null set; results in
+  `reports/PHASE2_SIMILARITY_REPORT.md`.
+- `server/app.py`: static files are served gzip-compressed with ETags (API behaviour unchanged).
+- `server/export_frontend_data.py`: the evidence index also carries per-pack summaries, copied from
+  the packs.
+
+Re-checked: 178 / 178 tests (175 existing + 3 new).

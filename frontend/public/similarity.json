@@ -1,0 +1,168 @@
+{
+ "phase": "Phase 2 \u00b7 signal fingerprints and similarity search",
+ "status": "EXPERIMENTAL",
+ "dataset": "data/nullset (synthetic, labelled by the generator)",
+ "n_reference": 675,
+ "n_queries": 675,
+ "features": [
+  "presence",
+  "line_x2_db",
+  "line_x4_db",
+  "structure_q4",
+  "symbol_rate",
+  "raw_rate",
+  "bpsk_ratio",
+  "evidence_k3",
+  "evidence_k5",
+  "evidence_k7",
+  "symbol_snr",
+  "interleaver_bits",
+  "margin",
+  "v_decoded",
+  "v_signal_no_code",
+  "v_unknown"
+ ],
+ "protocol": "split by seed index (even = reference, odd = held-out query); standardisation fitted on the reference only; a query is correct when its nearest reference capture has the same generator class",
+ "top1": 0.5422222222222223,
+ "top1_ci95": [
+  0.5045035347359136,
+  0.5794630341956312
+ ],
+ "correct": 366,
+ "precision_at_5": 0.4773333333333334,
+ "baseline_random": 0.2043895747599453,
+ "baseline_verdict_only": 0.314678108235277,
+ "refused_signals": {
+  "n": 354,
+  "correct": 100,
+  "top1": 0.2824858757062147,
+  "ci95": [
+   0.238115525291521,
+   0.33152646155405546
+  ]
+ },
+ "signal_classes_only": {
+  "n": 425,
+  "correct": 169,
+  "top1": 0.3976470588235294,
+  "ci95": [
+   0.3522334348957268,
+   0.444894455682053
+  ],
+  "baseline_random": 0.10675381263616623
+ },
+ "per_class": {
+  "8psk_k7": {
+   "n": 50,
+   "correct": 12,
+   "top1": 0.24,
+   "ci95": [
+    0.14297252401872207,
+    0.3741294937519236
+   ]
+  },
+  "k3": {
+   "n": 75,
+   "correct": 22,
+   "top1": 0.29333333333333333,
+   "ci95": [
+    0.2023999721815816,
+    0.4044065867923611
+   ]
+  },
+  "k5": {
+   "n": 75,
+   "correct": 30,
+   "top1": 0.4,
+   "ci95": [
+    0.29662343078170594,
+    0.5131216783992341
+   ]
+  },
+  "k7": {
+   "n": 75,
+   "correct": 38,
+   "top1": 0.5066666666666667,
+   "ci95": [
+    0.39598184412213266,
+    0.6167018152658047
+   ]
+  },
+  "noise": {
+   "n": 250,
+   "correct": 197,
+   "top1": 0.788,
+   "ci95": [
+    0.7331716894914767,
+    0.8341112144927404
+   ]
+  },
+  "uncoded_bpsk": {
+   "n": 75,
+   "correct": 41,
+   "top1": 0.5466666666666666,
+   "ci95": [
+    0.4344817369914825,
+    0.6543038787240788
+   ]
+  },
+  "uncoded_qpsk": {
+   "n": 75,
+   "correct": 26,
+   "top1": 0.3466666666666667,
+   "ci95": [
+    0.24882118363617925,
+    0.4594546504412621
+   ]
+  }
+ },
+ "per_coded_bits": {
+  "30": {
+   "n": 135,
+   "correct": 47,
+   "top1": 0.34814814814814815,
+   "ci95": [
+    0.2729969034656345,
+    0.4317025526051686
+   ]
+  },
+  "60": {
+   "n": 135,
+   "correct": 58,
+   "top1": 0.42962962962962964,
+   "ci95": [
+    0.34921160149343466,
+    0.513941804978401
+   ]
+  },
+  "120": {
+   "n": 135,
+   "correct": 78,
+   "top1": 0.5777777777777777,
+   "ci95": [
+    0.493440066627446,
+    0.6578114314826303
+   ]
+  },
+  "240": {
+   "n": 135,
+   "correct": 88,
+   "top1": 0.6518518518518519,
+   "ci95": [
+    0.5682974473948316,
+    0.7270030965343656
+   ]
+  },
+  "384": {
+   "n": 135,
+   "correct": 95,
+   "top1": 0.7037037037037037,
+   "ci95": [
+    0.6219039659647384,
+    0.774230910037843
+   ]
+  }
+ },
+ "engine_commit": "9ea2032",
+ "scope": "Synthetic benchmark captures only. Not validated on real transmissions; never part of a decision."
+}

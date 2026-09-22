@@ -1,19 +1,25 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { GenomeGlyph } from '../components/charts'
 import { Panel, Stamp, Tag } from '../components/ui'
-import { fmtFreq, STATUS_LABEL } from '../lib/format'
+import { fmtFreq, pct, STATUS_LABEL } from '../lib/format'
 import { cosine, GENOME_AXES } from '../lib/sim'
 import { stationName, useApp } from '../lib/store'
 import type { SignalRecord } from '../lib/types'
 
 const MODULES = [
   { phase: 'Phase 1', name: 'Deterministic DSP + statistical validation', status: 'OPERATIONAL', desc: 'Blind search, exact parity tests, multiple-testing correction, structural checks. Every decision in this prototype.' },
-  { phase: 'Phase 2', name: 'Signal embeddings & similarity search', status: 'EXPERIMENTAL', desc: 'Feature-vector fingerprints for similarity, clustering and recurring-emitter discovery. Today: cosine similarity on engineered genome fields.' },
+  { phase: 'Phase 2', name: 'Signal fingerprints & similarity search', status: 'EXPERIMENTAL', desc: 'A fingerprint of what the engine measured (presence, spectral lines, symbol structure, code evidence, verdict) and nearest-neighbour search over it, to find recurrences of a signal. Never part of a decision.' },
   { phase: 'Phase 3', name: 'Anomaly detection', status: 'NOT ESTABLISHED', desc: 'Learn normal spectrum behaviour per station; flag deviation for review, never as a threat.' },
   { phase: 'Phase 4', name: 'Learned hypothesis prioritisation', status: 'NOT ESTABLISHED', desc: 'Rank which hypotheses to test first. Reduces search cost; statistical verification still decides.' },
   { phase: 'Phase 5', name: 'Code-aided adaptive inference', status: 'NOT ESTABLISHED', desc: 'Decode → residual error → parameter refinement → re-decode. Research module, not enabled until experimentally validated.' },
 ]
+
+/** The fields of results/similarity.json the roadmap reads (written by eval/similarity.py). */
+interface Similarity {
+  n_queries: number; top1: number; baseline_random: number; baseline_verdict_only: number
+  signal_classes_only: { top1: number; baseline_random: number }
+}
 
 // ---------------------------------------------------------------- genome map
 type Status = SignalRecord['status']
@@ -154,6 +160,9 @@ function GenomeMap({ signals, selected, neighbours, onSelect }: { signals: Signa
 
 export default function Genome() {
   const { signals, engine } = useApp()
+  // Phase 2's measured result (eval/similarity.py). Absent file: the step says so instead of a number.
+  const [sim, setSim] = useState<Similarity | null>(null)
+  useEffect(() => { fetch('/similarity.json').then((r) => (r.ok ? r.json() : null)).then(setSim).catch(() => setSim(null)) }, [])
   const [sel, setSel] = useState(signals.find((s) => s.provenance === 'SIMULATED' && s.status === 'UNKNOWN')?.id ?? signals[0]?.id)
   const rec = signals.find((s) => s.id === sel) ?? signals[0]
   const sims = useMemo(() => rec ? signals.filter((s) => s.id !== rec.id).map((s) => ({ s, score: cosine(rec.genome, s.genome) })).sort((a, b) => b.score - a.score).slice(0, 8) : [], [signals, rec])
@@ -208,7 +217,10 @@ export default function Genome() {
                 <p className="roadmap-desc">{m.desc}</p>
                 <p className="roadmap-model">{st === 'now'
                   ? <>No learned model: deterministic DSP{engine.version ? <> · engine <span className="mono">{engine.version}</span></> : null}</>
-                  : st === 'exp' ? 'No trained model: engineered fields and cosine similarity' : 'No model, version or training data yet'}</p>
+                  : st === 'exp' ? (sim
+                    ? <>No trained model. Measured on {sim.n_queries} held-out synthetic captures: the nearest fingerprint is the same kind of signal <b className="mono">{pct(sim.top1)}</b> of the time (random {pct(sim.baseline_random)}, verdict alone {pct(sim.baseline_verdict_only)}); {pct(sim.signal_classes_only.top1)} vs {pct(sim.signal_classes_only.baseline_random)} with noise excluded.</>
+                    : 'No trained model: measured fingerprints and nearest-neighbour search (evaluation not found)')
+                  : 'No model, version or training data yet'}</p>
               </li>
             )
           })}
