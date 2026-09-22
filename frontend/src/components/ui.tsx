@@ -104,6 +104,22 @@ export function Stamp({ status, size, investigate }: { status: Status; size?: 'l
   )
 }
 
+const PRI_BARS: Record<string, number> = { HIGH: 3, MEDIUM: 2, LOW: 1 }
+
+/** Priority as a fixed-width signal-strength mark plus a word. The width never changes with the word,
+ *  so a column of mixed priorities stays aligned (a boxed "MEDIUM" pill used to push its row over). */
+export function Priority({ level, suffix }: { level: string; suffix?: string }) {
+  const n = PRI_BARS[level] ?? 1
+  return (
+    <span className={`pri pri-${level}`} title={`${level.toLowerCase()} priority`}>
+      <svg viewBox="0 0 14 12" width={14} height={12} aria-hidden="true">
+        {[0, 1, 2].map((i) => <rect key={i} x={i * 5} y={8 - i * 4} width={3.4} height={4 + i * 4} rx={0.8} className={i < n ? 'on' : ''} />)}
+      </svg>
+      <span>{level.charAt(0) + level.slice(1).toLowerCase()}{suffix}</span>
+    </span>
+  )
+}
+
 export function Panel({ title, sub, right, children, flush, className, style, id }: {
   title?: ReactNode; sub?: ReactNode; right?: ReactNode; children: ReactNode; flush?: boolean; className?: string
   style?: React.CSSProperties; id?: string

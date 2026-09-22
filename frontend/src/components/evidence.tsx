@@ -232,7 +232,7 @@ export function Characteristics({ pack }: { pack: EvidencePack }) {
     { label: 'Hypotheses evaluated', value: fmtInt(pack.accept.n_hypotheses), topic: 'validation', established: true },
   ]
   return (
-    <Panel title="Signal characteristics" right={<Tag kind={provOf(pack)} />} flush>
+    <Panel title="Signal characteristics" flush>
       <div className="list">
         {rows.map((row) => (
           <div key={row.label} className="list-item" style={{ gridTemplateColumns: '150px 1fr auto', cursor: 'default' }}>
@@ -258,7 +258,7 @@ export function WhyPanel({ pack, inVerdict }: { pack: EvidencePack; inVerdict?: 
   const sig = a.log10_p <= a.log10_threshold
   const title = r.status === 'DECODED' ? 'Evidence behind the acceptance' : r.status === 'SIGNAL_NO_CODE' ? 'Evidence: signal, but no code' : 'Evidence behind UNKNOWN'
   return (
-    <Panel title={title} right={<Tag kind={provOf(pack)} />}>
+    <Panel title={title}>
       <ul className="why-list">
         <Check ok={detected}>Signal presence {detected ? 'established' : 'not established'} (spectral line p {fmtP(d.detection_log10_p)})</Check>
         <Check ok={!!best} na={!best}>{best ? `Symbol structure candidates found (${d.sps_candidates.length} rates, ${d.n_front_ends} front-ends)` : 'No usable symbol structure'}</Check>
@@ -318,7 +318,6 @@ export function Verdict({ pack }: { pack: EvidencePack }) {
           <StatusGlyph status={r.status} size={30} />
           <span>{STATUS_LABEL[r.status]}</span>
         </div>
-        <Tag kind={provOf(pack)} />
       </div>
       <p className="verdict-meaning">{STATUS_MEANING[r.status]}</p>
       {structure.length > 0 && <ul className="verdict-structure">{structure.map((x) => <li key={x}>{x}</li>)}</ul>}
@@ -419,7 +418,7 @@ export function EvidenceChain({ pack }: { pack: EvidencePack }) {
         ))}
       </div>
       <motion.div key={sel} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}>
-        <Panel title={nodes.find((n) => n.id === sel)?.title} right={<Tag kind={provOf(pack)} />}>{detail[sel]}</Panel>
+        <Panel title={nodes.find((n) => n.id === sel)?.title}>{detail[sel]}</Panel>
       </motion.div>
     </div>
   )
@@ -463,8 +462,7 @@ export function HypothesisExplorer({ pack }: { pack: EvidencePack }) {
     <div className="col" style={{ gap: 14 }}>
       <div className="grid" style={{ gridTemplateColumns: 'minmax(0, 1fr) 320px', alignItems: 'stretch' }}>
         <Panel title={<span><span className="mono" style={{ fontSize: 22, color: 'var(--cyan)', marginRight: 10 }}>{fmtInt(a.n_hypotheses)}</span>hypotheses evaluated</span>}
-          sub="Each point is one (CFO × symbol rate × modulation × rotation × code × interleaver) hypothesis. Height = evidence (−log10 p)."
-          right={<Tag kind={provOf(pack)} />}>
+          sub="Each point is one (CFO × symbol rate × modulation × rotation × code × interleaver) hypothesis. Height = evidence (−log10 p).">
           <Landscape all={all} threshold={a.log10_threshold} isAccepted={isAcc} isRejected={isRej} filter={filter} height={270} />
           <div className="legend" style={{ marginTop: 8 }}>
             <span><i style={{ background: 'var(--cyan)' }} />K7</span><span><i style={{ background: 'var(--violet)' }} />K5</span><span><i style={{ background: 'var(--green)' }} />K3</span>

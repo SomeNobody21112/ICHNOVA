@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Donut, Heatmap, Sparkline } from '../components/charts'
 import IndiaMap, { type MapStation } from '../components/IndiaMap'
 import { RealProof } from '../components/realproof'
-import { Icon, Kpi, Panel, Tag } from '../components/ui'
+import { Icon, Kpi, Panel, Priority, Tag } from '../components/ui'
 import { fmtAgo, fmtFreq } from '../lib/format'
 import { BANDS, DAY, occupancy, STATIONS, ZONES } from '../lib/sim'
 import { stationName, useApp } from '../lib/store'
@@ -68,6 +68,7 @@ export default function Command() {
           <h1 className="page-title">Welcome{firstName ? `, ${firstName}` : ''}</h1>
           <div className="page-sub">What needs attention across {scope}. Monitoring figures on this page are simulated; real-signal results are marked.</div>
         </div>
+        <Tag kind="SIMULATED">Monitoring figures simulated</Tag>
         {zone && <button className="chip on" onClick={() => setZone(null)}>{ZONES.find((z) => z.id === zone)?.name} zone <Icon name="cross" size={11} /></button>}
       </div>
 
@@ -89,7 +90,7 @@ export default function Command() {
       </div>
 
       <div className="grid" style={{ gridTemplateColumns: 'minmax(0, 1.4fr) minmax(320px, 0.6fr)', alignItems: 'start' }}>
-        <Panel title={level === 'FIELD' ? 'Station network' : 'Monitoring stations'} sub="Select a zone to filter this page, or a station to see its signals" right={<Tag kind="SIMULATED" />} flush>
+        <Panel title={level === 'FIELD' ? 'Station network' : 'Monitoring stations'} sub="Select a zone to filter this page, or a station to see its signals" flush>
           <IndiaMap stations={mapStations} zone={zone} onZone={setZone} links={level !== 'FIELD' ? links : []} height={440}
             selectedStation={level === 'FIELD' ? session?.stationId : null}
             onStation={(id) => nav(`/app/signals?station=${id}`)} />
@@ -98,7 +99,7 @@ export default function Command() {
           <div className="list">
             {alerts.map((a) => (
               <div key={a.key} className="list-item" role="link" tabIndex={0} onClick={() => nav(a.to)} onKeyDown={(e) => { if (e.key === 'Enter') nav(a.to) }}>
-                <span className={`pri pri-${a.pri}`}>{a.pri}</span>
+                <Priority level={a.pri} />
                 <div className="grow" style={{ minWidth: 0 }}><div style={{ fontSize: 13 }}>{a.title}</div><div className="muted clamp-2" style={{ fontSize: 12 }} title={a.sub}>{a.sub}</div></div>
                 <span className="muted mono" style={{ fontSize: 11.5 }}>{fmtAgo(a.t, now)}</span>
               </div>
@@ -118,14 +119,14 @@ export default function Command() {
       <details className="more">
         <summary>Show spectrum trends</summary>
         <div className="grid" style={{ gridTemplateColumns: 'minmax(0, 1.1fr) minmax(0, 0.6fr) minmax(0, 1fr)', marginTop: 12 }}>
-          <Panel title="Band occupancy · 24 h" sub="Rows: HF, VHF, UHF" right={<Tag kind="SIMULATED" />}>
+          <Panel title="Band occupancy · 24 h" sub="Rows: HF, VHF, UHF">
             <div style={{ display: 'grid', gridTemplateColumns: '44px 1fr', gap: 6 }}>
               <div className="col mono muted" style={{ fontSize: 11, justifyContent: 'space-around', height: 150 }}>{BANDS.map((b) => <span key={b.id}>{b.id}</span>)}</div>
               <Heatmap data={heat} height={150} onCell={() => nav('/app/spectrum')} />
             </div>
             <div className="row mono muted" style={{ fontSize: 11, justifyContent: 'space-between', paddingLeft: 50 }}><span>−24 h</span><span>−12 h</span><span>now</span></div>
           </Panel>
-          <Panel title="Outcomes" right={<Tag kind="SIMULATED" />}>
+          <Panel title="Outcomes">
             {/* A legend, not three verdict stamps: stamps are sized to announce one result and
                 spilled out of this narrow card; the legend also carries the counts. */}
             <div className="row-wrap" style={{ gap: 16 }}>
@@ -141,7 +142,7 @@ export default function Command() {
               </div>
             </div>
           </Panel>
-          <Panel title="Signals per hour · 24 h" right={<Tag kind="SIMULATED" />}>
+          <Panel title="Signals per hour · 24 h">
             <svg viewBox="0 0 480 150" style={{ width: '100%', height: 150 }}>
               {hourly.map((h, i) => {
                 const x = 10 + i * 19.5, bw = 13, total = h.d + h.n + h.u

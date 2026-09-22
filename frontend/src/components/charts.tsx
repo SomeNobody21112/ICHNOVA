@@ -236,38 +236,56 @@ export function LinePlot({ series, height = 180, yLabel, xLabel, yMin, yMax, mar
   series: { x: number[]; y: number[]; color: string; width?: number; fill?: boolean }[]
   height?: number; yLabel?: string; xLabel?: string; yMin?: number; yMax?: number; markers?: { x: number; label: string; color: string }[]
 }) {
+  // Drawn at the container's real pixel width. The old version stretched a fixed viewBox with
+  // preserveAspectRatio="none", which distorted every label and let the y-axis title sit on a tick.
+  const box = useRef<HTMLDivElement>(null)
+  const [W, setW] = useState(0)
+  useEffect(() => {
+    const el = box.current
+    if (!el) return
+    const ro = new ResizeObserver(() => setW(el.clientWidth))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
   const allX = series.flatMap((s) => s.x), allY = series.flatMap((s) => s.y)
   const x0 = Math.min(...allX), x1 = Math.max(...allX)
   const y0 = yMin ?? Math.min(...allY), y1 = yMax ?? Math.max(...allY)
-  const W = 600, H = 200, pl = 42, pb = 22, pt = 8, pr = 8
+  const H = height, pl = 46, pb = 8, pt = 8, pr = 10
   const sx = (x: number) => pl + ((x - x0) / (x1 - x0 || 1)) * (W - pl - pr)
   const sy = (y: number) => pt + (1 - (y - y0) / (y1 - y0 || 1)) * (H - pt - pb)
+  // Enough decimals to tell adjacent ticks apart (0.25 stays 0.25, not a second "0.3").
+  const step = Math.abs(y1 - y0) / 4
+  const dec = step >= 5 || step === 0 ? 0 : Math.min(3, Math.max(0, Math.ceil(-Math.log10(step) + 0.3)))
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ width: '100%', height }} role="img">
-      {[0, 0.25, 0.5, 0.75, 1].map((k) => (
-        <g key={k}>
-          <line x1={pl} x2={W - pr} y1={pt + k * (H - pt - pb)} y2={pt + k * (H - pt - pb)} stroke="var(--line)" />
-          <text x={pl - 6} y={pt + k * (H - pt - pb) + 3} textAnchor="end" className="axis">{(y1 - k * (y1 - y0)).toFixed(Math.abs(y1 - y0) < 5 ? 1 : 0)}</text>
-        </g>
-      ))}
-      {series.map((s, i) => {
-        const d = s.x.map((x, k) => `${k ? 'L' : 'M'}${sx(x).toFixed(1)},${sy(s.y[k]).toFixed(1)}`).join('')
-        return (
-          <g key={i}>
-            {s.fill && <path d={`${d}L${sx(s.x[s.x.length - 1])},${H - pb}L${sx(s.x[0])},${H - pb}Z`} fill={s.color} opacity={0.12} />}
-            <path d={d} fill="none" stroke={s.color} strokeWidth={s.width ?? 1.4} vectorEffect="non-scaling-stroke" />
-          </g>
-        )
-      })}
-      {markers?.map((m, i) => (
-        <g key={i}>
-          <line x1={sx(m.x)} x2={sx(m.x)} y1={pt} y2={H - pb} stroke={m.color} strokeDasharray="3 3" />
-          <text x={sx(m.x) + 4} y={pt + 10} className="axis" style={{ fill: m.color }}>{m.label}</text>
-        </g>
-      ))}
-      {yLabel && <text x={4} y={pt + 8} className="axis">{yLabel}</text>}
-      {xLabel && <text x={W - pr} y={H - 4} textAnchor="end" className="axis">{xLabel}</text>}
-    </svg>
+    <div className="lineplot" ref={box}>
+      {yLabel && <div className="lineplot-y">{yLabel}</div>}
+      <svg width="100%" height={H} role="img" aria-label={[yLabel, xLabel].filter(Boolean).join(' against ') || 'line chart'}>
+        {W > 0 && <>
+          {[0, 0.25, 0.5, 0.75, 1].map((k) => (
+            <g key={k}>
+              <line x1={pl} x2={W - pr} y1={pt + k * (H - pt - pb)} y2={pt + k * (H - pt - pb)} stroke="var(--line)" />
+              <text x={pl - 8} y={pt + k * (H - pt - pb) + 3.5} textAnchor="end">{(y1 - k * (y1 - y0)).toFixed(dec)}</text>
+            </g>
+          ))}
+          {series.map((s, i) => {
+            const d = s.x.map((x, k) => `${k ? 'L' : 'M'}${sx(x).toFixed(1)},${sy(s.y[k]).toFixed(1)}`).join('')
+            return (
+              <g key={i}>
+                {s.fill && <path d={`${d}L${sx(s.x[s.x.length - 1])},${H - pb}L${sx(s.x[0])},${H - pb}Z`} fill={s.color} opacity={0.1} />}
+                <path d={d} fill="none" stroke={s.color} strokeWidth={s.width ?? 1.5} strokeLinejoin="round" />
+              </g>
+            )
+          })}
+          {markers?.map((m, i) => (
+            <g key={i}>
+              <line x1={sx(m.x)} x2={sx(m.x)} y1={pt} y2={H - pb} stroke={m.color} strokeDasharray="3 3" />
+              <text x={sx(m.x) + 4} y={pt + 10} style={{ fill: m.color }}>{m.label}</text>
+            </g>
+          ))}
+        </>}
+      </svg>
+      {xLabel && <div className="lineplot-x">{xLabel}</div>}
+    </div>
   )
 }
 

@@ -3,7 +3,7 @@ import { useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { HBars, Sparkline } from '../components/charts'
 import IndiaMap, { type MapStation } from '../components/IndiaMap'
-import { CountUp, Icon, Panel, Stamp, Tabs, Tag } from '../components/ui'
+import { CountUp, Icon, Panel, Priority, Stamp, Tabs, Tag } from '../components/ui'
 import { geoMercator, geoPath } from 'd3-geo'
 import type { FeatureCollection } from 'geojson'
 import { feature } from 'topojson-client'
@@ -68,7 +68,7 @@ function ScaleUp({ counts, stationLabel }: { counts: number[]; stationLabel: str
     ['National picture', 'what the spectrum of the country is doing'],
   ]
   return (
-    <Panel title="From one decoded signal to national intelligence" sub="Each level aggregates the one before it; above the first stage nothing is a raw waveform" right={<Tag kind="SIMULATED" />}>
+    <Panel title="From one decoded signal to national intelligence" sub="Each level aggregates the one before it; above the first stage nothing is a raw waveform">
       <div className="scale">
         {steps.map(([label, note], i) => (
           <motion.div key={label} className={`scale-step${i === steps.length - 1 ? ' last' : ''}`} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 * i, duration: 0.45 }}>
@@ -165,7 +165,7 @@ export default function Intelligence() {
               <Panel title="Cross-location correlation · incident queue" flush>
                 <div className="list">{world.incidents.filter((i) => !zone || i.stationIds.some((id) => STATIONS.find((s) => s.id === id)?.zone === zone)).map((i) => (
                   <div key={i.id} className="list-item" onClick={() => nav(`/app/incidents/${i.id}`)}>
-                    <span className={`pri pri-${i.priority}`}>{i.priority}</span>
+                    <Priority level={i.priority} />
                     <div><div style={{ fontSize: 12.5 }}>{i.title}</div><div className="muted" style={{ fontSize: 11 }}>{i.stationIds.map(stationName).join(' · ')}</div></div>
                     <span className="muted mono" style={{ fontSize: 11 }}>{fmtAgo(i.lastSeen)}</span>
                   </div>

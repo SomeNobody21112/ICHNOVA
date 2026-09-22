@@ -3,8 +3,8 @@ import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { GenomeGlyph } from '../components/charts'
 import { RaiseCase } from '../components/crm'
-import { AuditTrail, CaptureGate, Characteristics, DataQuality, DecisionRecord, EvidenceChain, HypothesisExplorer, provOf, ReceiptPanel, Verdict, ViewsPanel, WhatWouldProveIt, WhyPanel } from '../components/evidence'
-import { Icon, Loading, Panel, Stamp, Tabs, Tag } from '../components/ui'
+import { AuditTrail, CaptureGate, Characteristics, DataQuality, DecisionRecord, EvidenceChain, HypothesisExplorer, ReceiptPanel, Verdict, ViewsPanel, WhatWouldProveIt, WhyPanel } from '../components/evidence'
+import { Icon, Loading, Panel, Priority, Stamp, Tabs, Tag } from '../components/ui'
 import { CODE_SHORT, fmtAgo, fmtBw, fmtDateTime, fmtFreq, fmtInt, STATUS_MEANING } from '../lib/format'
 import { cosine, GENOME_AXES, STATIONS } from '../lib/sim'
 import { stationName, useApp, useCan, usePack, whyNot } from '../lib/store'
@@ -154,15 +154,15 @@ export function SignalDetail() {
                 <div className="col" style={{ gap: 14 }}>
                   <WhyPanel pack={pack} inVerdict />
                   {pack.result.status !== 'DECODED' && (
-                    <Panel title="The measurements behind the refusal" sub="Derived from the test that refused this capture" right={<Tag kind={provOf(pack)} />}>
+                    <Panel title="The measurements behind the refusal" sub="Derived from the test that refused this capture">
                       <WhatWouldProveIt pack={pack} detailOnly />
                     </Panel>
                   )}
-                  {incident && <Panel title="Linked incident"><Link to={`/app/incidents/${incident.id}`} className="row"><span className={`pri pri-${incident.priority}`}>{incident.priority}</span><span>{incident.id} · {incident.title}</span></Link></Panel>}
+                  {incident && <Panel title="Linked incident"><Link to={`/app/incidents/${incident.id}`} className="row"><Priority level={incident.priority} /><span>{incident.id} · {incident.title}</span></Link></Panel>}
                 </div>
                 <div className="col" style={{ gap: 14 }}>
                   <Characteristics pack={pack} />
-                  <Panel title="Capture quality" sub="Whether the recording can be trusted as a measurement. Reported beside the verdict, never part of it." right={<Tag kind={provOf(pack)} />}>
+                  <Panel title="Capture quality" sub="Whether the recording can be trusted as a measurement. Reported beside the verdict, never part of it.">
                     <CaptureGate pack={pack} />
                     <div className="hr" />
                     <DataQuality pack={pack} stationClock={station?.clock} />
@@ -174,7 +174,7 @@ export function SignalDetail() {
           )}
           {tab === 'chain' && <EvidenceChain pack={pack} />}
           {tab === 'hypotheses' && <HypothesisExplorer pack={pack} />}
-          {tab === 'views' && <Panel title="Analyst views" right={<Tag kind={provOf(pack)} />}><ViewsPanel pack={pack} /></Panel>}
+          {tab === 'views' && <Panel title="Analyst views"><ViewsPanel pack={pack} /></Panel>}
           {tab === 'genome' && (
             <div className="grid g-2" style={{ alignItems: 'start' }}>
               <Panel title="Signal genome" sub="Structured fingerprint of what was established about this observation" right={<Tag kind={rec.provenance === 'SIMULATED' ? 'SIMULATED' : 'EXPERIMENTAL'} />}>
@@ -196,7 +196,7 @@ export function SignalDetail() {
           )}
           {tab === 'audit' && (
             <div className="grid g-2" style={{ alignItems: 'start' }}>
-              <Panel title="Audit trail" right={<Tag kind={provOf(pack)} />} flush><AuditTrail pack={pack} extra={extraAudit} /></Panel>
+              <Panel title="Audit trail" flush><AuditTrail pack={pack} extra={extraAudit} /></Panel>
               <div className="col" style={{ gap: 14 }}>
                 <Panel title="Decision record"><DecisionRecord pack={pack} operatorAction={reviews[rec.id]?.action} /></Panel>
                 <Panel title="Evidence receipt" sub="Hash-chained record of this decision, verifiable without trusting this system">

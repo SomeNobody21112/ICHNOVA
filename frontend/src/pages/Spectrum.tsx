@@ -55,7 +55,7 @@ export default function Spectrum() {
 
       {view === 'spectrum' && (
         <div className="grid" style={{ gridTemplateColumns: 'minmax(0, 1fr) 320px' }}>
-          <Panel title={`Spectrum · ${b.label}`} right={<Tag kind="SIMULATED" />}>
+          <Panel title={`Spectrum · ${b.label}`}>
             <LinePlot series={[{ x: psd.map((_, k) => k), y: psd, color: 'var(--cyan)', fill: true }]} height={320} yLabel="dBm" xLabel="frequency (log)" />
           </Panel>
           <Panel title="Detected in band" flush>
@@ -70,14 +70,14 @@ export default function Spectrum() {
 
       {view === 'waterfall' && (
         <Panel title="Waterfall" sub="Frequency → · time ↓ · colour = signal strength · boxes = detected events"
-          right={<div className="row"><span className="muted" style={{ fontSize: 12 }}>Overlay</span><select className="select" style={{ width: 200, height: 30 }} value={overlay} onChange={(e) => setOverlay(e.target.value)}><option value="">none</option>{bandSignals.slice(0, 8).map((s) => <option key={s.id} value={s.id}>{s.id}</option>)}</select><Tag kind="SIMULATED" /></div>}>
+          right={<div className="row"><span className="muted" style={{ fontSize: 12 }}>Overlay</span><select className="select" style={{ width: 200, height: 30 }} value={overlay} onChange={(e) => setOverlay(e.target.value)}><option value="">none</option>{bandSignals.slice(0, 8).map((s) => <option key={s.id} value={s.id}>{s.id}</option>)}</select></div>}>
           <LiveWaterfall height={460} channels={160} events={events} seed={si + bi * 7} onEvent={(id) => nav(`/app/signals/${id}`)} />
         </Panel>
       )}
 
       {view === 'occupancy' && (
         <Panel title={`Occupancy · ${stationName(station)} · ${b.label}`} sub="Rows: channel (low → high frequency, bottom → top). Columns: time. Colour: fraction of time occupied."
-          right={<div className="row"><Seg<Range> options={(['1h', '6h', '24h', '7d', '30d'] as Range[]).map((r) => ({ id: r, label: r }))} value={range} onChange={setRange} /><Tag kind="SIMULATED" /></div>}>
+          right={<div className="row"><Seg<Range> options={(['1h', '6h', '24h', '7d', '30d'] as Range[]).map((r) => ({ id: r, label: r }))} value={range} onChange={setRange} /></div>}>
           <div style={{ display: 'grid', gridTemplateColumns: '84px 1fr', gap: 8 }}>
             <div className="col mono muted" style={{ justifyContent: 'space-between', fontSize: 11, height: 380 }}><span>{fmtFreq(chanFreq(channels))}</span><span>{fmtFreq(chanFreq(channels / 2))}</span><span>{fmtFreq(chanFreq(0))}</span></div>
             <Heatmap data={[...occ].reverse()} height={380} onCell={(r) => {
@@ -94,7 +94,7 @@ export default function Spectrum() {
       {view === 'bands' && (
         <div className="grid g-3">
           {BANDS.map((bb, k) => (
-            <Panel key={bb.id} title={bb.label} right={<Tag kind="SIMULATED" />}>
+            <Panel key={bb.id} title={bb.label}>
               <HBars items={ZONES.map((z) => {
                 const st = STATIONS.map((s, i) => ({ s, i })).filter(({ s }) => s.zone === z.id)
                 return { label: z.name, value: st.reduce((a, { i }) => a + occupancy(i, k, 14), 0) / Math.max(1, st.length) }
@@ -106,10 +106,10 @@ export default function Spectrum() {
 
       {view === 'anomalies' && (
         <div className="grid g-2">
-          <Panel title="Anomalies · requires review" flush right={<Tag kind="SIMULATED" />}>
+          <Panel title="Anomalies · requires review" flush>
             <div className="list">{world.anomalies.map((a) => (
               <div key={a.id} className="list-item" style={{ gridTemplateColumns: '1fr 180px' }} onClick={() => nav(`/app/signals/${a.signalId}`)}>
-                <div><div className="row"><span className="mono">{a.id}</span><span className="stamp stamp-INVESTIGATE">{a.kind.toUpperCase()}</span></div>
+                <div><div className="row" style={{ gap: 10 }}><span className="mono">{a.id}</span><span className="anomaly-kind">{a.kind}</span></div>
                   <div className="muted" style={{ fontSize: 12 }}>{stationName(a.stationId)} · {a.band} · {fmtAgo(a.detectedAt)}</div>
                   <ul style={{ margin: '4px 0 0', paddingLeft: 16, fontSize: 12 }}>{a.reasons.map((r) => <li key={r}>{r}</li>)}</ul></div>
                 <div><div className="row muted" style={{ fontSize: 11 }}><span className="grow">Anomaly score</span><span className="mono">{a.score.toFixed(2)}</span></div><Meter value={a.score} tone="segs" /><div className="muted" style={{ fontSize: 11, marginTop: 4 }}>{a.score > 0.8 ? 'HIGH DEVIATION' : 'MODERATE DEVIATION'}</div></div>
@@ -121,16 +121,16 @@ export default function Spectrum() {
             <div className="hr" />
             <div className="panel-title" style={{ marginBottom: 8 }}>Model card</div>
             <dl className="kv">
-              <dt>Model</dt><dd>Baseline anomaly detector (Phase 3)</dd><dt>Version</dt><dd><Tag kind="NOT ESTABLISHED" /></dd>
-              <dt>Training dataset</dt><dd><Tag kind="NOT ESTABLISHED" /></dd><dt>Last updated</dt><dd><Tag kind="NOT ESTABLISHED" /></dd>
-              <dt>Scores shown</dt><dd><Tag kind="SIMULATED" /></dd>
+              <dt>Model</dt><dd>Baseline anomaly detector (Phase 3)</dd><dt>Version</dt><dd className="muted">not established</dd>
+              <dt>Training dataset</dt><dd className="muted">not established</dd><dt>Last updated</dt><dd className="muted">not established</dd>
+              <dt>Scores shown</dt><dd className="muted">simulated</dd>
             </dl>
           </Panel>
         </div>
       )}
 
       {view === 'history' && (
-        <Panel title={`Occupancy history · ${stationName(station)} · 30 days`} right={<Tag kind="SIMULATED" />}>
+        <Panel title={`Occupancy history · ${stationName(station)} · 30 days`}>
           <LinePlot height={300} yMin={0} yMax={1} yLabel="occupancy" xLabel="days ago → today" series={BANDS.map((_, k) => ({
             x: Array.from({ length: 30 }, (_, d) => d), y: Array.from({ length: 30 }, (_, d) => Array.from({ length: 8 }, (_, h) => occupancy(si, k, d * 24 + h * 3)).reduce((a, v) => a + v, 0) / 8),
             color: ['var(--cyan)', 'var(--violet)', 'var(--green)'][k],

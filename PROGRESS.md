@@ -11,6 +11,7 @@
 - **Accessibility:** tabs with arrow keys, drawer focus trap and return, keyboard-openable rows, account panel as a disclosure (Escape / outside click), 24 px utility targets, input borders ≥ 3:1, framer-motion honours reduced motion.
 - **Header:** subtle "Independent SIH prototype" under the wordmark; "Engine ready / offline".
 - **Out of scope by decision:** map and globe views unchanged; no agenda overlay exists in the code.
+- **Follow-up (same day, from review screenshots):** coloured badge boxes and side stripes removed; provenance stated once per page as a quiet glyph + word; priority became a fixed-width mark so High/Medium/Low rows align; anomaly kind is a plain word. Station map: pan, zoom (buttons, Ctrl+scroll, pinch, double-click, keyboard), constant-size markers with shape per category, legend collapsed to a corner control that opens on hover/focus/tap, decorative glow and pulsing rings removed. Line plots redrawn at real pixel size (the stretched viewBox distorted labels and put the y-title on a tick; tick decimals now distinguish 0.25 from 0.3). Genome map rebuilt as a PCA projection with family outlines.
 - **Checks:** `tsc -b` clean, `vite build` passes, backend 175 / 175 tests pass, oxlint warnings only (none new beyond one fast-refresh notice). **Not re-measured visually:** the 120-page viewport sweep of `FINAL_VERIFICATION_PASS.md` was not repeated for this pass.
 
 ---

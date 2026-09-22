@@ -2,7 +2,7 @@ import { motion } from 'framer-motion'
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { TimelineStrip } from '../components/charts'
-import { Icon, Panel, Stamp, Tag } from '../components/ui'
+import { Icon, Panel, Stamp, Tag, Priority } from '../components/ui'
 import { fmtAgo, fmtDate, fmtDateTime } from '../lib/format'
 import { stationName, useApp } from '../lib/store'
 
@@ -29,7 +29,7 @@ export function IncidentList() {
           <thead><tr><th>Incident</th><th>Priority</th><th>Title</th><th>Status</th><th className="num">Observations</th><th className="num">Stations</th><th className="num">First observed</th><th className="num">Last observed</th></tr></thead>
           <tbody>{world.incidents.map((i) => (
             <tr key={i.id} className="click" onClick={() => nav(`/app/incidents/${i.id}`)}>
-              <td className="mono">{i.id}</td><td><span className={`pri pri-${i.priority}`}>{i.priority}</span></td><td>{i.title}</td>
+              <td className="mono">{i.id}</td><td><Priority level={i.priority} /></td><td>{i.title}</td>
               <td className="mono" style={{ fontSize: 11.5, color: i.status === 'UNDER INVESTIGATION' ? 'var(--orange)' : i.status === 'CLOSED' ? 'var(--muted)' : 'var(--text-2)' }}>{i.status}</td>
               <td className="num">{i.events.length}</td><td className="num">{i.stationIds.length}</td><td className="num">{fmtDate(i.firstSeen)}</td><td className="num">{fmtAgo(i.lastSeen)}</td>
             </tr>
@@ -68,7 +68,7 @@ export function IncidentDetail() {
           <span className="spacer" />
           {/* One aligned row: three chips stacked at three different widths read as debris. */}
           <div className="row-wrap" style={{ gap: 8, alignItems: 'center', justifyContent: 'flex-end' }}>
-            <span className={`pri pri-${inc.priority}`}>{inc.priority} PRIORITY</span>
+            <Priority level={inc.priority} suffix=" priority" />
             <select className="select" style={{ width: 200 }} value={status} onChange={(e) => { setStatus(e.target.value as typeof inc.status); log(`Incident status → ${e.target.value}`, inc.id) }}>
               {['OPEN', 'UNDER INVESTIGATION', 'MONITORING', 'CLOSED'].map((s) => <option key={s}>{s}</option>)}
             </select>
