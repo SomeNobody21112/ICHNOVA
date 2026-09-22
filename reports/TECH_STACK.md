@@ -22,7 +22,7 @@ The interesting choice: no GNU Radio, no SDR framework, no machine learning. Eve
 
 ### 2. Web tier (`server/` — no framework at all)
 
-- **HTTP:** stdlib `http.server.ThreadingHTTPServer` with a hand-rolled router — REST endpoints, static serving of the built SPA with fallback. No Flask/FastAPI/Django anywhere in the import graph.
+- **HTTP:** stdlib `http.server.ThreadingHTTPServer` with a hand-rolled router — REST endpoints, static serving of the built SPA with fallback, gzip-compressed with ETags (JSON/HTML revalidate, hashed assets immutable). No Flask/FastAPI/Django anywhere in the import graph.
 - **Live updates:** hand-implemented **Server-Sent Events** (queue + chunked streaming) for the Live Monitor; `live.py` processes KiwiSDR streams incrementally.
 - **External RF I/O:** `kiwi.py` — a **stdlib websocket client** for public KiwiSDR receivers (no `websocket-client`/`aiohttp` dependency).
 - **State:** in-memory queues + JSON files on disk; uploads go through `modem.load_wav` directly to the engine.
@@ -33,7 +33,7 @@ The interesting choice: no GNU Radio, no SDR framework, no machine learning. Eve
 - **UI/UX:** framer-motion (animation), IBM Plex font family via `@fontsource`, hand-written CSS (no Tailwind or component library).
 - **Visualization:** d3-geo + topojson-client (station/world maps), custom SVG/canvas components for waterfalls and evidence chains.
 - **Auth:** `@react-oauth/google` (Google Identity) — client-side OIDC; operator-credential sign-in also supported. Setup in `frontend/README.md`.
-- **Linting:** oxlint (not ESLint). Bundle: ~729 KB JS (232 KB gzipped).
+- **Linting:** oxlint (not ESLint). Bundle: split per screen (React.lazy); the first visit loads ~146 KB gzipped, the other screens are prefetched when idle.
 
 ### 4. Quality & delivery infrastructure
 

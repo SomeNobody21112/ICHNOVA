@@ -119,3 +119,16 @@ exclusive ownership of the results directory for its lifetime, that process can 
 after the first read and make the append O(1). That is sound *only* because of the single-writer
 lock. It is not implemented, because 153 receipts do not justify it, and a cached head in a system
 that did not own the directory would be a correctness bug rather than an optimisation.
+
+## Console load (2026-09-22)
+
+Same screens, same records, same numbers; less transferred.
+
+| Change | Before | After |
+|---|---|---|
+| Evidence fetched at start-up to list the library | all six packs, ~14 MB | `evidence/index.json` with per-pack summaries, 14.7 kB; a full pack loads when its record opens |
+| JavaScript on the first visit | one 786 kB bundle (249 kB gzip) | per-screen chunks, ~146 kB gzip; the rest prefetched when idle |
+| Transfer of a 4.3 MB evidence pack | 4.3 MB | 228 kB (gzip from `server/app.py`) |
+| Repeat visit, unchanged JSON/HTML | full re-download (`no-store`) | `304 Not Modified` (ETag + `no-cache`); hashed assets immutable |
+
+Measured with `vite build` output and `curl` against `server/app.py`; not a browser timing study.

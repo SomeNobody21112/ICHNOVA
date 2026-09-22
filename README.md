@@ -86,7 +86,7 @@ outbound traffic will still run uploads, replays and the benchmark evidence.
 | Layer | What it is |
 |---|---|
 | Engine (`src/`) | Python 3.11 with NumPy + SciPy only — hand-derived estimation theory (Viterbi, cumulants, CFO), no ML framework, no GNU Radio |
-| Web tier (`server/`) | Python stdlib end to end: `http.server` + hand-rolled SSE for live updates, stdlib websocket client for public KiwiSDR receivers |
+| Web tier (`server/`) | Python stdlib end to end: `http.server` + hand-rolled SSE for live updates, stdlib websocket client for public KiwiSDR receivers; the console is served gzip-compressed with ETags |
 | Console (`frontend/`) | **ICHNOVA** operator console: React 19 + TypeScript + Vite 8, d3-geo spectrum maps, framer-motion, IBM Plex |
 
 The complete compiled brief — tech stack, user flows, workflows (data export, field capture, CI) and assessment — is in [`reports/TECH_STACK.md`](reports/TECH_STACK.md).

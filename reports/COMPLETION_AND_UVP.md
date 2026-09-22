@@ -3,7 +3,8 @@
 Independent Smart India Hackathon prototype for problem statement **SIH26147**. **Not an official
 Government of India system.**
 
-State after the hardening, ordering and deployment pass, engine `v0.3.0`. **175 tests pass.** Every
+State after the hardening, ordering and deployment pass, engine `v0.3.0`, updated 2026-09-22 for the
+console speed pass and roadmap Phase 2. **178 tests pass.** Every
 figure below comes from a committed result file or a test; where something is not established, this
 document says so. What that pass changed, and what it deliberately did not,
 is in `reports/HARDENING_AND_DEPLOYMENT_PASS.md`; the verification that followed it — a real
@@ -106,6 +107,15 @@ None of these were asked for. Each exists because running the system exposed a p
    action the server refuses, or hide one it allows.
 7. **Receipt verification that cannot be cached into lying**, plus a CLI
    (`server/verify_receipt.py`) so a third party can check a ledger without running ICHNOVA.
+8. **Roadmap Phase 2, measured instead of promised** (EXPERIMENTAL). A fingerprint built only from
+   what the engine measured, and nearest-neighbour search over it. On 675 held-out synthetic
+   captures, with the protocol fixed before the run, the nearest fingerprint is the same kind of
+   signal **54.2 %** of the time (95 % CI 50.5–57.9 %) against 20.4 % for a random pick and 31.5 % for
+   the verdict alone; 70.4 % at 384 coded bits. Never part of a decision.
+   `reports/PHASE2_SIMILARITY_REPORT.md`.
+9. **A console that opens fast without dropping anything.** Start-up no longer downloads every
+   evidence pack (~14 MB) to list the library; each screen is its own chunk (first visit ~146 kB
+   gzip); the server compresses and revalidates (a 4.3 MB pack travels as 228 kB).
 
 ---
 
@@ -147,7 +157,13 @@ A sealed benchmark with pre-registered criteria and one logged run; a governing 
 code and UI may not contradict; an honesty label on every claim. When a feature does not earn its
 place, the measurement is published rather than hidden.
 
-### UVP 7 — Built to be deployed, not demoed
+### UVP 7 — It can recognise a signal it could not decode (EXPERIMENTAL, measured)
+A refusal still leaves a fingerprint of what was measured. Searching those fingerprints finds
+captures of the same kind **54 %** of the time on held-out synthetic data (random: 20 %; the verdict
+alone: 32 %), so an unknown signal that comes back can be recognised as a recurrence rather than a new
+mystery. Measured on synthetic captures only; not yet on real recordings.
+
+### UVP 8 — Built to be deployed, not demoed
 An air-gap-capable engine with no cloud dependency for analysis, an authenticated API with role
 permissions, a container image, and a CRM hand-off designed for a network that is usually down.
 

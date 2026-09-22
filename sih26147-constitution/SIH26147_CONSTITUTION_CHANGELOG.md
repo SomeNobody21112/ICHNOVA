@@ -1,5 +1,16 @@
 # SIH26147 — CONSTITUTION CHANGELOG
 
+## v2.5.5 — 2026-09-22 — Row 31 measured (roadmap Phase 2)
+
+No rule, weight, catalogue item or acceptance threshold changed. Row 31 (signal genome similarity)
+stays **EXPERIMENTAL** and gains a measurement: `src/fingerprint.py` builds a fingerprint from a
+finished engine result (not imported by the decision path; a test asserts the result is unchanged)
+and `eval/similarity.py` evaluates nearest-neighbour retrieval on the 1,350-capture null set with a
+protocol fixed before the run. Top-1 same-class retrieval 54.2 % (95 % CI 50.5–57.9 %) against
+20.4 % random and 31.5 % verdict-only. Synthetic data only; validation on real recordings stays in P2.
+The console's static files are now served compressed with validators (§ web tier); API behaviour is
+unchanged.
+
 ## v2.5.4 — 2026-09-20 — Deployment amendment: one writer, honest freshness, TLS configured
 
 No rule, weight, catalogue item or acceptance threshold changed. The document is brought level with
