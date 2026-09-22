@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { GenomeGlyph } from '../components/charts'
-import { Icon, Panel, Stamp, Tag } from '../components/ui'
+import { Panel, Stamp, Tag } from '../components/ui'
 import { fmtFreq, STATUS_LABEL } from '../lib/format'
 import { cosine, GENOME_AXES } from '../lib/sim'
 import { stationName, useApp } from '../lib/store'
@@ -153,7 +153,7 @@ function GenomeMap({ signals, selected, neighbours, onSelect }: { signals: Signa
 }
 
 export default function Genome() {
-  const { signals } = useApp()
+  const { signals, engine } = useApp()
   const [sel, setSel] = useState(signals.find((s) => s.provenance === 'SIMULATED' && s.status === 'UNKNOWN')?.id ?? signals[0]?.id)
   const rec = signals.find((s) => s.id === sel) ?? signals[0]
   const sims = useMemo(() => rec ? signals.filter((s) => s.id !== rec.id).map((s) => ({ s, score: cosine(rec.genome, s.genome) })).sort((a, b) => b.score - a.score).slice(0, 8) : [], [signals, rec])
@@ -194,25 +194,35 @@ export default function Genome() {
           </Panel>
         </div>
       </div>
-      <Panel title="Machine-learning roadmap" sub="ML is introduced only where it adds value, and never replaces statistical verification" style={{ marginTop: 14 }}>
-        <div className="grid g-5">
-          {MODULES.map((m) => (
-            <div key={m.phase} className="card col" style={{ gap: 8 }}>
-              <div className="row"><span className="meta grow">{m.phase}</span>{m.status === 'OPERATIONAL' ? <span className="tag tag-LIVE">Operational</span> : <Tag kind={m.status as 'EXPERIMENTAL' | 'NOT ESTABLISHED'} />}</div>
-              <b style={{ fontFamily: 'var(--cond)', fontSize: 15 }}>{m.name}</b>
-              <p className="dim" style={{ margin: 0, fontSize: 12.5 }}>{m.desc}</p>
-              <dl className="kv" style={{ fontSize: 11.5, marginTop: 'auto' }}>
-                <dt>Model</dt><dd>{m.status === 'OPERATIONAL' ? 'none (DSP)' : '—'}</dd><dt>Version</dt><dd>{m.status === 'OPERATIONAL' ? 'engine 0.3.0' : '—'}</dd>
-                <dt>Training data</dt><dd>{m.status === 'OPERATIONAL' ? 'n/a' : '—'}</dd>
-              </dl>
-            </div>
-          ))}
-        </div>
-        <div className="banner" style={{ marginTop: 14 }}>
-          <Icon name="layers" />
-          <div className="row-wrap mono" style={{ fontSize: 12, gap: 6 }}>
-            <span>RAW SIGNAL</span><Icon name="chevron" size={12} /><span style={{ color: 'var(--violet)' }}>ML PRIORITISER (Phase 4)</span><Icon name="chevron" size={12} /><span>TOP HYPOTHESES</span><Icon name="chevron" size={12} /><span>DETERMINISTIC DSP</span><Icon name="chevron" size={12} /><span style={{ color: 'var(--green)' }}>STATISTICAL VALIDATION</span><Icon name="chevron" size={12} /><span>DECISION</span>
-          </div>
+      <Panel title="Machine-learning roadmap" sub="Where learned models may enter, in order. None of them decides: every result still passes the same statistical acceptance." style={{ marginTop: 14 }}>
+        {/* A track, not five identical cards: filled = running today, half = experimental,
+            hollow = planned. Model details appear only where a model or engine actually exists. */}
+        <ol className="roadmap">
+          {MODULES.map((m) => {
+            const st = m.status === 'OPERATIONAL' ? 'now' : m.status === 'EXPERIMENTAL' ? 'exp' : 'plan'
+            return (
+              <li key={m.phase} className={`roadmap-step ${st}`}>
+                <span className="roadmap-dot" aria-hidden="true" />
+                <div className="roadmap-meta"><span>{m.phase}</span><b>{st === 'now' ? 'Running today' : st === 'exp' ? 'Experimental' : 'Planned · not established'}</b></div>
+                <h3 className="roadmap-name">{m.name}</h3>
+                <p className="roadmap-desc">{m.desc}</p>
+                <p className="roadmap-model">{st === 'now'
+                  ? <>No learned model: deterministic DSP{engine.version ? <> · engine <span className="mono">{engine.version}</span></> : null}</>
+                  : st === 'exp' ? 'No trained model: engineered fields and cosine similarity' : 'No model, version or training data yet'}</p>
+              </li>
+            )
+          })}
+        </ol>
+        <div className="roadmap-flow" aria-label="Analysis path with the planned ML step">
+          <span className="section-label">Analysis path</span>
+          <ol>
+            <li>Raw signal</li>
+            <li className="planned" title="Phase 4: planned, not enabled">ML prioritiser <small>planned</small></li>
+            <li>Top hypotheses</li>
+            <li>Deterministic DSP</li>
+            <li className="decides">Statistical validation</li>
+            <li>Decision</li>
+          </ol>
         </div>
       </Panel>
     </div>

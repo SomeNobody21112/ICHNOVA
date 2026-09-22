@@ -77,10 +77,10 @@ export default function Spectrum() {
               <div className="freq-axis mono">{[0, 0.25, 0.5, 0.75, 1].map((t) => <span key={t}>{fmtFreq(b.lo * Math.pow(b.hi / b.lo, t))}</span>)}</div>
             </div>
           </Panel>
-          <Panel title="Detected in band" flush>
-            <div className="list">{bandSignals.slice(0, 10).map((s) => (
-              <div key={s.id} className="list-item" style={{ gridTemplateColumns: '1fr auto' }} onClick={() => nav(`/app/signals/${s.id}`)}>
-                <div><div className="mono" style={{ fontSize: 12 }}>{fmtFreq(s.centerHz)}</div><div className="muted" style={{ fontSize: 11 }}>{s.id} · {stationName(s.stationId)}</div></div><Stamp status={s.status} />
+          <Panel title="Detected in band" sub={`${bandSignals.length} records`} flush>
+            <div className="list" style={{ '--list-max': '600px' } as React.CSSProperties}>{bandSignals.map((s) => (
+              <div key={s.id} className="list-item" role="link" tabIndex={0} style={{ gridTemplateColumns: 'minmax(0, 1fr) auto' }} onClick={() => nav(`/app/signals/${s.id}`)} onKeyDown={(e) => { if (e.key === 'Enter') nav(`/app/signals/${s.id}`) }}>
+                <div style={{ minWidth: 0 }}><div className="mono" style={{ fontSize: 12 }}>{fmtFreq(s.centerHz)}</div><div className="muted ellipsis" style={{ fontSize: 11 }} title={`${s.id} · ${stationName(s.stationId)}`}>{s.id} · {stationName(s.stationId)}</div></div><Stamp status={s.status} />
               </div>
             ))}</div>
           </Panel>

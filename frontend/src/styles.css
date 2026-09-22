@@ -950,3 +950,49 @@ details.more[open] > summary::before { content: '−'; }
 .band-summary dd { margin: 0; font-size: 12.5px; color: var(--text); }
 .freq-axis { display: flex; justify-content: space-between; font-size: 10.5px; color: var(--muted); margin-top: 4px; }
 @media (max-width: 760px) { .band-summary { margin-left: 0; } }
+
+/* ============ Long content scrolls inside its box ============
+   A list or table in a panel stops at a sensible height and scrolls, instead of stretching the page
+   past the content beside it. Short lists never reach the cap. The shadows appear only where there is
+   more to scroll (background-attachment: local covers them at the ends). */
+.panel-body.flush > .list, .panel-body.flush > .table-wrap:not([style*="max-height"]), .panel-body.flush:has(> .tbl) {
+  max-height: var(--list-max, 560px); overflow-y: auto;
+  background:
+    linear-gradient(var(--panel) 30%, transparent) center top / 100% 28px no-repeat local,
+    linear-gradient(transparent, var(--panel) 70%) center bottom / 100% 28px no-repeat local,
+    radial-gradient(farthest-side at 50% 0, color-mix(in srgb, var(--text) 14%, transparent), transparent) center top / 100% 10px no-repeat scroll,
+    radial-gradient(farthest-side at 50% 100%, color-mix(in srgb, var(--text) 14%, transparent), transparent) center bottom / 100% 10px no-repeat scroll;
+}
+.panel-body.flush > .list:focus-visible, .panel-body.flush > .table-wrap:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
+.ellipsis { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ============ ML roadmap: a track, not five identical cards ============ */
+.roadmap { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0 20px; position: relative; }
+.roadmap::before { content: ''; position: absolute; left: 6px; right: 6px; top: 6px; border-top: 1.5px dashed var(--line-3); }
+.roadmap-step { position: relative; padding-top: 24px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.roadmap-dot { position: absolute; top: 0; left: 0; width: 13px; height: 13px; border-radius: 50%; border: 1.5px solid var(--line-3); background: var(--panel); }
+.roadmap-step.now .roadmap-dot { background: var(--green); border-color: var(--green); }
+.roadmap-step.exp .roadmap-dot { border-color: var(--violet); background: linear-gradient(90deg, var(--violet) 50%, var(--panel) 50%); }
+.roadmap-meta { display: flex; gap: 8px; align-items: baseline; font-size: 11.5px; color: var(--muted); flex-wrap: wrap; }
+.roadmap-meta b { font-weight: 600; color: var(--text-2); }
+.roadmap-step.now .roadmap-meta b { color: var(--green); }
+.roadmap-step.exp .roadmap-meta b { color: var(--violet); }
+.roadmap-name { margin: 0; font-size: 14.5px; font-weight: 600; line-height: 1.3; }
+.roadmap-step.plan .roadmap-name { color: var(--text-2); }
+.roadmap-desc { margin: 0; font-size: 12.5px; color: var(--text-2); line-height: 1.5; }
+.roadmap-model { margin: 4px 0 0; font-size: 11.5px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 6px; }
+.roadmap-flow { margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px; }
+.roadmap-flow ol { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 0; font-size: 12.5px; }
+.roadmap-flow li { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border: 1px solid var(--line-2); border-radius: var(--r); background: var(--panel-2); color: var(--text); }
+.roadmap-flow li + li::before { content: '\2192'; color: var(--faint); margin: 0 8px 0 -4px; }
+.roadmap-flow li { margin-left: 12px; }
+.roadmap-flow li:first-child { margin-left: 0; }
+.roadmap-flow li.planned { border-style: dashed; background: transparent; color: var(--text-2); }
+.roadmap-flow li.planned small { font-size: 10.5px; color: var(--violet); }
+.roadmap-flow li.decides { border-color: color-mix(in srgb, var(--green) 50%, transparent); color: var(--green); font-weight: 600; }
+@media (max-width: 1100px) {
+  .roadmap { grid-template-columns: minmax(0, 1fr); gap: 18px; padding-left: 26px; }
+  .roadmap::before { left: 6px; right: auto; top: 6px; bottom: 6px; border-top: 0; border-left: 1.5px dashed var(--line-3); }
+  .roadmap-step { padding-top: 0; }
+  .roadmap-dot { left: -26px; top: 3px; }
+}
