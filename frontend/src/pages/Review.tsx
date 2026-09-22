@@ -31,9 +31,12 @@ export default function Review() {
         <AnimatePresence>
           {list.map((s) => (
             <motion.div key={s.id} layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.97 }}>
-              <div className="card col" style={{ gap: 10, height: '100%' }}>
+              {/* The whole card opens the record: the ID link's hit area is stretched over the card
+                  (.card-link-target::after), and the review buttons sit above it, so each click
+                  still does exactly one thing and there is no button nested in a link. */}
+              <div className="card card-link col" style={{ gap: 10, height: '100%' }}>
                 <div className="row">
-                  <Link to={`/app/signals/${s.id}`} className="mono grow" style={{ fontSize: 13.5, minHeight: 24, display: 'flex', alignItems: 'center' }}>{s.id}</Link>
+                  <Link to={`/app/signals/${s.id}`} className="mono grow card-link-target" aria-label={`Open signal record ${s.id}`} style={{ fontSize: 13.5, minHeight: 24, display: 'flex', alignItems: 'center' }}>{s.id}</Link>
                   <Tag kind={s.provenance} />
                 </div>
                 <div className="row" style={{ gap: 12 }}>

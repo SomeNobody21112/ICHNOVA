@@ -996,3 +996,13 @@ details.more[open] > summary::before { content: '−'; }
   .roadmap-step { padding-top: 0; }
   .roadmap-dot { left: -26px; top: 3px; }
 }
+
+/* ============ Whole-card link ============ */
+.card-link { position: relative; cursor: pointer; transition: border-color var(--dur-1) var(--ease), background var(--dur-1) var(--ease); }
+.card-link:hover { border-color: var(--line-3); background: var(--surface-hover); }
+.card-link-target::after { content: ''; position: absolute; inset: 0; border-radius: inherit; }
+.card-link-target:focus-visible { outline: none; }
+.card-link:has(.card-link-target:focus-visible) { outline: 2px solid var(--ring); outline-offset: 2px; }
+.card-link .btn, .card-link .banner, .card-link button, .card-link a:not(.card-link-target) { position: relative; z-index: 1; }
+.station-click { cursor: pointer; }
+.station-click:hover { border-color: var(--line-3); }

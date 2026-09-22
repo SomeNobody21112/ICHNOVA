@@ -130,7 +130,8 @@ export default function Monitor() {
                   const rec = recs.find((e) => e.mode === m)
                   const active = (source?.kind === 'replay' && rec && source.id === rec.id) || (source?.kind === 'live' && source.stationKey === key && source.mode === m)
                   return (
-                    <motion.div key={key + m} className={`station${active ? ' on' : ''}`} layout whileHover={{ y: -1 }}>
+                    <motion.div key={key + m} className={`station${active ? ' on' : ''}${rec ? ' station-click' : ''}`} layout whileHover={{ y: -1 }}
+                      onClick={() => { if (rec) setSource({ kind: 'replay', id: rec.id }) }} title={rec ? 'Replay this recording' : undefined}>
                       <div className="row" style={{ gap: 8 }}>
                         <span className="flag mono">{FLAG[s.country] ?? '··'}</span>
                         <b className="grow proof-name">{m === 'band' ? 'AIR medium-wave band' : key === 'AIR-MW' ? 'AIR Chennai 720 kHz' : s.name}</b>
@@ -139,9 +140,9 @@ export default function Monitor() {
                       <div className="muted" style={{ fontSize: 11.5, lineHeight: 1.35 }}>{s.operator.split(' — ')[0]} · {m === 'band' ? 'carrier census vs official list' : s.service}</div>
                       <div style={{ marginTop: 6 }}>{rec ? <Stamp status={rec.answer.status} /> : <span className="muted" style={{ fontSize: 12 }}>No recording yet</span>}</div>
                       <div className="row" style={{ gap: 6, marginTop: 8 }}>
-                        {rec && <button className="btn btn-sm" onClick={() => setSource({ kind: 'replay', id: rec.id })}><Icon name="play" size={11} /> Replay</button>}
+                        {rec && <button className="btn btn-sm" onClick={(e) => { e.stopPropagation(); setSource({ kind: 'replay', id: rec.id }) }}><Icon name="play" size={11} /> Replay</button>}
                         <span className="grow" />
-                        <button className="btn btn-sm" disabled={!engine.online || starting !== null || !mayReceive} onClick={() => goLive(key, m)} title={!mayReceive ? cannotReceive : engine.online ? 'Receive now' : 'Start the local engine for live reception'}>
+                        <button className="btn btn-sm" disabled={!engine.online || starting !== null || !mayReceive} onClick={(e) => { e.stopPropagation(); goLive(key, m) }} title={!mayReceive ? cannotReceive : engine.online ? 'Receive now' : 'Start the local engine for live reception'}>
                           {starting === key + m ? <span className="spinner" /> : <span className="live-dot" />} Receive live
                         </button>
                       </div>
