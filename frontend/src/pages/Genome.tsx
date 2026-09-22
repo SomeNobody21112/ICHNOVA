@@ -99,14 +99,21 @@ function GenomeMap({ signals, selected, neighbours, onSelect }: { signals: Signa
         <text className="axis-t" x={W - pad.r} y={H - 10} textAnchor="end">Component 1 · {Math.round(layout.explained[0] * 100)}% of variation →</text>
         <text className="axis-t" x={16} y={H - pad.b} transform={`rotate(-90 16 ${H - pad.b})`}>Component 2 · {Math.round(layout.explained[1] * 100)}% →</text>
 
-        {layout.fams.map(({ f, name, n, share, e }) => (
-          <g key={f}>
-            <ellipse className={`fam${f === selected.family ? ' on' : ''}`} cx={e.cx} cy={e.cy} rx={e.rx + 8} ry={e.ry + 8} transform={`rotate(${e.angle} ${e.cx} ${e.cy})`} />
-            <text className="fam-label" x={Math.min(W - pad.r - 90, Math.max(pad.l + 90, e.cx))} y={Math.max(pad.t + 11, e.cy - Math.max(e.rx, e.ry) - 14)} textAnchor="middle">
-              {name} <tspan className="n">· {n} · {Math.round(share * 100)}% decoded</tspan>
-            </text>
-          </g>
-        ))}
+        {/* Only the selected signal's family is outlined and named. Drawing all of them put twenty
+            labels on top of each other; the family of the thing you are looking at is the one that
+            matters, and selecting another signal moves the outline with it. */}
+        {layout.fams.filter((x) => x.f === selected.family).map(({ f, name, n, share, e }) => {
+          const top = e.cy - Math.max(e.rx, e.ry) - 16
+          const below = top < pad.t + 12
+          return (
+            <g key={f}>
+              <ellipse className="fam on" cx={e.cx} cy={e.cy} rx={e.rx + 8} ry={e.ry + 8} transform={`rotate(${e.angle} ${e.cx} ${e.cy})`} />
+              <text className="fam-label" x={Math.min(W - pad.r - 100, Math.max(pad.l + 100, e.cx))} y={below ? Math.min(H - pad.b - 8, e.cy + Math.max(e.rx, e.ry) + 24) : top} textAnchor="middle">
+                {name} <tspan className="n">· {n} signals · {Math.round(share * 100)}% decoded</tspan>
+              </text>
+            </g>
+          )
+        })}
 
         {/* neighbours: thin rules from the selection, drawn under the points */}
         {neighbours.map((id) => { const p = layout.at.get(id); return p && <line key={id} x1={px} y1={py} x2={p[0]} y2={p[1]} stroke="var(--accent)" strokeOpacity={0.55} strokeWidth={1} /> })}
@@ -139,7 +146,7 @@ function GenomeMap({ signals, selected, neighbours, onSelect }: { signals: Signa
           <span key={st}><svg width={12} height={12} viewBox="-6 -6 12 12" aria-hidden="true"><StatusMark status={st} x={0} y={0} r={3.4} /></svg>{STATUS_LABEL[st]}</span>
         ))}
         <span><svg width={14} height={12} viewBox="-7 -6 14 12" aria-hidden="true"><circle r={5} fill="none" stroke="var(--accent)" strokeWidth={1.2} /></svg>nearest fingerprints</span>
-        <span className="muted">Dashed outlines: signal families of 5 or more records, drawn at two standard deviations.</span>
+        <span className="muted">Outline: the selected signal's family (two standard deviations).</span>
       </div>
     </div>
   )
