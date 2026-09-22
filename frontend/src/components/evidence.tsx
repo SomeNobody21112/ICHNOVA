@@ -640,12 +640,12 @@ export function CaptureGate({ pack }: { pack: EvidencePack }) {
   const m = q.metrics
   return (
     <div className="col" style={{ gap: 12 }}>
-      <div className="statbar">
+      <div className="fact-wrap"><div className="fact-strip">
         <div><span className="kpi-label">Capture gate</span><b className={QUALITY_TONE[q.status]}>{q.status}</b></div>
         <div><span className="kpi-label">Decode verdict</span><b>{pack.result.status.replace(/_/g, ' ')}</b></div>
         <div><span className="kpi-label">Clipped</span><b className="mono">{pct(m.clipped_fraction)}</b></div>
         <div><span className="kpi-label">DC / RMS</span><b className="mono">{pct(m.dc_over_rms)}</b></div>
-      </div>
+      </div></div>
       <div className="list">
         {q.checks.map((ch) => (
           <div key={ch.check} className="list-item" style={{ gridTemplateColumns: '180px minmax(0, 1fr) 90px', cursor: 'default' }}>
@@ -687,12 +687,12 @@ export function WhatWouldProveIt({ pack, detailOnly }: { pack: EvidencePack; det
         <p style={{ margin: '6px 0 0' }}>{s.reason}</p>
       </div>}
       {me.parity_checks != null && (
-        <div className="statbar">
+        <div className="fact-wrap"><div className="fact-strip">
           <div><span className="kpi-label">Parity checks</span><b className="mono">{fmtInt(me.parity_checks)}</b></div>
           <div><span className="kpi-label">Agreeing</span><b className="mono">{fmtInt(me.checks_agreeing ?? 0)}{me.agreement_rate != null ? ` · ${pct(me.agreement_rate)}` : ''}</b></div>
           <div><span className="kpi-label">Evidence</span><b className="mono">{fmtP(s.best_log10_p ?? 0)}</b></div>
           <div><span className="kpi-label">Bar</span><b className="mono">{fmtP(s.bar_log10_p ?? 0)}</b></div>
-        </div>
+        </div></div>
       )}
       {!detailOnly && <div>
         <div className="section-label">What would prove it</div>

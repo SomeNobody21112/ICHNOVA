@@ -6,6 +6,7 @@
 - **Motion:** line plots draw in, meters/bars/donut grow, canvases fade in, evidence stages arrive in sequence, blocks below the fold rise in once on scroll. Nothing loops; reduced motion and print show end states.
 - **Roadmap Phase 2 (EXPERIMENTAL):** `src/fingerprint.py` builds a 16-feature fingerprint from the engine's own measurements (never ground truth) and a nearest-neighbour library; not imported by the decision path. `eval/similarity.py` ran the engine on the 1,350 labelled null-set captures with a protocol fixed before the run (seed-split reference/query, reference-only scaling): nearest fingerprint is the same class **54.2%** of the time (95% CI 50.5–57.9%) vs 20.4% random and 31.5% verdict-only; 39.8% vs 10.7% with noise excluded; 70.4% at 384 coded bits. Features were not tuned against these results. Report: `reports/PHASE2_SIMILARITY_REPORT.md`. Synthetic captures only.
 - **Checks:** 178 / 178 backend tests (3 new), `tsc -b` clean, `vite build` passes, gzip/304/immutable/traversal verified with curl.
+- **Follow-up:** incident observation timeline rebuilt as a zoomable view (nearby marks merge into count bubbles that zoom in when selected; overview strip with a draggable window; + / − / Show all, Ctrl+scroll, double-click; adaptive day/hour ticks; keyboard-reachable marks). Capture-gate and sufficiency figures use an aligned 4-cell grid (2 × 2 on narrow panels, by container query).
 
 ---
 

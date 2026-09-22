@@ -1028,3 +1028,32 @@ details.more[open] > summary::before { content: '−'; }
 .reveal.in { opacity: 1; transform: none; }
 @media (prefers-reduced-motion: reduce) { .reveal { opacity: 1 !important; transform: none !important; } .lp-line { stroke-dasharray: none; } }
 @media print { .reveal { opacity: 1 !important; transform: none !important; } .lp-line { stroke-dasharray: none; animation: none; } .lp-fill, .canvas-box canvas, .meter > i, .bar-in, .donut-seg, .gmap .pt { animation: none; } }
+
+/* ============ Zoomable observation timeline ============ */
+.tl { position: relative; display: flex; flex-direction: column; gap: 8px; }
+.tl-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 12.5px; }
+.tl-bar b { font-weight: 500; color: var(--text); }
+.tl-plot { position: relative; }
+.tl svg { display: block; }
+.tl-tick { font: 10.5px var(--mono); fill: var(--muted); }
+.tl-lane { font: 11.5px var(--mono); fill: var(--text-2); }
+.tl-count { font: 600 11px var(--mono); fill: var(--text); pointer-events: none; }
+.tl-dot, .tl-cluster { cursor: pointer; outline: none; }
+.tl-dot:hover circle:last-child, .tl-dot:focus-visible circle:last-child { stroke: var(--text); stroke-width: 2; }
+.tl-cluster:hover rect, .tl-cluster:focus-visible rect { fill-opacity: 0.3; stroke-width: 2; }
+.tl-overview { cursor: crosshair; touch-action: none; }
+.tl-window { fill: var(--accent); fill-opacity: 0.12; stroke: var(--accent); stroke-width: 1.5; cursor: grab; }
+.tl-tip { position: absolute; pointer-events: none; background: var(--panel); border: 1px solid var(--line-3); border-radius: var(--r); padding: 5px 9px; font-size: 12px; white-space: nowrap; box-shadow: var(--shadow); z-index: 3; }
+
+/* ============ Fact strip: 4 aligned cells, 2 x 2 when its panel is narrow ============
+   The 1px gap over a line-coloured background draws every divider, so they always meet,
+   whatever the wrap. The breakpoint is the panel's width (container query), not the window's. */
+.fact-wrap { container-type: inline-size; }
+.fact-strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; }
+.fact-strip > div { background: var(--panel); padding: 10px 14px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.fact-strip .kpi-label { min-height: 0; }
+.fact-strip b { font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
+.fact-strip b.ok { color: var(--green); }
+.fact-strip b.warn { color: var(--amber); }
+.fact-strip b.no { color: var(--red); }
+@container (max-width: 520px) { .fact-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
