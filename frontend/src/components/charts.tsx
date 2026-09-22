@@ -271,8 +271,8 @@ export function LinePlot({ series, height = 180, yLabel, xLabel, yMin, yMax, mar
             const d = s.x.map((x, k) => `${k ? 'L' : 'M'}${sx(x).toFixed(1)},${sy(s.y[k]).toFixed(1)}`).join('')
             return (
               <g key={i}>
-                {s.fill && <path d={`${d}L${sx(s.x[s.x.length - 1])},${H - pb}L${sx(s.x[0])},${H - pb}Z`} fill={s.color} opacity={0.1} />}
-                <path d={d} fill="none" stroke={s.color} strokeWidth={s.width ?? 1.5} strokeLinejoin="round" />
+                {s.fill && <path className="lp-fill" d={`${d}L${sx(s.x[s.x.length - 1])},${H - pb}L${sx(s.x[0])},${H - pb}Z`} fill={s.color} opacity={0.1} />}
+                <path className="lp-line" pathLength={1} d={d} fill="none" stroke={s.color} strokeWidth={s.width ?? 1.5} strokeLinejoin="round" style={{ animationDelay: `${i * 120}ms` }} />
               </g>
             )
           })}
@@ -319,7 +319,7 @@ export function Donut({ parts, size = 120, label }: { parts: { value: number; co
       <circle cx="60" cy="60" r={r} fill="none" stroke="var(--panel-3)" strokeWidth="14" />
       {parts.map((p) => {
         const len = (p.value / total) * c
-        const el = <circle key={p.label} cx="60" cy="60" r={r} fill="none" stroke={p.color} strokeWidth="14" strokeDasharray={`${len} ${c - len}`} strokeDashoffset={-acc} transform="rotate(-90 60 60)" />
+        const el = <circle key={p.label} className="donut-seg" cx="60" cy="60" r={r} fill="none" stroke={p.color} strokeWidth="14" strokeDasharray={`${len} ${c - len}`} strokeDashoffset={-acc} transform="rotate(-90 60 60)" />
         acc += len
         return el
       })}

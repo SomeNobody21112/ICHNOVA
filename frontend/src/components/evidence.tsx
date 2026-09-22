@@ -389,7 +389,7 @@ export function EvidenceChain({ pack }: { pack: EvidencePack }) {
     <div className="grid" style={{ gridTemplateColumns: 'minmax(300px, 380px) minmax(0, 1fr)', alignItems: 'start' }}>
       <div className="chain" role="group" aria-label="Evidence chain, in the order the engine applied it">
         {nodes.map((n, i) => (
-          <motion.div key={n.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.16 }}>
+          <motion.div key={n.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: i * 0.05, ease: [0.2, 0.8, 0.2, 1] }}>
             {i > 0 && <div className="chain-link" aria-hidden="true" />}
             {n.id === 'fec' && (
               <div className="chain-branches" style={{ marginBottom: 0 }}>

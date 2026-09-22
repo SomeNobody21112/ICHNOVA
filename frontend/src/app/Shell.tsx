@@ -5,6 +5,7 @@ import { PRODUCT } from '../brand'
 import { BrandMark, Wordmark } from '../components/brand'
 import { Icon, Tag } from '../components/ui'
 import { UtilityBar } from '../components/utility'
+import { useScrollReveal } from '../lib/reveal'
 import { useApp } from '../lib/store'
 import type { Level } from '../lib/types'
 
@@ -80,6 +81,8 @@ export default function Shell() {
   const [collapsed, setCollapsed] = useState(false)
   const [menu, setMenu] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
+  const mainRef = useRef<HTMLElement>(null)
+  useScrollReveal(mainRef)
   // The account panel is a disclosure: it closes on Escape or a click outside, not on mouse-out,
   // which dropped it the moment a keyboard or touch user moved toward it.
   useEffect(() => {
@@ -171,7 +174,7 @@ export default function Shell() {
             )}
           </div>
         </header>
-        <main className="content" id="main" tabIndex={-1}>
+        <main className="content" id="main" tabIndex={-1} ref={mainRef}>
           <AnimatePresence mode="wait">
             <motion.div key={loc.pathname} className="route" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }}>
               <Suspense fallback={<div className="route-pending" role="status" aria-live="polite"><span className="spinner" /> Loading…</div>}>

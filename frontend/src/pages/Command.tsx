@@ -148,7 +148,7 @@ export default function Command() {
                 const x = 10 + i * 19.5, bw = 13, total = h.d + h.n + h.u
                 const sc = 120 / maxH
                 return (
-                  <g key={i}>
+                  <g key={i} className="bar-in" style={{ animationDelay: `${i * 22}ms` }}>
                     <rect x={x} y={130 - h.d * sc} width={bw} height={h.d * sc} fill="var(--green)" rx="1.5" />
                     <rect x={x} y={130 - (h.d + h.n) * sc} width={bw} height={h.n * sc} fill="var(--cyan)" rx="1.5" />
                     <rect x={x} y={130 - total * sc} width={bw} height={h.u * sc} fill="var(--amber)" rx="1.5" />

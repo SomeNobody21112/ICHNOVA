@@ -7,6 +7,8 @@ import { Icon, Stamp, Tag } from '../components/ui'
 import { UtilityBar } from '../components/utility'
 import { useApp } from '../lib/store'
 import type { Provenance, Status } from '../lib/types'
+import { useRef } from 'react'
+import { useScrollReveal } from '../lib/reveal'
 
 export const COVERAGE: { req: string; detail: string; status: Provenance | 'ESTABLISHED' }[] = [
   { req: 'Input .IQ and .wav', detail: 'Interleaved float32 I/Q; int16 stereo I/Q WAV (header sample rate)', status: 'ESTABLISHED' },
@@ -38,12 +40,14 @@ const STEPS: [string, string, string][] = [
 ]
 
 export default function Landing() {
+  const root = useRef<HTMLDivElement>(null)
+  useScrollReveal(root)
   const { session, setTour } = useApp()
   const nav = useNavigate()
   const go = (to: string) => (session ? nav(to) : nav('/signin', { state: { from: to } }))
   const tour = () => { if (session) { setTour({ active: true, scene: 0 }); nav('/app/monitor?rec=jjy40-japan-2026-09-17') } else nav('/signin', { state: { tour: true } }) }
   return (
-    <div className="landing">
+    <div className="landing" ref={root}>
       <UtilityBar />
       <header className="land-nav">
         <Link to="/" className="row" style={{ gap: 10, color: 'var(--text)', textDecoration: 'none' }} aria-label={`${PRODUCT.name} home`}>
