@@ -13,7 +13,7 @@ pip install -r requirements.txt pytest
 python src/generate.py sealed        # bench-v1 sealed: 30 files -> data/sealed (seed0=99000)
 python src/generate.py train         # bench-v1 train: 100 files -> data/train (seed0=1000)
 
-python -m pytest -q tests                # 30 tests: engine + real-signal receivers (recordings/real)
+python -m pytest -q tests                # 178 tests: engine, catalogue, security + real-signal receivers (recordings/real)
 python sealed_test.py                    # 30/30, 0 false accepts, ~1.5 s
 python sealed_test.py data/train 100     # 63/100, 0 false accepts, ~4.5 s
 ```

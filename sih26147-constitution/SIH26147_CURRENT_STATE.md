@@ -23,7 +23,7 @@
 | AIR medium wave | 5/5 carriers matched to Prasar Bharati's official list | §22 |
 | Live capture through the full chain (2026-09-20) | 720 kHz, 144,384 samples @ 11,998.881 Hz, GPS-timed → quality GOOD → carrier 61.3 dB above noise → **SIGNAL_NO_CODE** → receipt verified. Station identity **NOT ESTABLISHED** (nearest receiver 2,135 km) | §22 |
 | 8PSK / 16-QAM | **EXPERIMENTAL, off by default.** Enabling it: 0/100 8PSK captures decoded, search ×21.8, one BPSK capture decoded 40% wrong through a structural alias | §24 row 34 |
-| Tests | **175**, all passing | §32 |
+| Tests | **178**, all passing (re-measured 2026-09-24) | §32 |
 | Dependency CVEs | Python 0, Node 0. Container base images **NOT ESTABLISHED** | §25.8 |
 | Console | ICHNOVA, light/dark themes, accessibility bar; 120 pages measured across 4 viewports × 2 themes | §26–§29 |
 
@@ -56,7 +56,7 @@ detection calibration (4.2% → 1%) → Es/N0 waterfall
 python src/generate.py sealed        # data/sealed, seed0=99000
 python src/generate.py train         # data/train,  seed0=1000
 
-python -m pytest -q tests                 # must be 175 passed
+python -m pytest -q tests                 # must be 178 passed
 python sealed_test.py                     # must be 30/30, 0 false accepts
 python sealed_test.py data/train 100      # currently 63/100, 0 false accepts
 
