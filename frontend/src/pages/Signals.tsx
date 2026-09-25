@@ -153,6 +153,7 @@ export function SignalDetail() {
               <div className="grid" style={{ gridTemplateColumns: 'minmax(0, 0.95fr) minmax(0, 1.05fr)', alignItems: 'start' }}>
                 <div className="col" style={{ gap: 14 }}>
                   <WhyPanel pack={pack} inVerdict />
+                  <Characteristics pack={pack} />
                   {pack.result.status !== 'DECODED' && (
                     <Panel title="The measurements behind the refusal" sub="Derived from the test that refused this capture">
                       <WhatWouldProveIt pack={pack} detailOnly />
@@ -161,7 +162,6 @@ export function SignalDetail() {
                   {incident && <Panel title="Linked incident"><Link to={`/app/incidents/${incident.id}`} className="row"><Priority level={incident.priority} /><span>{incident.id} · {incident.title}</span></Link></Panel>}
                 </div>
                 <div className="col" style={{ gap: 14 }}>
-                  <Characteristics pack={pack} />
                   <Panel title="Capture quality" sub="Whether the recording can be trusted as a measurement. Reported beside the verdict, never part of it.">
                     <CaptureGate pack={pack} />
                     <div className="hr" />
