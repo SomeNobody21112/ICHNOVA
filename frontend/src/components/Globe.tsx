@@ -261,9 +261,11 @@ export function Globe({ points, anchor, selected, onPick, height = 520, spin = t
             <stop offset="72%" stopColor="var(--cyan)" stopOpacity="0" />
             <stop offset="100%" stopColor="var(--cyan)" stopOpacity="0.45" />
           </radialGradient>
+          {/* the ocean is lit from upper-left; both stops are theme tokens, because the shared
+              surface tokens are near-white in light mode and left the globe unreadable */}
           <radialGradient id="g-ocean" cx="38%" cy="30%" r="80%">
-            <stop offset="0%" stopColor="var(--panel-2)" />
-            <stop offset="100%" stopColor="var(--bg-2)" />
+            <stop offset="0%" stopColor="var(--globe-ocean-a)" />
+            <stop offset="100%" stopColor="var(--globe-ocean-b)" />
           </radialGradient>
           {/* the globe is a disc, so everything on the surface is clipped to it */}
           <clipPath id="g-clip"><circle cx={cx} cy={cy} r={R} /></clipPath>

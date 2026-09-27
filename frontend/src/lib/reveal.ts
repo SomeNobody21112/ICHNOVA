@@ -4,6 +4,10 @@ import { useEffect, type RefObject } from 'react'
  *  a revealed panel arrives with its parent. */
 const SEL = '.panel, .card, .verdict, .tasks, .statbar, .section-head, .proof-card, .stats, .flow-step, .hero-card'
 
+/** Debounce for the rescan after new nodes appear: long enough that a live view updating many times
+ *  a second costs one scan rather than sixty, short enough to be imperceptible on a route change. */
+const SCAN_MS = 120
+
 /** Scroll reveal for everything under `ref`, including content rendered later (route changes, data
  *  arriving). Nothing already on screen is ever hidden: only blocks that start below the fold are
  *  marked, so there is no flash on load. With reduced motion, or without IntersectionObserver, the
@@ -33,13 +37,21 @@ export function useScrollReveal(ref: RefObject<HTMLElement | null>) {
       })
     }
     scan()
-    // Coalesce bursts of DOM changes (live views update often) into one scan per frame.
-    let queued = 0
-    const mo = new MutationObserver(() => {
-      if (queued) return
-      queued = requestAnimationFrame(() => { queued = 0; scan() })
+    // Coalesce bursts of DOM changes into one scan, and only for changes that could have added a
+    // block worth revealing.
+    //
+    // This used to scan once per animation frame. A live view mutates on every frame, and each scan
+    // walks the whole subtree and measures every unseen element, which forces layout — so on the
+    // Live Monitor the reveal pass ran ~60 times a second over a large DOM and helped starve the
+    // main thread until the window lost focus. Reacting only to added nodes, and no more often than
+    // SCAN_MS, costs nothing on a live page and is still immediate for a route change.
+    let timer = 0
+    const mo = new MutationObserver((records) => {
+      if (timer) return
+      if (!records.some((r) => r.addedNodes.length)) return
+      timer = window.setTimeout(() => { timer = 0; scan() }, SCAN_MS)
     })
     mo.observe(root, { childList: true, subtree: true })
-    return () => { io.disconnect(); mo.disconnect(); cancelAnimationFrame(queued) }
+    return () => { io.disconnect(); mo.disconnect(); clearTimeout(timer) }
   }, [ref])
 }

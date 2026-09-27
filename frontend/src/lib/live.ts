@@ -79,6 +79,11 @@ export interface LiveState {
 
 const EMPTY: LiveState = { statuses: [], symbols: [], t: 0, closed: false }
 
+/** How often the replay clock is published to React, in milliseconds of wall time. It only feeds a
+ *  progress bar and a whole-second readout, so 10 Hz is already finer than either can show, and
+ *  bounding it is what keeps the replay loop from starving the rest of the page. */
+export const CLOCK_PUBLISH_MS = 100
+
 function reduce(s: LiveState, a: { kind: 'reset' } | { kind: 'events'; events: LiveEvent[] }): LiveState {
   if (a.kind === 'reset') return EMPTY
   let n = s
@@ -153,6 +158,7 @@ export function useLiveFeed(source: { kind: 'replay'; doc: ReplayDoc | null; spe
     if (!doc) return
     let raf = 0
     let last = performance.now()
+    let shown = -Infinity
     const step = (now: number) => {
       raf = requestAnimationFrame(step)
       const dt = Math.min(0.25, (now - last) / 1000)
@@ -163,7 +169,15 @@ export function useLiveFeed(source: { kind: 'replay'; doc: ReplayDoc | null; spe
       const due: LiveEvent[] = []
       while (idx.current < doc.events.length && doc.events[idx.current].t <= clockRef.current) due.push(doc.events[idx.current++])
       if (due.length) deliver(due)
-      setClock(clockRef.current)
+      // `clock` drives a progress bar and a whole-second readout, and nothing else. Publishing it on
+      // every animation frame re-rendered the whole live page ~60 times a second for changes nobody
+      // can see, which starved the main thread: on the Live Monitor a click on another page sat
+      // behind the render loop and only committed once the window lost focus and rAF stopped. The
+      // value stays exact; only how often it is published is bounded.
+      if (now - shown >= CLOCK_PUBLISH_MS || clockRef.current > end) {
+        shown = now
+        setClock(clockRef.current)
+      }
     }
     raf = requestAnimationFrame(step)
     return () => cancelAnimationFrame(raf)

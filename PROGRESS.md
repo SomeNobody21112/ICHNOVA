@@ -1,5 +1,49 @@
 # SIH26147 — Session Progress Report
 
+## The Live Monitor stops starving the main thread; the globe works in daylight — 28 September 2026
+
+- **"I can't switch screens until I alt-tab."** The navigation was happening; the app just could not
+  paint it. The Live Monitor auto-starts a replay on mount, and the replay clock called `setClock`
+  **on every animation frame** (`lib/live.ts`) — a full re-render of a heavy page ~60 times a second.
+  `clock` feeds exactly two things: a progress bar width and a `Math.floor` second readout, so every
+  one of those renders was for a change nobody could see. A click on another page went into the queue
+  behind the loop; alt-tabbing suspends `requestAnimationFrame`, the queue drained, and the pending
+  navigation committed — which is why leaving and coming back "fixed" it. The clock is now published
+  at **10 Hz** (`CLOCK_PUBLISH_MS`), and its value is still exact.
+- **The second half of the same stall.** `useScrollReveal` rescanned on a `MutationObserver` callback
+  **once per animation frame**, and each scan walks the whole subtree under `<main>` and calls
+  `getBoundingClientRect()` on every unseen block — forcing layout. On a view that mutates constantly
+  that ran ~60 times a second over a large DOM. It now reacts **only to added nodes**, debounced
+  120 ms, which is free on a live page and still instant on a route change.
+- **Clicking a pin on the globe did nothing.** The first click was spent setting the listening site
+  and returned early, so the globe re-centred and you were left on the same screen with no signal
+  opened. A pin **is** a transmitter, so it now always opens that transmitter; if no listening site
+  has been chosen yet, that place becomes it in the same click. The rule is one pure function,
+  `pinClick`, with a check covering all three cases including that an established listening site is
+  never silently moved.
+- **"Listen from" looked ragged.** It was a grid of gapped cards (`auto-fit, minmax(176px, 1fr)`,
+  10 px gap) inside a ~340 px side panel, so the cards wrapped into uneven boxes with margins
+  everywhere — directly above a flush hairline list, so the two panels read as unrelated components.
+  It is now one flush list matching `.list-item`: hairline dividers, a hover wash, and the selected
+  row marked by an inset bar on its leading edge rather than a border colour.
+- **The globe was nearly invisible in light mode**, and the reason was token reuse: land was `--line`,
+  the ocean `--panel-2` to `--bg-2`, coastlines `--bg-2`. In the light theme those are `#d9ddd8`,
+  `#f0f2ef` and `#f0f2ef` — all within a few percent of white, so land, sea and graticule collapsed
+  into one pale disc. There is now a dedicated `--globe-*` palette **stated explicitly for both
+  themes**: a tinted ocean gradient, land with real separation from it, a visible graticule and limb,
+  a night side at 19 % instead of 42 % (a light page cannot carry a black cap), and a star field
+  whose opacity token is **0** in light mode, because stars on white are just specks. Arcs, markers
+  and labels gained weight to hold up against the paler sea.
+- **Checks.** 22/22 observatory checks (one new), `tsc -b --force` clean, `vite build` passes, no new
+  lint findings — the one warning on `live.ts` is pre-existing and identical in `HEAD`. No engine
+  file, threshold, sealed dataset, Space report or the Request-B constant was touched.
+- **Not yet confirmed in a browser from here.** Both stalls are defects I can point at in the code and
+  both match the reported symptom exactly, but the devtools bridge would not connect in this session,
+  so the fix is reasoned and verified statically rather than observed. Worth a quick look on the
+  deployed build.
+
+---
+
 ## Sized for the 512 MB free tier it actually runs on — 27 September 2026
 
 - **The real limit was memory, and nothing expressed it.** The only ingress limit was a 64 MB byte

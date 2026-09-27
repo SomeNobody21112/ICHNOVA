@@ -14,8 +14,8 @@
 import assert from 'node:assert/strict'
 import {
   antipode, bearingDeg, BENIGN_STREAM_END, clampTilt, clampZoom, deriveStage, greatCircleKm,
-  lightMs, placeLabels, provenanceOf, shortestTurn, SPIN_EPSILON, SPIN_FRICTION, STAGES, STALE_MS,
-  subsolar, ZOOM_MAX, ZOOM_MIN,
+  lightMs, pinClick, placeLabels, provenanceOf, shortestTurn, SPIN_EPSILON, SPIN_FRICTION, STAGES,
+  STALE_MS, subsolar, ZOOM_MAX, ZOOM_MIN,
 } from '../src/lib/observatory.ts'
 
 let n = 0
@@ -212,6 +212,20 @@ ok('great-circle distance and bearing match known geography', () => {
   assert.equal(Math.round(greatCircleKm(delhi, delhi)), 0)
   // light time is the distance, not a decorative number
   near(lightMs(299.792458), 1, 1e-9, 'one light-millisecond')
+})
+
+ok('clicking a pin on the globe always opens that transmitter', () => {
+  // the reported bug: with no listening site chosen, the first pin click was spent on setting the
+  // anchor, so the pin appeared to do nothing at all
+  const first = pinClick(null, 'JJY')
+  assert.equal(first.open, 'JJY', 'a pin click must open the transmitter it is on')
+  assert.equal(first.anchor, 'JJY', 'with nowhere chosen to listen from, that place becomes it')
+  // with a site already chosen, the anchor is left alone and the pin still opens
+  const later = pinClick('AIR-MW', 'WWVB')
+  assert.equal(later.open, 'WWVB')
+  assert.equal(later.anchor, 'AIR-MW', 'an established listening site is never silently moved')
+  // clicking the listening site's own pin opens it and changes nothing
+  assert.deepEqual(pinClick('WWV', 'WWV'), { anchor: 'WWV', open: 'WWV' })
 })
 
 console.log(`\nALL ${n} CHECKS PASS`)

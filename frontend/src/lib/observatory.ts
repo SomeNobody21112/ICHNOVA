@@ -166,6 +166,18 @@ export function shortestTurn(from: number, to: number): number {
   return d
 }
 
+/**
+ * What clicking a pin on the globe means.
+ *
+ * A pin **is** a transmitter, so clicking one always opens it. The first version spent that click on
+ * choosing the listening site instead, so the very first pin click appeared to do nothing: the globe
+ * re-centred and you were left on the same screen with no way to tell the click had registered. If no
+ * listening site has been chosen yet, the place clicked becomes it too, in the same click.
+ */
+export function pinClick(anchorKey: string | null, key: string): { anchor: string; open: string } {
+  return { anchor: anchorKey ?? key, open: key }
+}
+
 export interface LabelMark { x: number; y: number; visible: boolean }
 export interface LabelPlaced { ly: number; side: 1 | -1 }
 

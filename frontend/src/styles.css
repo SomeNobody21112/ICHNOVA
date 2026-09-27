@@ -69,6 +69,36 @@
   color-scheme: light;
 }
 
+/* The satellite view needs its own palette. It used to borrow --line for land, --panel-2 for ocean
+   and --bg-2 for coastlines; in light mode those are all within a few percent of white, so the globe
+   was a pale disc with no readable geography. Both themes are stated explicitly below rather than one
+   left to inherit, so neither is an accident. */
+:root, :root[data-theme='light'] {
+  --globe-ocean-a: #dceaf1;
+  --globe-ocean-b: #b9d0dc;
+  --globe-land: #93a99b;
+  --globe-land-edge: #f2f5f3;
+  --globe-grat: #8ba7b4;
+  --globe-grat-op: 0.5;
+  --globe-limb: #6d8b98;
+  --globe-night: #123047;
+  --globe-night-op: 0.19;
+  --globe-star-op: 0;
+}
+
+:root[data-theme='dark'] {
+  --globe-ocean-a: #191c1f;
+  --globe-ocean-b: #0f1112;
+  --globe-land: #2a2f33;
+  --globe-land-edge: #0f1112;
+  --globe-grat: #2a2f33;
+  --globe-grat-op: 0.55;
+  --globe-limb: #3a4046;
+  --globe-night: #000000;
+  --globe-night-op: 0.42;
+  --globe-star-op: 1;
+}
+
 /* ============ Tokens: dark (instrument black, ivory, gold) ============ */
 :root[data-theme='dark'] {
   --bg: #0b0c0d;
@@ -1084,15 +1114,23 @@ details.more[open] > summary::before { content: '−'; }
   background: var(--bg-2); font-family: var(--mono); font-size: 10.5px; }
 .obs-step.on .obs-step-n { background: var(--cyan); color: var(--bg); }
 
-.obs-locs { display: grid; grid-template-columns: repeat(auto-fit, minmax(176px, 1fr)); gap: 10px; }
-.obs-loc { display: grid; gap: 3px; text-align: left; padding: 13px 14px; border-radius: var(--r-lg);
-  border: 1px solid var(--line); background: var(--panel-2); cursor: pointer;
-  transition: border-color .18s, transform .18s; }
-.obs-loc:hover { border-color: var(--cyan); transform: translateY(-2px); }
-.obs-loc.on { border-color: var(--cyan); }
-.obs-loc-name { font-size: 14px; font-weight: 600; }
-.obs-loc-n { font-family: var(--mono); font-size: 11px; color: var(--cyan); }
-.obs-loc-sites { font-size: 11.5px; color: var(--muted); overflow-wrap: anywhere; }
+/* One flush list with hairline dividers, matching `.list-item` in the panel directly below it. As a
+   grid of gapped cards inside a narrow side panel these wrapped into ragged uneven boxes and the two
+   panels read as two unrelated components. The selected row is marked by a filled bar on its leading
+   edge, which reads in both themes without depending on a border colour. */
+.obs-locs { display: flex; flex-direction: column; }
+.obs-loc { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px;
+  align-items: center; text-align: left; padding: 11px 16px; min-height: 46px;
+  border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: none;
+  color: inherit; font: inherit; cursor: pointer; transition: background-color .16s, box-shadow .16s; }
+.obs-loc:last-child { border-bottom: 0; }
+.obs-loc:hover { background: var(--surface-hover); }
+.obs-loc:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
+.obs-loc.on { background: var(--cyan-dim); box-shadow: inset 2.5px 0 0 var(--cyan); }
+.obs-loc-name { font-size: 13.5px; font-weight: 600; }
+.obs-loc-n { font-family: var(--mono); font-size: 11px; color: var(--cyan); justify-self: end;
+  white-space: nowrap; }
+.obs-loc-sites { grid-column: 1 / -1; font-size: 11.5px; color: var(--muted); overflow-wrap: anywhere; }
 
 .obs-world { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(300px, 0.85fr); gap: 16px;
   align-items: start; }
@@ -1108,17 +1146,17 @@ details.more[open] > summary::before { content: '−'; }
 .globe.dragging { cursor: grabbing; }
 .globe:focus-visible { box-shadow: 0 0 0 2px var(--ring); border-radius: 50%; }
 .globe-wait { position: absolute; font-size: 11.5px; color: var(--muted); }
-.globe-grat { fill: none; stroke: var(--line); stroke-width: 0.5; opacity: 0.55; }
-.globe-land { fill: var(--line); opacity: 0.85; stroke: none; }
-.globe-border { fill: none; stroke: var(--bg-2); stroke-width: 0.45; opacity: 0.9; }
-.globe-hi { fill: var(--cyan); fill-opacity: 0.32; stroke: var(--cyan); stroke-width: 0.9; }
-.globe-limb { fill: none; stroke: var(--line-2); stroke-width: 1; }
-.globe-star { fill: var(--text-2); pointer-events: none; }
+.globe-grat { fill: none; stroke: var(--globe-grat); stroke-width: 0.5; opacity: var(--globe-grat-op); }
+.globe-land { fill: var(--globe-land); stroke: none; }
+.globe-border { fill: none; stroke: var(--globe-land-edge); stroke-width: 0.5; opacity: 0.85; }
+.globe-hi { fill: var(--cyan); fill-opacity: 0.38; stroke: var(--cyan); stroke-width: 1.1; }
+.globe-limb { fill: none; stroke: var(--globe-limb); stroke-width: 1; }
+.globe-star { fill: var(--text-2); pointer-events: none; opacity: var(--globe-star-op); }
 /* the terminator: computed from the viewer's clock, so it is the real night side */
-.globe-night { fill: #000; fill-opacity: 0.42; stroke: color-mix(in srgb, var(--cyan) 30%, transparent);
-  stroke-width: 0.8; pointer-events: none; }
+.globe-night { fill: var(--globe-night); fill-opacity: var(--globe-night-op);
+  stroke: color-mix(in srgb, var(--cyan) 38%, transparent); stroke-width: 0.8; pointer-events: none; }
 
-.globe-arc { fill: none; stroke: var(--cyan); stroke-width: 1; opacity: 0.4;
+.globe-arc { fill: none; stroke: var(--cyan); stroke-width: 1.15; opacity: 0.5;
   stroke-dasharray: 1 260; animation: globe-draw 1.5s cubic-bezier(.16,1,.3,1) forwards; }
 .globe-arcg.on .globe-arc { opacity: 0.95; stroke-width: 1.7; }
 @keyframes globe-draw { to { stroke-dasharray: 260 0; } }
@@ -1131,10 +1169,10 @@ details.more[open] > summary::before { content: '−'; }
 .globe-arcg.on .globe-pulse { opacity: 0.95; animation: globe-travel 2.2s linear infinite; }
 @keyframes globe-travel { from { stroke-dashoffset: 404; } to { stroke-dashoffset: 0; } }
 
-.globe-leader { fill: none; stroke: var(--line-2); stroke-width: 0.7; opacity: 0.8; }
-.globe-dot { fill: var(--panel); stroke: var(--text-2); stroke-width: 1.5; transition: fill .2s, stroke .2s; }
-.globe-name { font-size: 10.5px; fill: var(--text-2); paint-order: stroke; stroke: var(--bg);
-  stroke-width: 3px; stroke-linejoin: round; pointer-events: none; }
+.globe-leader { fill: none; stroke: var(--line-3); stroke-width: 0.7; opacity: 0.85; }
+.globe-dot { fill: var(--panel); stroke: var(--text); stroke-width: 1.6; transition: fill .2s, stroke .2s; }
+.globe-name { font-size: 10.5px; fill: var(--text); paint-order: stroke; stroke: var(--panel);
+  stroke-width: 3.5px; stroke-linejoin: round; pointer-events: none; }
 .globe-mark { cursor: pointer; }
 .globe-halo { fill: none; stroke: var(--cyan); stroke-width: 1; opacity: 0.5; pointer-events: none;
   transform-box: fill-box; transform-origin: center; animation: globe-halo .35s ease-out; }
@@ -1216,7 +1254,6 @@ details.more[open] > summary::before { content: '−'; }
   .globe-arc { stroke-dasharray: none; }
   .globe-ripple { opacity: .35; }
   .globe-arcg.on .globe-pulse { opacity: 0; }
-  .obs-loc:hover { transform: none; }
 }
 
 @media (max-width: 1100px) { .obs-world { grid-template-columns: minmax(0, 1fr); } }

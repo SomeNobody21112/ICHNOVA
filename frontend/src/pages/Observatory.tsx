@@ -5,7 +5,7 @@ import { EvidenceSteps, PathCard, progressSteps, RealWaterfall } from '../compon
 import { Icon, Loading, Panel, Stamp, Tag } from '../components/ui'
 import { api } from '../lib/api'
 import { useLiveFeed, type ReplayDoc, type ReplayIndexEntry, type StationInfo, type StationsDoc } from '../lib/live'
-import { bearingDeg, branches, deriveStage, greatCircleKm, lightMs, PROVENANCE_NOTE, provenanceOf, STAGE_LABEL, STAGES, type Provenance } from '../lib/observatory'
+import { bearingDeg, branches, deriveStage, greatCircleKm, lightMs, pinClick, PROVENANCE_NOTE, provenanceOf, STAGE_LABEL, STAGES, type Provenance } from '../lib/observatory'
 
 /** The Observatory: a location-first way into the live pipeline.
  *
@@ -179,8 +179,11 @@ export default function Observatory() {
                 onPick={(p) => {
                   const e = entries.find((x) => x.key === p.key)
                   if (!e) return
-                  if (!anchorKey) { setAnchorKey(p.key); setPicked(null); return }
-                  setPicked(e); setAct('rf')
+                  // A pin is a transmitter, so it always opens that transmitter. When no listening
+                  // site has been chosen yet this place becomes it as well, in the same click,
+                  // rather than the click being spent on the anchor and appearing to do nothing.
+                  const { anchor: a } = pinClick(anchorKey, p.key)
+                  setAnchorKey(a); setPicked(e); setAct('rf')
                 }} />
               <div className="obs-globe-cap">
                 {anchor
