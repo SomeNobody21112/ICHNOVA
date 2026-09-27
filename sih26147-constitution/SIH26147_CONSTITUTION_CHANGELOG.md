@@ -283,4 +283,29 @@ No classification changes — all three updates confirm existing assessments wit
 
 ---
 
+## v2.6 Space-Ground Extension (2026-09-25 to 2026-09-27)
+
+A full research branch run under the existing Constitution. **No Constitution rule was added, removed or
+reinterpreted** — the branch is a demonstration of the rules already in force (pre-registration, STOP on a
+discovered failure, file-scope discipline, claim labelling).
+
+| Update | Document | Change |
+|---|---|---|
+| Doppler experiment executed and **failed its headline criterion** | `reports/space/DOPPLER_EXPERIMENT_RESULTS.md` | 54 of 96 treated captures published a wrong payload beneath a **true** structural claim; 0 of 96 static controls; **0 wrong structures in 192**. Published as-is: a documented failure is a valid outcome, a hidden one is misconduct |
+| Decode claim narrowed | `SPACE_CLAIM_FIREWALL.md` 2a, `SPACE_GROUND_SEGMENT_POSITIONING.md` 2 | The decode verdict is scoped to a carrier **static within the capture**. New label **MEASURED LIMITATION**, ranked stronger than NOT ESTABLISHED. The permitted sentence must carry both halves |
+| Mechanism established | `DOPPLER_MECHANISM_RESULTS.md` | H1 (residual carrier error) **SUPPORTED** and dominant; H2 killed, H4 largely excluded, H6 weakened |
+| Remediation tested and rejected | `CARRIER_ESTIMATOR_RESULTS.md` | **INTEGRATION NOT SUPPORTED** by two independent pre-registered rules. It cost bench-v1 30/30 to 22/30, bench-v2 9/9 to 8/9 criteria, null-set catalogue 128 to 87, and manufactured a CCSDS LDPC claim from an idle carrier |
+| Structural safety characterised | `F4_MARGIN_RESULTS.md`, `OFFCARRIER_CENSUS_RESULTS.md` | 34 block-code accepts over 1,810 sealed captures, all correct, 0 on 900 true nulls. Off-carrier noise-like front ends are admitted routinely (9,186 of 115,057) and have never produced a claim |
+| The "zero convergence = failure" label **not applied** | `F4_MARGIN_RESULTS.md` 0 | The existing logic establishes the opposite reading (`src/blockcode.py`:175-177 documents convergence as a provenance marker). Recorded in the protocol **before** measurement |
+| H3 settled | `TRACK_READOUT_RESULTS.md` | **SUPPORTED as a mechanism** for at most 24 of 54 failures; **REFUTED as the complete explanation** (30 of 54 failures came from untracked front ends) |
+| First approved production instrumentation | `TRACK_VALIDITY_RESULTS.md`, `SPACE_IMPLEMENTATION_GATE.md` 9.3 | `src/pipeline.py` +61/-3, write-only diagnostics only. Gate 9.3 moves to **APPROVED AND DELIVERED**; D1/D2/D8 stay **NOT ESTABLISHED**, now on measurement rather than on a missing read-out |
+| Branch audited and frozen | `SPACE_FINAL_AUDIT.md` | Internally coherent, no material blocker. Five documentation fixes applied; frozen historical reports left untouched |
+| Judge-facing console screen | `frontend/src/pages/Space.tsx`, `server/export_space_data.py` | `/app/space` renders the branch from `results/*.jsonl` via `frontend/public/space.json`; no number is typed by hand |
+
+**Classification changes: one.** Time-varying carrier moves from NOT ESTABLISHED to **MEASURED LIMITATION**.
+Real spacecraft RF, orbital modelling, carrier-trajectory measurement and Doppler robustness remain
+**NOT ESTABLISHED** and were not upgraded by any result in this branch.
+
+---
+
 **CHANGELOG COMPLETE**

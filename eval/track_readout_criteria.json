@@ -1,0 +1,63 @@
+{
+  "experiment_id": "SPACE-TRACK-READOUT-01",
+  "committed_utc": "2026-09-27",
+  "kind": "Diagnostic read-out of the SHIPPED _track_phase on the existing sealed Doppler dataset. One additive, write-only production parameter (_trace). No algorithm, threshold, gate or dataset changed. No remediation.",
+
+  "question": "What does _track_phase actually estimate on a time-varying carrier, how does that estimate compare with the KNOWN generated trajectory, and does its behaviour explain any of the measured Doppler payload failures (H3)?",
+
+  "H3_as_previously_stated": "DOPPLER_MECHANISM_RESULTS.md: 'Unwrap slip near the M-power ambiguity' — recorded there as NOT SUPPORTED as necessary, not directly tested, and explicitly awaiting this read-out. It is treated here as a hypothesis to be tested, not a conclusion to be confirmed.",
+
+  "what_the_code_says_before_any_measurement": {
+    "what_it_estimates": "src/pipeline.py::_track_phase estimates a piecewise-constant carrier PHASE, not a frequency and not a trajectory. Per block of `blk` symbols it forms z = mean(y**M), takes angle(z), unwraps ACROSS BLOCKS, divides by M, and de-rotates each symbol of the block by that one value. M = 2 (BPSK) / 4 (QPSK).",
+    "block_choice": "The block length is chosen from (TRACK_BLOCK=64, 32, 16, 8) by the highest coherence mean|z|/mean|y^M|, requiring at least 8 blocks. So the tracker also has a data-dependent time resolution, which is itself part of its behaviour.",
+    "gate": "It returns None when len(y) < TRACK_MIN_SYMBOLS = 512 SYMBOLS. Note this is symbols of the candidate front end, not of the true signal: a front end at a smaller sps has more symbols, so tracking can run even on a capture whose TRUE symbol count is below 512.",
+    "slip_mechanism_implied_by_the_code": "np.unwrap assumes the block-to-block change of the M-power angle is below pi. The true M-power change per block is 2*pi*M*(mean residual frequency)*blk*sps. When that exceeds pi the unwrap takes the wrong branch and the recovered phase acquires a step of 2*pi/M that PERSISTS for the rest of the capture. A constant phase step preserves structure while corrupting bits, which is the shape of the measured failure (wrong payload beneath a TRUE structural claim). This is the mechanism H3 names; whether it actually occurs is what this experiment measures."
+  },
+
+  "population": {
+    "dataset": "The existing sealed SPACE-DOPPLER set, data/space_bench/doppler, 192 captures, manifest f9823ef5a45c97f106825ac51768b9412db5c65460d3574cd06b813627fe50ea. Read-only. No capture is regenerated, rescored or overwritten, and results/space_doppler_rows.jsonl is read but never rewritten.",
+    "why_this_set": "It is the only sealed population where the carrier trajectory is KNOWN exactly (eval/space_doppler.trajectory, reconstructed from the recorded trajectory_class, peak_shift_cyc_per_sample and kappa) AND the per-capture payload outcome is already recorded. No new dataset is needed.",
+    "controls": "96 time-varying captures (linear, pass) against 96 static controls (zero, static) in the same set. The static controls are the negative control: a tracker that slips on a constant carrier would indicate something other than the trajectory."
+  },
+
+  "production_change": {
+    "what": "src/pipeline.py::_track_phase gains an optional keyword `_trace=None`. When a dict is passed it is filled with: m_power, the chosen block, n_blocks, coherence, coherence_by_block, n_symbols, block_angles (BEFORE unwrap) and phase (AFTER unwrap, divided by M).",
+    "why_it_is_necessary": "A 2*pi/M unwrap slip is NOT recoverable from the returned stream. The return value is y*exp(-1j*per_symbol), so per_symbol is recoverable only modulo 2*pi; for BPSK a slip is exactly pi, which sits on the re-unwrap boundary and is therefore ambiguous by construction. The pre-unwrap block_angles are what make a slip observable.",
+    "safety": "Write-only and default-off. No caller in src/ passes it. The returned array, every branch and every constant are unchanged. Regression tests must prove: (a) the returned stream is identical with and without a trace, (b) analyze_iq verdicts on sealed captures are identical to the recorded ones, (c) the trace is deterministic."
+  },
+
+  "method": {
+    "claim_front_end": "For each capture the engine's published stream_code.accepted_hypothesis gives the winning front end's index, cfo, sps and modulation (F2 supplies every Doppler claim on record). The tracking VARIANT is not published, so it is recovered from the VERIFIED replication (frontend_mechanism._front_candidates, which reproduced the engine's published front-end counts on 1810/1810 captures): production `fronts` are the passing candidates in that same construction order, so index i is the i-th passing candidate.",
+    "truth": "true instantaneous frequency f(n) = space_doppler.trajectory(class, peak, n, kappa), exactly the generator's own function; true phase = 2*pi*cumsum(f). The residual the tracker should follow is the truth minus the constant cfo the front end already removed.",
+    "comparison": "Both the tracker's per-block phase and the true per-block phase are referenced to block 0, because absolute phase is estimated separately by estimate_carrier_phase and is not the tracker's job. The comparison is therefore of block-to-block INCREMENTS and of the accumulated error."
+  },
+
+  "definitions_committed_before_measurement": {
+    "slip": "A block b is a SLIP when the tracker's increment differs from the true increment by approximately a non-zero multiple of 2*pi/M: |(d_tracked - d_true) - k*2*pi/M| <= 0.25 * (2*pi/M) for some integer k != 0, where d = phase[b] - phase[b-1]. The 0.25 tolerance is a quarter of the ambiguity spacing and is fixed here, before measurement.",
+    "tracking_error": "err[b] = (phase[b] - phase[0]) - (true[b] - true[0]) in radians. Reported as max |err| and final |err| per capture.",
+    "systematic_vs_incidental": "A difference is SYSTEMATIC if it is monotone in severity or trajectory class across captures; INCIDENTAL if it is not and is consistent with noise. Both are reported; neither is assumed."
+  },
+
+  "decision_rules": {
+    "H3_SUPPORTED": "Slips occur, they are concentrated on FALSE_DECODE captures whose published claim came from a block_tracked front end, and they are absent or rare on DECODED_CORRECT captures and on the static controls.",
+    "H3_WEAKENED": "Slips occur but are not associated with failure, or they account for only a minority of the 54 recorded FALSE_DECODEs.",
+    "H3_REFUTED": "No slips are observed on the failing captures, or the failing captures' claims come from untracked front ends, so the tracker cannot have produced the wrong payloads.",
+    "H3_UNRESOLVED": "The claim's tracking variant or the true residual cannot be established for enough captures to decide.",
+    "known_before_measurement_and_not_to_be_forgotten": "16 of the 54 recorded FALSE_DECODEs have phase_tracked_front_ends == 0, i.e. NO tracked front end existed at all on those captures. The tracker cannot explain those 16 whatever this read-out shows, so H3 cannot account for more than 38 of 54 failures, and that ceiling is stated in the report.",
+    "no_causality_from_correlation": "An association between slips and failure is reported as an association. A causal claim additionally requires that the claim's own front end be the tracked one and that the payload error be consistent with the measured phase step. Where that cannot be shown, the report says ASSOCIATION ONLY."
+  },
+
+  "constraints": [
+    "The tracking algorithm, estimator logic, thresholds, F4, serial independence, sps ranking, candidate generation and refusal behaviour are NOT changed.",
+    "No carrier estimator is integrated; no correction is applied to any capture.",
+    "No sealed dataset is altered; no previous experiment's rows, manifests, criteria or reports are regenerated or overwritten.",
+    "The diagnostic output is written only to results/track_readout_*.jsonl and is never consulted by the engine.",
+    "If the instrumentation were found to alter any verdict, the experiment STOPS and reports that instead of proceeding."
+  ],
+
+  "outputs": [
+    "results/track_readout_rows.jsonl (one row per capture)",
+    "results/track_readout_blocks.jsonl (per-block tracker phase vs truth, time-varying captures)",
+    "reports/space/TRACK_READOUT_RESULTS.md"
+  ]
+}

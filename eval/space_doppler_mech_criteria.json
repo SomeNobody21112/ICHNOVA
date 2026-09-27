@@ -1,0 +1,134 @@
+{
+  "experiment_id": "SPACE-DOPPLER-MECH-01",
+  "version": 1,
+  "committed_utc": "2026-09-25",
+  "experiment": "SPACE-DOPPLER mechanism diagnostic - no correction vs existing correction vs ideal ground-truth carrier correction vs estimated carrier correction, plus a correction-granularity sub-study",
+  "purpose": "Identify WHICH mechanism produced the sealed SPACE-DOPPLER failure (54 wrong payloads beneath TRUE structural claims in 96 time-varying-carrier captures; 0 in 96 static controls; 0 wrong structures in 192). The purpose is NOT to make any benchmark pass and NOT to improve the Doppler result. MECHANISM NOT ESTABLISHED is a pre-registered acceptable outcome.",
+  "pre_registration_statement": "This file is committed BEFORE the generator exists and BEFORE any vector is generated. Every arm definition, grid level, seed rule, scoring category and decision bar below is fixed at commit time. No bar may be changed after a vector exists; a discovered failure or an ambiguous result is documented, never tuned away (Constitution STOP rule).",
+  "source_design": "reports/space/DOPPLER_REMEDIATION_EXPERIMENT.md (arms, factors, grid size, decision table). Deviations from it are enumerated below and were decided BEFORE generation.",
+
+  "sealed_predecessor": {
+    "experiment": "SPACE-DOPPLER",
+    "namespace": "data/space_bench/doppler",
+    "manifest_sha256": "f9823ef5a45c97f106825ac51768b9412db5c65460d3574cd06b813627fe50ea",
+    "status": "READ-ONLY HISTORICAL EVIDENCE. Never regenerated, re-scored or overwritten by this experiment. This experiment shares only the trajectory function definition (eval/space_doppler.py::trajectory), which is the shared definition of the impairment."
+  },
+
+  "deviations_from_design": [
+    {
+      "id": "DEV-1",
+      "field": "symbol counts",
+      "design_text": "Section 2.2 lists symbol counts {256, 412, 1200, 2400}; the pre-registered grid in the same section says '2 lengths (412, 1200)'.",
+      "resolution": "The GRID governs, because it is the sentence that fixes the vector count: two lengths, 412 and 1200 SYMBOLS. Achieved as n_info = 200 -> 412 symbols and n_info = 594 -> 1200 symbols (rate-1/2 K=7 conv encoder, 2*(n_info+6) coded bits = BPSK symbols).",
+      "why_recorded": "The design document is internally inconsistent on this point. It is reported rather than silently reconciled."
+    },
+    {
+      "id": "DEV-2",
+      "field": "drift-rate levels",
+      "design_text": "Section 2.2 asks for 6 drift-rate levels spanning 2e-7 to 7.5e-5 cyc/sample^2, logarithmically.",
+      "resolution": "The factor is swept as PEAK OFFSET at six declared severities {0.04, 0.1, 0.2, 0.4, 0.7, 1.0} x CFO_MAX (CFO_MAX = 0.0125 cyc/sample, the engine's own static search bound), and the ACHIEVED drift rate is recorded per vector and reported.",
+      "reason": "The upper end of the requested span is unreachable while the peak offset stays inside the engine's declared search bound. Drift rate scales as (peak x shape constant / N samples): with peak <= CFO_MAX the maximum achievable rate is about 1.5e-5 (linear, 412 symbols) and 3.7e-5 (pass, 412 symbols), and about 5e-6 / 1.3e-5 at 1200 symbols. The design's 7.5e-5 figure came from the sealed run's pass severity 2.0 cell, whose peak lay OUTSIDE CFO_MAX and which the engine correctly refused (35 of 48 such captures refused). Holding a rate that high would put every cell out of bound and measure refusal-at-the-bound instead of the mechanism - a confound, not a measurement. The declared severity ladder keeps every cell IN BOUND and still covers the span the factor exists to map: the previously unmeasured gap between bench-v2's largest cfo_drift (2e-7) and the sealed experiment's mildest treated cell (3.7e-6). The lowest severity (0.04) is chosen so that the linear/1200-symbol cell lands at approximately 2e-7, the bench-v2 anchor.",
+      "why_recorded": "This is a material change to a pre-registered factor. It is declared here, before any vector exists, with its reason, and is reported prominently in the results."
+    },
+    {
+      "id": "DEV-3",
+      "field": "the static trajectory under a drift-rate factor",
+      "design_text": "Section 2.2 crosses the trajectory classes {static, linear, pass} with the drift-rate factor.",
+      "resolution": "A static carrier has drift rate 0 by definition. The static class is therefore generated at the SAME PEAK OFFSET as its matched linear/pass cell, with zero variation, and its recorded drift rate is 0. It is the control for peak-offset magnitude, not for rate.",
+      "why_recorded": "The design does not state this mapping; it is fixed here rather than chosen during analysis."
+    },
+    {
+      "id": "DEV-4",
+      "field": "paired design",
+      "design_text": "'arms A-D x 3 trajectories x 6 drift rates x 2 lengths x 2 Es/N0 x 2 reps = 576 vectors'.",
+      "resolution": "144 DISTINCT captures (3 x 6 x 2 x 2 x 2) are generated once and each is analysed under all four arms, giving the pre-registered 576 scored analyses. The arms therefore see byte-identical samples, which is what makes the A/B/C/D comparison paired and attributable.",
+      "why_recorded": "The design's count is preserved exactly; this states how it is realised."
+    }
+  ],
+
+  "arms": {
+    "A_no_tracking": {
+      "definition": "Today's engine with the tracked front end ablated: pipeline._track_phase is patched IN THE EVALUATION PROCESS ONLY to return None, so no tracked front end is constructed. Static CFO estimation and every other stage are untouched.",
+      "implementation_constraint": "Evaluation-only runtime ablation. NO file under src/ or server/ is modified. The patch is applied inside the harness worker and the harness asserts the original function is restored afterwards.",
+      "addresses": "H5, and the floor for H1"
+    },
+    "B_existing": {
+      "definition": "Exactly today's engine, unmodified: analyze_iq(iq).",
+      "addresses": "Sanity anchor - must reproduce the sealed result's qualitative pattern in the new namespace"
+    },
+    "C_ideal": {
+      "definition": "The injected trajectory is removed from the capture BEFORE analysis: iq * exp(-2j*pi*cumsum(f_true)), where f_true is the exact per-sample frequency trajectory used to generate that vector. Then analyze_iq(iq), unmodified.",
+      "implementation_constraint": "An evaluation-only oracle of the kind eval/ladder.py already uses. It corrects the SAMPLES, never the acceptance decision, and must never be reachable from a production path.",
+      "addresses": "THE DECISIVE ARM. H1/H2/H3 (estimation) vs H4/H6 (decoding under non-stationary conditions)"
+    },
+    "D_estimated": {
+      "definition": "A declared blind estimator, no ground truth: the capture is split into D_BLOCKS = 8 contiguous equal blocks; for each block, pipeline._cfo_candidates(block) is called and the frequency of the most significant candidate (lowest log10 p) is taken as that block's carrier frequency estimate, assigned to the block centre; the per-sample estimate is linear interpolation between block centres with constant extrapolation before the first and after the last centre; the capture is de-rotated by exp(-2j*pi*cumsum(f_hat)). A block yielding no candidate contributes no knot; if no block yields a candidate the capture is passed through uncorrected and the row records estimator_knots = 0.",
+      "implementation_constraint": "Uses the engine's existing published estimator as a library function. No production file is modified.",
+      "addresses": "Whether the information is recoverable from the samples without ideal knowledge"
+    },
+    "E_granularity": {
+      "definition": "Ideal (ground-truth) correction applied at declared granularities instead of per sample: piecewise-CONSTANT at symbol-block lengths {64, 32, 16, 8} (the block's frequency is the true trajectory value at the block centre, held across the block, exactly as pipeline._track_phase holds one phase per block), and piecewise-LINEAR (the true trajectory linearly interpolated between block centres, block length 64).",
+      "sub_study_grid": "Ideal correction only; 5 granularities x 3 severities {0.1, 0.4, 1.0} x 2 reps = 30 analyses, on the pass trajectory at the long length and Es/N0 12 dB.",
+      "addresses": "H2 - is the piecewise-constant staircase itself the error source?"
+    }
+  },
+
+  "grid": {
+    "distinct_captures": 144,
+    "scored_analyses_arms_A_to_D": 576,
+    "scored_analyses_arm_E": 30,
+    "trajectory_classes": ["static", "linear", "pass"],
+    "severity_x_CFO_MAX": [0.04, 0.1, 0.2, 0.4, 0.7, 1.0],
+    "lengths_symbols": {"short": 412, "long": 1200},
+    "esn0_db": [12, 6],
+    "reps": 2,
+    "signal": "Continuous rate-1/2 K=7 convolutional stream, BPSK, sps drawn from {4,6,8}, beta ~ U(0.2,0.5) - the identical transmitter definition to the sealed SPACE-DOPPLER experiment (gen.stream_bits / CODES['k7']), so results are comparable to it.",
+    "kappa": 4.0,
+    "engine_default_path": "SEARCH_HIGHER_MODULATIONS=False, BPSK/QPSK only, ALPHA=0.01, family weights unchanged"
+  },
+
+  "seeds": {
+    "seed0": 600000,
+    "rule": "Each distinct capture's seed is SEED0 + index, where index is its position in the pure-function job list (trajectory x severity x length x esn0 x rep, in the declared order). Generation is a pure function of that seed: no wall clock, no unseeded randomness. Arm is NOT part of the seed - all four arms analyse the same bytes.",
+    "namespace_note": "SEED0 differs from the sealed experiment's 500000 so no vector of either experiment can collide with the other."
+  },
+
+  "scoring": {
+    "categories": {
+      "CORRECT_STRUCTURE_CORRECT_PAYLOAD": "status DECODED, accepted code family is the true continuous K7 family, reported modulation is BPSK, and payload BER < 0.01",
+      "CORRECT_STRUCTURE_WRONG_PAYLOAD": "status DECODED, accepted code family is the true continuous K7 family, reported modulation is BPSK, and payload BER >= 0.01 - THE FAILURE UNDER STUDY. This is NOT a structural false accept.",
+      "WRONG_STRUCTURE": "status DECODED with a code family that is not the transmitted one, or a modulation that is not the transmitted one - a structural false accept, and a separate, more serious failure",
+      "REFUSED": "status SIGNAL_NO_CODE or UNKNOWN"
+    },
+    "ber": "bench2._ber, imported verbatim: polarity-insensitive prefix comparison, the same function that scored the 430-file bench-v2 sealed run and the sealed SPACE-DOPPLER run.",
+    "separation_requirement": "Wrong structure and wrong payload are scored as DIFFERENT categories. The sealed experiment merged them into one FALSE_DECODE category; the measurement then showed the two behave completely differently (0 vs 54), so this experiment must distinguish them."
+  },
+
+  "decision_criteria": {
+    "note": "The design document's decision table is qualitative. These bars quantify it and are declared HERE, before any vector exists. They are attribution bars for a mechanism, not pass/fail bars for the engine. Rates are over TREATED captures only (trajectory in {linear, pass}), because the static class carries no drift.",
+    "C_restores": "arm C wrong-payload rate <= 0.05 AND arm C correct-payload rate >= 0.90 -> the information survives the channel and the failing stage is CARRIER ESTIMATION (supports H1/H2/H3, weakens H4/H6)",
+    "C_does_not_restore": "arm C wrong-payload rate >= 0.25 -> removing the carrier exactly is insufficient; the failure is in DECODING / soft-metric behaviour (supports H4/H6, largely excludes H1/H2/H3)",
+    "C_partial": "arm C wrong-payload rate strictly between 0.05 and 0.25 -> PARTIAL / AMBIGUOUS, reported as such, mechanism NOT ESTABLISHED",
+    "D_approaches_C": "|arm D wrong-payload rate - arm C wrong-payload rate| <= 0.10 -> a realisable estimator closes the gap. This does NOT authorise any production implementation.",
+    "D_far_from_C": "arm D wrong-payload rate - arm C wrong-payload rate >= 0.20 -> the gap is estimation accuracy, not estimation form; refusal remains the honest interim",
+    "A_equals_B": "|arm A wrong-payload rate - arm B wrong-payload rate| <= 0.10 -> tracking contributes nothing at these rates and its role in the failure is incidental",
+    "H2_confirmed": "in arm E, piecewise-LINEAR wrong-payload rate <= 0.05 while the best piecewise-CONSTANT granularity is >= 0.20",
+    "H2_killed": "in arm E, max - min wrong-payload rate across all granularities <= 0.10 (no block-length dependence)",
+    "wrong_structure_stop": "ANY WRONG_STRUCTURE outcome in any arm -> STOP and re-scope: that is a new and more serious failure than the one under study",
+    "ambiguous_is_acceptable": "If the bars above do not resolve, the pre-registered conclusion is MECHANISM NOT ESTABLISHED. That is an acceptable and potentially correct result."
+  },
+
+  "explicitly_not_under_test": [
+    "Any remediation. No payload-reliability gate, no drift-aware front end and no piecewise-linear corrector is implemented; corrections exist only as evaluation-side pre-corrections and oracles.",
+    "Any threshold, bar, family weight, ALPHA, CFO_MAX, TRACK_MIN_SYMBOLS or F2_AGREEMENT_FLOOR - all unchanged, and none may be altered in response to this experiment.",
+    "bench-v1, bench-v2, the 1,350-file null set and the real-signal suite - untouched; they are the regression floor any later remediation must clear.",
+    "The sealed SPACE-DOPPLER dataset - never re-run or re-scored here.",
+    "Orbital mechanics, real spacecraft signals, and trajectory measurement as a product feature (D1/D2/D8 remain blocked on an unapproved read-out).",
+    "Any space capability claim. A diagnostic produces understanding, not capability.",
+    "Threshold derivation from the sealed run's post-hoc path_metric / consistency / agreement observations. Those scores are RECORDED here on new data; no cut is chosen from either dataset."
+  ],
+
+  "revision_history": [
+    {"version": 1, "change": "initial pre-registration: arms, grid, seeds, scoring categories, decision bars and the four recorded deviations from the design document - written before the generator existed and before any vector was generated", "utc": "2026-09-25"}
+  ]
+}

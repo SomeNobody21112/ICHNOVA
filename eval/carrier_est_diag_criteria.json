@@ -1,0 +1,126 @@
+{
+  "experiment_id": "SPACE-CARRIER-EST-DIAG-01",
+  "version": 1,
+  "committed_utc": "2026-09-26",
+  "kind": "CAUSAL DIAGNOSTIC on existing sealed captures. Read-only. No new dataset, no estimator change, no production change, no threshold moved.",
+
+  "objective": "Determine WHY carrier pre-correction improves time-varying payload recovery while degrading static-carrier behaviour, by manipulating the correction trajectory INDEPENDENTLY of the estimator. The experiment separates ESTIMATION ERROR from CORRECTION-TRANSFORMATION EFFECT and must be able to conclude NEITHER ESTABLISHED.",
+
+  "hypotheses": {
+    "H_A": "Static-carrier regression is primarily caused by non-zero/spurious estimator output - the estimator invents a trajectory where none is warranted.",
+    "H_B": "Static-carrier regression can occur with CONTROLLED corrections that do not correspond to estimator error, i.e. the correction transformation itself changes the structural evidence presented to F4 and can manufacture a plausible false hypothesis.",
+    "note": "H_A and H_B are not mutually exclusive. Both, either, or neither may be supported, and the report must say which."
+  },
+
+  "design_input_measured_before_grid": {
+    "what": "The estimator's own correction on the primary capture, measured to SIZE the grid. This is an input property of the estimator, not an outcome of the engine, and no F4 result under any synthetic correction was inspected before the grid below was fixed.",
+    "capture": "data/bench2/sealed/idle_carrier_0411.iq",
+    "n_samples": 24080,
+    "ground_truth": "class idle_carrier, expected REFUSAL, channel rician, Es/N0 3 dB, TRUE STATIC CFO 0.005840 cyc/sample",
+    "estimator_output": {
+      "knots": 8,
+      "mean": 5.838611e-03,
+      "rms": 5.838616e-03,
+      "peak": 5.855482e-03,
+      "peak_to_peak": 3.114445e-05,
+      "time_varying_part_rms": 7.822511e-06,
+      "total_phase_swept_cycles": 140.594
+    },
+    "immediate_observation": "MEASURED FACT: on this static capture the estimator's output is dominated by a CONSTANT term that matches the capture's true static CFO to within 6e-7 cyc/sample; its time-varying component is about 750x smaller. The estimator did not invent a trajectory here - it measured the real static offset and removed it. The grid is therefore sized in multiples of that constant, M_est = 5.838611e-03 cyc/sample, and includes a shape that isolates the time-varying part alone.",
+    "M_est": 5.838611e-03
+  },
+
+  "primary_case": {
+    "capture": "data/bench2/sealed/idle_carrier_0411.iq",
+    "why": "The clearest observed regression in SPACE-CARRIER-EST-01: arm A refuses it (F4 margin +2.699), arm B decodes it as ccsds_tc_ldpc_128_64 / QPSK (F4 margin -0.112, 0 of 18 codewords converged).",
+    "access": "READ-ONLY. The capture is not modified, moved or regenerated."
+  },
+
+  "arms": {
+    "A_original": "The capture as it is, no correction and no call into the correction machinery.",
+    "B_estimator_exact": "The exact trajectory the estimator produces, applied through mech._derotate - reproduces the SPACE-CARRIER-EST-01 arm-B event.",
+    "C_zero_correction": "An explicit all-zero trajectory passed through THE SAME correction function (mech._derotate). THE CRITICAL CONTROL: it distinguishes 'the correction implementation itself changes numerical behaviour' from 'the correction magnitude/trajectory creates the structural effect'. Pre-registered expectation: identical to arm A on every recorded field, because exp(-2j*pi*cumsum(0)) is exactly 1. If it differs, that difference is itself the finding.",
+    "D_E_F_controlled": "Controlled synthetic correction trajectories from the grid below, applied through the same mech._derotate. D = small (multipliers 0.01, 0.03, 0.1), E = medium (0.3, 0.5), F = spanning and exceeding the estimated magnitude (1.0, 2.0)."
+  },
+
+  "correction_shapes": {
+    "constant": "f(t) = m * M_est for all t - a pure static frequency offset. At m = 1 this is, to within 6e-7 cyc/sample, exact removal of the capture's true static CFO.",
+    "linear_mean": "a linear ramp from 0 to 2*m*M_est, so its MEAN is m*M_est and it is time-varying.",
+    "pass_mean": "eval/space_doppler.py::trajectory('pass', ...) scaled and offset so its mean is m*M_est - a bounded S-curve, time-varying.",
+    "estimator_scaled": "the estimator's own f_hat, rescaled so its mean is m*M_est. At m = 1 this is EXACTLY arm B, which makes it a built-in consistency check.",
+    "varying_only": "(f_hat - mean(f_hat)) scaled by m - the estimator's TIME-VARYING component with NO constant term. This is the shape that isolates 'spurious trajectory' (H_A) from 'removing a static offset' (H_B)."
+  },
+
+  "magnitude_multipliers": [0.0, 0.01, 0.03, 0.1, 0.3, 0.5, 1.0, 2.0],
+  "grid_note": "m = 0.0 is arm C and is identical for every shape, so it is analysed once. Non-zero multipliers x 5 shapes = 35 analyses, plus arm A and arm B = 37 analyses on the primary capture. The grid is FIXED HERE, before any F4 outcome under any synthetic correction has been observed.",
+
+  "secondary_cases": {
+    "selection_rule": "DETERMINISTIC AND PRE-DECLARED, to prevent cherry-picking: within each group, take the first TWO captures by filename order that satisfy the group's condition, judged from the already-published SPACE-CARRIER-EST-01 rows (results/carrier_est_rows.jsonl, results/carrier_est_regression_rows.jsonl). No capture is chosen after seeing its diagnostic outcome.",
+    "groups": {
+      "G1_bench1_failures": "bench-v1 sealed captures that were TP under arm A and not TP under arm B",
+      "G2_bench2_failures": "bench-v2 sealed captures that were TP under arm A and not TP under arm B",
+      "G3_catalogue_control_failures": "null-set k7/k5/k3 controls that were correct under arm A and not correct under arm B",
+      "G4_static_unaffected": "carrier_est static captures correct under BOTH arms - the negative control",
+      "G5_time_varying_success": "carrier_est treated captures with a wrong payload under arm A and a correct payload under arm B - where the estimator genuinely helps"
+    },
+    "conditions_per_secondary_capture": ["A_original", "C_zero_correction", "B_estimator_exact", "estimator_scaled at m = 0.1", "estimator_scaled at m = 1.0"],
+    "size": "2 captures x 5 groups x 5 conditions = 50 analyses. Deliberately small: this is a diagnostic, not another benchmark."
+  },
+
+  "measurements": [
+    "arm / shape / multiplier m",
+    "correction magnitude actually applied: mean, rms, peak, peak-to-peak, time-varying rms (cyc/sample)",
+    "F4 best_log10_p, F4 bar, F4 margin (best - bar, eval/ladder.py:65 convention; NEGATIVE = accepted), accepted flag",
+    "accepted hypothesis identity (code, family, offset, randomizer), n_codewords, n_converged, zero-convergence flag",
+    "final published structure: status, code, modulation; whether the structure is correct; whether the payload is correct where a payload truth exists",
+    "F2 accepted and its code, per-family M and bars, front-end counts",
+    "estimator output where applicable (knots, mean, rms, time-varying rms)",
+    "runtime"
+  ],
+
+  "scoring": {
+    "margin": "The repository's existing definition only: margin = F4 best_log10_p - F4 bar (eval/ladder.py:65). No new score is invented.",
+    "structure_correctness": "For bench-v2, bench-v1 and the null set: the same rules SPACE-F4-MARGIN-01 and SPACE-CARRIER-EST-01 used (f4_margin._correct, imported). For carrier_est captures: space_doppler_mech.score, imported. For the primary idle-carrier capture the ground truth is REFUSAL, so ANY DECODED verdict is a structural false accept."
+  },
+
+  "decision_rules": {
+    "zero_control": "If arm C differs from arm A on any recorded field, the correction machinery itself perturbs the analysis and that is reported as the primary finding. If they are identical, the machinery is transparent and any effect must come from the correction's magnitude or shape.",
+    "H_A_supported": "The estimator's output on static captures carries a time-varying component of a magnitude that matters, AND the false accept / recall loss is reproduced by the varying_only shape at its natural magnitude (m = 1) while NOT being reproduced by the constant shape at m = 1.",
+    "H_A_refuted": "The varying_only shape at m = 1 does NOT reproduce the effect while the constant shape at m = 1 DOES - i.e. the damage follows the removal of a real static offset, not an invented trajectory.",
+    "H_B_supported": "A controlled correction that is not derived from estimator error - in particular the constant shape, whose value is the capture's own true static CFO - reproduces the F4 acceptance or the recall loss.",
+    "H_B_refuted": "No controlled synthetic correction at any grid magnitude or shape reproduces the effect, while the estimator's exact output does.",
+    "transition_reporting": "Report, per shape, the smallest multiplier m at which F4 accepts, and whether the F4 margin varies monotonically with m. A transition is a reported observation, never a threshold to be adopted.",
+    "neither_established": "If no shape reproduces the effect and arm B does, or if the pattern is inconsistent across shapes and secondary cases, the pre-registered conclusion is NEITHER ESTABLISHED.",
+    "causality_discipline": "Causal language is permitted only for manipulations this experiment actually performed: the correction trajectory is manipulated directly, so a reproduced effect licenses 'this correction causes this F4 behaviour on this capture'. It does NOT license any claim about the estimator's behaviour on captures outside this population."
+  },
+
+  "stop_conditions": [
+    "A production source change appears necessary -> STOP and report.",
+    "New vectors appear necessary -> STOP and explain why before generating anything.",
+    "A sealed dataset would need modification -> STOP and report.",
+    "The grid or the decision rules would need changing after an outcome is observed -> STOP and report."
+  ],
+
+  "data_policy": {
+    "sources": "Existing sealed captures ONLY: data/bench2/sealed, data/sealed, data/nullset, data/space_bench/carrier_est. All read-only.",
+    "no_new_vectors": "No dataset is generated. If the question cannot be answered from existing data, the experiment stops and says so.",
+    "no_regeneration": "Doppler 192, MECH-01 144, carrier-est 288 and bench-v2 are never regenerated or re-scored.",
+    "bench2_access_log": "No new access-log entry is written. This reads a handful of individual captures for forensics and evaluates NO bench-v2 criterion, which is the same basis on which SPACE-F4-MARGIN-01 read the sealed split without logging. The one logged entry for SPACE-CARRIER-EST-01 stands as written."
+  },
+
+  "immutability": [
+    "SPACE-CARRIER-EST-01 (288 captures, manifest 8af0c83dd5151758..., 864 + 3634 rows) is IMMUTABLE: not regenerated, not re-scored, not overwritten, and its report is not rewritten.",
+    "SPACE-DOPPLER (192, f9823ef5...) and SPACE-DOPPLER-MECH-01 (144, a152d682...) are IMMUTABLE.",
+    "bench-v1, bench-v2, the null set and the real-signal recordings are read-only.",
+    "The estimator is IMPORTED from eval/space_doppler_mech.py and is not modified, re-tuned or re-parameterised anywhere in this experiment."
+  ],
+
+  "outputs": [
+    "results/carrier_est_diag_rows.jsonl - one row per analysis",
+    "reports/space/CARRIER_ESTIMATOR_DIAGNOSTIC_RESULTS.md - the report"
+  ],
+
+  "revision_history": [
+    {"version": 1, "change": "initial pre-registration: objective, hypotheses, the estimator-magnitude design input measured before the grid was fixed, the primary case, five correction shapes, eight magnitude multipliers, the zero-correction control, the deterministic secondary-case selection rule, measurements, scoring, decision rules including NEITHER ESTABLISHED, stop conditions, data policy and immutability - all committed before any synthetic correction was applied and before any F4 outcome under a synthetic correction was observed", "utc": "2026-09-26"}
+  ]
+}

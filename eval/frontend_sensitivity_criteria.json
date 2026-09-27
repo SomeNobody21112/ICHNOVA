@@ -1,0 +1,81 @@
+{
+  "experiment_id": "SPACE-FRONTEND-SENSITIVITY-01",
+  "version": 1,
+  "committed_utc": "2026-09-26",
+  "kind": "READ-ONLY CHARACTERISATION using diagnostics the engine ALREADY publishes. No production change, no estimator change, no threshold touched, no new dataset, no new correction grid.",
+
+  "objective": "Which existing front-end construction gate(s) change when the SAME IQ capture is subjected to different carrier corrections, and which change is associated with the appearance or disappearance of the downstream F4 hypothesis? The aim is to LOCALISE the mechanism inside front-end construction - not to fix it, not to optimise it, not to choose a threshold.",
+
+  "what_is_not_being_done": [
+    "No production file is modified. If the published diagnostics prove insufficient, the experiment STOPS and names the missing field rather than exposing new internals.",
+    "The carrier estimator is imported and not modified, re-tuned or re-parameterised.",
+    "No threshold, bar, family weight, ALPHA, CFO_MAX, TRACK_MIN_SYMBOLS or F2_AGREEMENT_FLOOR is changed.",
+    "SPACE-CARRIER-EST-01 is not re-run with modified parameters; it and its result stay immutable.",
+    "The front-end change is not 'fixed'. No remediation is designed or proposed here.",
+    "No new correction magnitude, shape or capture is introduced."
+  ],
+
+  "reuse_declaration": {
+    "grid": "The correction grid is IMPORTED from eval/carrier_est_diag.py - the same five shapes (constant, linear_mean, pass_mean, estimator_scaled, varying_only) and the same seven multipliers (0.01, 0.03, 0.1, 0.3, 0.5, 1.0, 2.0), plus the zero control. Nothing is added; SPACE-CARRIER-EST-DIAG-01's grid is reused verbatim so the two runs are directly comparable.",
+    "captures": "The same primary capture (data/bench2/sealed/idle_carrier_0411.iq) and the same pre-declared secondary populations, selected by the SAME deterministic rule already implemented in carrier_est_diag.secondary_selection().",
+    "estimator": "space_doppler_mech.estimate_trajectory, imported - identity, not a copy.",
+    "why_a_second_run": "SPACE-CARRIER-EST-DIAG-01 recorded front-end COUNTS only. This run records the published upstream gate values (CFO candidates, detection p-value, sps table and candidates, modulation gates and stats) for the identical conditions, which is what localising the mechanism requires."
+  },
+
+  "conditions": {
+    "A_original": "the capture as it is, no call into the correction path",
+    "B_zero_correction": "an explicit all-zero trajectory through the same mech._derotate (established bit-identical to A in the previous diagnostic; re-measured here as the transparency control)",
+    "C_estimator_exact": "the estimator's exact trajectory",
+    "D_synthetic_that_accepted": "pass_mean at m = 0.01 - the synthetic correction that previously reproduced the false accept",
+    "E_same_magnitude_that_did_not": "constant at m = 0.01 and estimator_scaled at m = 0.01 - the SAME multiplier that previously did NOT produce the false accept; and, as a second same-magnitude pair, constant at m = 1.0 (no accept) against varying_only at m = 1.0 and estimator_scaled at m = 1.0 (accepts)",
+    "full_primary_grid": "For completeness the whole imported grid is run on the primary capture (38 conditions), so the gate values are available for every cell the previous diagnostic scored, not only the five named conditions.",
+    "secondary": "The five pre-declared groups x two captures x the five conditions already used in SPACE-CARRIER-EST-DIAG-01 (A, B zero, C estimator, estimator_scaled m=0.1, estimator_scaled m=1.0) = 50 analyses."
+  },
+
+  "extracted_fields": {
+    "cfo": ["diagnostics.cfo_candidates (count, and for the most significant: cfo, order, peak_to_floor_db, log10_p)", "diagnostics.detection_log10_p"],
+    "symbol_rate": ["diagnostics.sps_table (row count; and for the highest-q4 row: sps, q2, q4, n_symbols)", "diagnostics.sps_candidates", "diagnostics.raw_sps_estimate"],
+    "modulation": ["diagnostics.modulation_gates", "diagnostics.modulation_stats (sps, q2, q4, bpsk_ratio, decision per candidate)"],
+    "front_end_construction": ["diagnostics.n_front_ends", "diagnostics.phase_tracked_front_ends", "diagnostics.front_ends_rejected_serial_dependence"],
+    "downstream": ["F4 tested_hypotheses (M)", "F4 best_log10_p", "F4 log10_threshold (bar)", "F4 margin = best - bar (eval/ladder.py:65 convention; negative = accepted)", "F4 accepted", "accepted hypothesis code/family/offset", "n_codewords and n_converged"],
+    "also_recorded": ["status, final code, final modulation, runner_up_margin_log10, accept.n_hypotheses, every family's M and bar, runtime"],
+    "no_new_metrics": "Only fields the engine already publishes are recorded. Nothing is derived beyond the existing margin definition."
+  },
+
+  "analysis_chain": "For each condition the report presents the strictly DESCRIPTIVE chain: corrected IQ -> CFO candidates / detection p-value -> sps candidates -> modulation gates -> front-end count -> F4 hypothesis count M -> F4 acceptance or rejection. The chain is a presentation order, not a claim that each step causes the next; only the correction itself was manipulated.",
+
+  "decision_rules": {
+    "gate_localisation": "A gate is identified as ASSOCIATED with the appearance of the F4 hypothesis if, across the conditions, its published value changes in lockstep with n_front_ends going from 0 to non-zero. Association is reported as association; the only manipulated variable is the correction.",
+    "transparency_control": "If condition B differs from A on any recorded field, that is the primary finding and is reported first.",
+    "insufficiency": "If no published field distinguishes the 0-front-end conditions from the non-zero ones, the experiment reports INSUFFICIENT PUBLISHED DIAGNOSTICS and names exactly which unexposed value would be needed. It does NOT modify src/ to obtain it.",
+    "no_threshold": "No threshold is derived, proposed or implied from any gate value observed here.",
+    "acceptable_outcomes": ["a gate is localised", "several gates move together and cannot be separated on this evidence", "INSUFFICIENT PUBLISHED DIAGNOSTICS"]
+  },
+
+  "stop_conditions": [
+    "A production source change appears necessary to answer the question -> STOP and name the missing field.",
+    "A new correction magnitude, shape or capture appears necessary -> STOP and explain.",
+    "A sealed dataset would need modification -> STOP.",
+    "The conditions or fields would need changing after an outcome is observed -> STOP."
+  ],
+
+  "data_policy": {
+    "sources": "Existing sealed captures only, read-only: data/bench2/sealed, data/sealed, data/nullset, data/space_bench/carrier_est.",
+    "no_new_vectors": "None generated.",
+    "bench2_access_log": "No entry written: no bench-v2 criterion is evaluated and a handful of individual captures are read, the same basis as SPACE-F4-MARGIN-01 and SPACE-CARRIER-EST-DIAG-01."
+  },
+
+  "immutability": [
+    "SPACE-DOPPLER (192, f9823ef5...), SPACE-DOPPLER-MECH-01 (144, a152d682...), SPACE-CARRIER-EST-01 (288, 8af0c83d...) and every published row file and report remain unchanged.",
+    "SPACE-CARRIER-EST-DIAG-01's rows and report remain unchanged; this experiment writes its own row file."
+  ],
+
+  "outputs": [
+    "results/frontend_sensitivity_rows.jsonl - one row per analysis",
+    "reports/space/FRONTEND_SENSITIVITY_RESULTS.md - the report"
+  ],
+
+  "revision_history": [
+    {"version": 1, "change": "initial pre-registration: objective, the explicit not-being-done list, the reuse declaration (grid, captures and estimator imported from SPACE-CARRIER-EST-DIAG-01), the five named conditions plus the imported full grid, the published fields to extract, the descriptive analysis chain, the decision rules including INSUFFICIENT PUBLISHED DIAGNOSTICS, stop conditions, data policy and immutability - committed before any gate value was extracted", "utc": "2026-09-26"}
+  ]
+}

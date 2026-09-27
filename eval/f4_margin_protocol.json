@@ -1,0 +1,111 @@
+{
+  "experiment_id": "SPACE-F4-MARGIN-01",
+  "version": 1,
+  "committed_utc": "2026-09-26",
+  "kind": "CHARACTERISATION of the shipped engine on existing sealed data. Read-only. No vectors generated, no threshold moved, no production gate derived.",
+
+  "authorising_section": "reports/space/DOPPLER_MECHANISM_RESULTS.md section 11.1.9",
+  "authorising_section_verbatim": "SPACE-F4-MARGIN-01 - a static-carrier structural-margin study: sweep the existing catalogue families (RS, concatenated, TC-LDPC, burst, continuous stream) on static carriers across SNR and length, recording per capture the F4 best_log10_p, its bar, the margin, and the converged-codeword count of any accepted hypothesis; pre-register that any accept with zero converged codewords is a failure. Its purpose is to characterise how close the shipped engine runs to an F4 accept when nothing is drifting. It is separate from CARRIER_ESTIMATOR_EXPERIMENT.md, which records the same F4 fields (section 5, section 6.3) but only over one signal family.",
+
+  "question": "Over the shipped engine's normal operating domain on static carriers: how close does the F4 block-code family run to its acceptance boundary, and does acceptance with zero converged codewords occur - and if it does, is the published structure wrong?",
+
+  "ambiguities_and_declared_resolutions": [
+    {
+      "id": "AMB-1",
+      "ambiguity": "Section 11.1.9 names the catalogue FAMILIES to sweep but does not say whether to analyse existing sealed datasets or generate new vectors.",
+      "resolution": "EXISTING SEALED DATASETS, READ-ONLY. bench-v2's sealed split already contains exactly the families named (burst, continuous stream, CCSDS concatenated, framed RS, TC LDPC CLTU) across five Es/N0 levels and two frame lengths, so it IS the population the section describes. No vector is generated; nothing is added to make a sample size more favourable.",
+      "basis": "The authorising turn's instruction: 'If it calls for existing sealed datasets, analyze them read-only' and 'Do not add arbitrary vectors simply to increase a favorable sample size.'"
+    },
+    {
+      "id": "AMB-2",
+      "ambiguity": "'static carriers' is not defined against bench-v2's structure, where every vector carries a static CFO drawn U(-0.008, +0.008) cyc/sample PLUS one channel class (awgn, phase_noise, cfo_drift, rician, amplitude, timing).",
+      "resolution": "The PRIMARY static-carrier population is the awgn channel class of bench-v2 sealed, plus bench-v1 sealed (30 files, static CFO by construction) plus the independent null set (1,350 files, static CFO by construction). The remaining bench-v2 channel classes are analysed and reported SEPARATELY as context, and the two drifting classes (cfo_drift, phase_noise) are explicitly labelled non-static so they can never be read as part of the static answer.",
+      "basis": "bench2_gen.apply_channel (FACT from code); reported rather than merged."
+    },
+    {
+      "id": "AMB-3",
+      "ambiguity": "Vector counts and repetitions are unspecified in section 11.1.9.",
+      "resolution": "Not applicable: no vectors are generated. The population size is whatever the existing sealed datasets contain - 430 + 30 + 1,350 = 1,810 captures - and is reported as such, not chosen."
+    },
+    {
+      "id": "AMB-4",
+      "ambiguity": "CONFLICT, NOT MERELY AN AMBIGUITY. Section 11.1.9 pre-registers 'any accept with zero converged codewords is a failure'. The existing implementation documents the opposite reading: src/blockcode.py lines 175-177 state 'Every codeword contributes its information bits, converged or not, so the payload stays aligned with the transmission; converged_codewords says which blocks are proven consistent with H' - i.e. convergence is a per-block provenance marker, NOT an acceptance requirement. bench-v2's own scorer (eval/bench2.py, TP_PARTIAL branch) treats an LDPC accept with only some codewords converged as PARTIAL CREDIT, not as a false accept.",
+      "resolution": "THE FAILURE LABEL FROM SECTION 11.1.9 IS NOT APPLIED IN THIS EXPERIMENT. Zero-convergence accepts are COUNTED AND CHARACTERISED, and judged only on whether the PUBLISHED STRUCTURE IS WRONG against ground truth. This is a deliberate, recorded departure from the wording of section 11.1.9, made before any measurement was taken, and it is reported prominently in the results.",
+      "basis": "The authorising turn's instruction: 'Do not assume that zero convergence is inherently unsafe unless the existing F4 logic/specification establishes that interpretation. Report the actual evidence.' The existing logic establishes the opposite interpretation, so the section-11.1.9 label is unsupported and is not used as a bar."
+    },
+    {
+      "id": "AMB-5",
+      "ambiguity": "Section 11.1.9 says 'the margin' without defining its sign or formula.",
+      "resolution": "The repository's existing convention is used verbatim: eval/ladder.py line 65 computes log10p_margin = accept.log10_p - accept.log10_threshold. Therefore MARGIN = best_log10_p - bar, where a NEGATIVE margin means the hypothesis CLEARED the bar (was accepted) and a POSITIVE margin means it fell short. No new metric is invented.",
+      "basis": "eval/ladder.py:65 (FACT from code); the authorising turn's instruction to use the repository's existing definition."
+    }
+  ],
+
+  "population": {
+    "arm": "SHIPPED ENGINE ONLY - analyze_iq(iq) unmodified. No ablation, no pre-correction, no oracle. The tracking-ablated arm A of SPACE-DOPPLER-MECH-01 is NOT used as a substitute for the shipped engine anywhere in this experiment.",
+    "datasets": [
+      {"name": "bench-v2 sealed", "path": "data/bench2/sealed", "n": 430, "role": "the catalogue families named in section 11.1.9, across Es/N0 {3,6,9,12,15} and all six channel classes; the awgn subset is the primary static population", "access": "READ-ONLY"},
+      {"name": "bench-v1 sealed", "path": "data/sealed", "n": 30, "role": "the documented regression tripwire; static CFO by construction", "access": "READ-ONLY"},
+      {"name": "independent null set", "path": "data/nullset", "n": 1350, "role": "non-catalogue control, static CFO by construction: any F4 accept here is a structural false accept", "access": "READ-ONLY"}
+    ],
+    "total_captures": 1810,
+    "not_in_population": [
+      "data/space_bench/doppler (the sealed 192-vector SPACE-DOPPLER experiment) - IMMUTABLE, not read or re-scored by this experiment",
+      "data/space_bench/doppler_mech (the 144-capture SPACE-DOPPLER-MECH-01 experiment) - IMMUTABLE; its published F4 margins stand as reported in results/space_doppler_mech_f4_margins.jsonl and are quoted, not recomputed",
+      "data/bench2/calibration and data/bench2/train - out of scope: the question concerns the shipped engine's behaviour on sealed evidence"
+    ]
+  },
+
+  "margin_definition": "margin = F4 best_log10_p - F4 log10_threshold (eval/ladder.py:65 convention). Negative = accepted. Reported per capture; summarised as min / median / count within declared distances of zero, with no bar applied.",
+
+  "recorded_fields": [
+    "dataset, file, class / family / expected (from each dataset's own ground-truth sidecar)",
+    "channel class and Es/N0 where the dataset records them; static vs non-static label per AMB-2",
+    "F4 best_log10_p, F4 bar, margin, accepted flag",
+    "accepted hypothesis identity: code name, family (rs | ldpc), offset or (E, I, Q), randomizer",
+    "n_codewords, n_converged, and the zero-convergence flag",
+    "count and reasons of F4 significant_but_rejected entries",
+    "F2 accepted flag and its code, so 'which family supplied the published code' is answerable",
+    "final status, final published code and modulation",
+    "ground-truth correctness of the published structure (scoring per dataset, below)",
+    "runtime"
+  ],
+
+  "correctness_scoring": {
+    "bench-v2 sealed": "eval/bench2.py::_score, imported VERBATIM - the repository's own definition of a correct claim on those captures (TP / TP_PARTIAL / FALSE_ACCEPT / FN / REFUSED_OK). No bench-v2 criterion is evaluated, no bench-v2 file is written, and no entry is added to eval/bench2_access_log.jsonl, because this is a per-file diagnostic and not a criteria run.",
+    "bench-v1 sealed": "as sealed_test.py defines it: correct = DECODED with a conv K7 claim and payload BER < 0.01 against the recorded original_bits, using bench2._ber.",
+    "null set": "as eval/nullset.py defines it: correct = refusal. ANY DECODED is a structural false accept."
+  },
+
+  "characterisation_questions": [
+    "Q1 - What is the distribution of the F4 margin over the shipped engine on this population, and which captures come closest to the bar without clearing it?",
+    "Q2 - How many F4 acceptances occur, on which captures, and with what converged-codeword counts?",
+    "Q3 - Does any F4 acceptance have ZERO converged codewords, and if so was the published structure correct against ground truth?",
+    "Q4 - Does an F4 acceptance ever supply a WRONG published code or modulation on a legitimate capture in the shipped configuration?"
+  ],
+
+  "no_tuning_clause": [
+    "No acceptance bar is moved. ALPHA, the family weights, F2_AGREEMENT_FLOOR, CFO_MAX and TRACK_MIN_SYMBOLS are untouched.",
+    "No new threshold is introduced, and no convergence requirement is added anywhere.",
+    "Hypothesis enumeration and the F1 -> F4 -> F2 resolution order are unchanged.",
+    "No production gate, and no candidate production change, may be derived from this experiment. It answers 'what does the shipped system currently do', not 'how do we make the result pass'.",
+    "No file under src/, server/, frontend/, deploy/, Dockerfile or requirements.txt is modified."
+  ],
+
+  "escalation_rule": "Declared before measurement: an F4 acceptance that supplies a WRONG published code or modulation on a legitimate (catalogue) capture in the SHIPPED configuration, or ANY F4 acceptance on a null-set capture, is a structural false accept in normal operation and escalates the open STOP bar. A zero-convergence accept whose published structure is CORRECT is NOT an escalation (see AMB-4); it is reported as a characterisation finding.",
+
+  "immutability": [
+    "SPACE-DOPPLER (192 vectors, manifest f9823ef5a45c97f106825ac51768b9412db5c65460d3574cd06b813627fe50ea): not read, not regenerated, not re-scored, not overwritten.",
+    "SPACE-DOPPLER-MECH-01 (144 captures, manifest a152d682a811f973f4c4c14b...): not regenerated, not re-scored; its results stand as published, and section 11 of DOPPLER_MECHANISM_RESULTS.md including section 11.1 is not rewritten.",
+    "bench-v1, bench-v2 and the null set: read-only. No dataset, seed, criteria file, manifest, threshold or log of theirs is written."
+  ],
+
+  "outputs": [
+    "results/f4_margin_rows.jsonl - one row per capture (machine-readable evidence)",
+    "reports/space/F4_MARGIN_RESULTS.md - the report"
+  ],
+
+  "revision_history": [
+    {"version": 1, "change": "initial protocol: population, arm, margin definition, recorded fields, correctness scoring, characterisation questions, the five declared ambiguity resolutions (including AMB-4, which declines to apply section 11.1.9's zero-convergence failure label and states why), the no-tuning clause and the escalation rule - all committed before the harness existed and before any measurement was taken", "utc": "2026-09-26"}
+  ]
+}

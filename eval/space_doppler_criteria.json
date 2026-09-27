@@ -1,0 +1,118 @@
+{
+  "version": 1,
+  "committed_utc": "2026-09-25",
+  "experiment": "SPACE-DOPPLER — controlled time-varying carrier frequency offset",
+  "pre_registration_statement": "This file is committed BEFORE any vector is generated and BEFORE any result is seen. Thresholds are either inherited from an existing measured bar (cited per criterion) or declared NOT ESTABLISHED and reported without a pass/fail verdict. No threshold in this file may be changed after a sealed vector exists; a discovered failure is documented, never tuned away (Constitution STOP rule).",
+  "engine_default_path": "SEARCH_HIGHER_MODULATIONS=False, BPSK/QPSK only, all four interleaver types, ALPHA=0.01, family weights F1 0.50 / F2 0.10 / F3 0.20 / F4 0.20",
+  "independence": "Separate namespace from bench-v2: data/space_bench/, eval/space_doppler.py, this criteria file. bench-v2 data, seeds, generators, criteria and thresholds are untouched.",
+  "design": {
+    "signal": "Continuous convolutional r=1/2 K=7 stream (gen.stream_bits / CODES['k7']) — chosen because it is the best-evidenced family in bench-v2 (criterion continuous_stream_code_recall measured 16/16 at Es/N0 >= 6 dB), so any degradation is attributable to the trajectory rather than to a weak baseline.",
+    "ground_truth_recorded_per_vector": [
+      "modulation",
+      "sps",
+      "beta",
+      "code",
+      "interleaver (none — continuous stream)",
+      "payload info bits",
+      "sample rate (normalised)",
+      "frequency trajectory class and parameters",
+      "peak shift",
+      "drift rate",
+      "Es/N0",
+      "seed",
+      "n_symbols",
+      "tracking_expected"
+    ],
+    "trajectory_classes": {
+      "zero": "f(t) = 0 — no carrier offset at all. Control.",
+      "static": "f(t) = f0, constant. Control — the existing validated CFO case.",
+      "linear": "f(t) = -peak + 2*peak*(t/T), a linear frequency ramp. Control 2 — the existing bench-v2 cfo_drift case, reproduced in this namespace.",
+      "pass": "f(t) = peak * (2/pi) * arctan(kappa * (2t/T - 1)), kappa = 4.0 — a bounded, pass-shaped S-curve. THE TREATMENT. Labelled CONTROLLED SYNTHETIC / SIMULATED; it is not a satellite pass and is never to be described as one."
+    },
+    "severity": "peak shift = severity * CFO_MAX where CFO_MAX = 0.0125 cyc/sample is the engine's own static CFO search bound (+/-1.25% fs). severity in {0.25, 0.5, 1.0, 2.0}. severity 2.0 places the peak OUTSIDE the search bound and is pre-registered as an expected-refusal condition for every trajectory class including static — this separates 'outside the search bound' from 'time-varying'.",
+    "noise": "Es/N0 in {12, 9, 6} dB. 6 dB is the floor at which bench-v2 measured K7 stream recall 16/16, so it is an inherited, not invented, low-SNR point.",
+    "length": "Two lengths straddling TRACK_MIN_SYMBOLS = 512: long (n_info = 1200 -> ~2400 coded bits) where the tracked front end is active, and short (n_info = 200 -> ~400 coded bits) where it is not. This is how Q8 ('does the existing tracking materially help?') is answered WITHOUT reading engine internals.",
+    "reps": 2,
+    "determinism": "Every vector is a pure function of (class, severity, esn0, length, rep) via a derived integer seed. No wall-clock, no unseeded randomness."
+  },
+  "criteria": {
+    "no_false_decode_under_trajectory": {
+      "metric": "Count of vectors where the engine returns DECODED with a structure or payload that is not the transmitted one (bench-v2 FALSE_ACCEPT semantics, reused verbatim).",
+      "required": 0,
+      "basis": "INHERITED, not invented. The three-outcome guarantee and bench-v2's criteria no_false_accept_on_non_catalogue_signals and wrong_structure_or_payload_is_rare already make a false decode the governing failure. DOPPLER_EXPERIMENT_DESIGN.md D6 names it the headline criterion.",
+      "on_failure": "STOP. Write a failure record (capture, ground truth, decision, wrong hypothesis, evidence score, which gate failed, whether refusal was possible, proposed remediation). No threshold tuning. No further feature implementation until understood.",
+      "verdict_type": "PASS_FAIL"
+    },
+    "payload_correctness_on_control_cells": {
+      "metric": "Fraction of CONTROL cells (trajectory in {zero, static}, severity <= 1.0, Es/N0 >= 9 dB, long length) that return DECODED with payload BER < 0.01.",
+      "required": ">= 0.80",
+      "basis": "INHERITED from bench-v2 criterion continuous_stream_code_recall (>= 80% of continuous K7 streams at Es/N0 >= 6 dB fully decoded; measured 16/16). Applied here only to control cells, because it is a statement about the engine, not about the trajectory.",
+      "purpose": "A sanity gate on the harness itself. If the controls do not decode, the experiment is measuring a generator bug and its trajectory findings are void.",
+      "verdict_type": "PASS_FAIL"
+    },
+    "refusal_migration_direction": {
+      "metric": "For every (trajectory, length, rep) series, the transition observed as severity and noise increase, classified as DECODED -> refusal (SIGNAL_NO_CODE/UNKNOWN), DECODED -> wrong decode, or non-monotonic (a DECODED at a strictly harder cell than one that refused).",
+      "required": "No DECODED -> wrong decode transition (subsumed by no_false_decode_under_trajectory).",
+      "monotonicity_threshold": "NOT ESTABLISHED",
+      "basis": "The DIRECTION is pre-registrable and is the point of the experiment. A numeric monotonicity rate is NOT ESTABLISHED: no prior measurement of verdict migration under a time-varying carrier exists in this repository, so any figure would be invented. Non-monotonic cells are reported as anomalies and counted, without a pass/fail bar.",
+      "verdict_type": "REPORTED"
+    },
+    "modulation_consistency": {
+      "metric": "Among DECODED outcomes, count where reported modulation != transmitted modulation. Separately, among refusals, the reported modulation where one exists.",
+      "required_on_decoded": 0,
+      "rate_threshold_on_refusals": "NOT ESTABLISHED",
+      "basis": "A wrong modulation carried by a DECODED verdict IS a false decode, so 0 is inherited from criterion 1. On refused captures the engine is not claiming a modulation, so a threshold would be meaningless; the values are reported as a diagnostic.",
+      "verdict_type": "MIXED"
+    },
+    "symbol_rate_consistency": {
+      "metric": "Fraction of vectors where the true sps appears in the engine's sps candidate list, and separately where the accepted front end used the true sps.",
+      "required": "NOT ESTABLISHED",
+      "basis": "The nearest anchors (true sps in candidates 30/30 bench-v1 sealed, 91/100 train) were measured WITHOUT a time-varying carrier. Transferring them to trajectory conditions would be an invented bar. Reported as measured, with the control cells as the within-experiment reference.",
+      "verdict_type": "REPORTED"
+    },
+    "code_consistency": {
+      "metric": "Fraction of vectors where the true code family (conv K7 continuous) is the accepted hypothesis; and where refused, whether the true hypothesis was still the best-ranked candidate below the bar.",
+      "required": "NOT ESTABLISHED",
+      "basis": "No prior measurement of code-hypothesis rank under a time-varying carrier exists. Reported as measured against the control cells.",
+      "verdict_type": "REPORTED"
+    },
+    "runtime_guard": {
+      "metric": "Mean and maximum per-file analysis wall-clock.",
+      "required": "mean <= 7.14 s (3x the bench-v2 sealed mean of 2.38 s) AND max <= 120 s",
+      "basis": "A blow-up guard, not a performance claim. bench-v2 sealed measured mean 2.38 s, max 64.3 s; a trajectory must not send the hypothesis search pathological. The 3x and 120 s figures are declared tolerances, stated here before any timing is observed.",
+      "verdict_type": "PASS_FAIL"
+    },
+    "determinism": {
+      "metric": "Regenerating the whole dataset from the same seeds produces byte-identical .iq files and identical verdicts.",
+      "required": "exact",
+      "basis": "Reproducibility is a hard requirement of the experiment (Part 7 / Part 14). Exactness is checkable, so no tolerance is needed.",
+      "verdict_type": "PASS_FAIL"
+    },
+    "existing_regression_unchanged": {
+      "metric": "Full test suite result and count; bench-v1 sealed tripwire.",
+      "required": "178 passed (plus the new experiment tests, which must be additive) AND bench-v1 sealed 30/30 with 0 false accepts",
+      "basis": "SPACE_IMPLEMENTATION_GATE.md §3.5 and §5. If any existing test changes outcome, STOP and investigate; do not update an expected value.",
+      "verdict_type": "PASS_FAIL"
+    }
+  },
+  "explicitly_not_under_test": [
+    "Orbital mechanics, TLE propagation, elevation/azimuth geometry — no orbit model exists and none is built.",
+    "Real spacecraft signals — none exist in this project. Every vector here is CONTROLLED SYNTHETIC.",
+    "Trajectory measurement/RMSE (D1), static-vs-time-varying classification (D2) and trajectory-in-receipt (D8) — these need a production read-out from pipeline._track_phase, which is STOPPED and documented in SPACE_IMPLEMENTATION_GATE.md section 9.3 rather than made. They remain NOT ESTABLISHED.",
+    "Higher-order modulations (8PSK/16-QAM) — gated OFF and measured harmful; not enabled for this or any experiment.",
+    "Fading, timing drift, interleaved bursts, RS/LDPC/concatenated families — out of scope for this experiment; the single varied factor is the frequency trajectory.",
+    "Any threshold, family weight, or structural constant of the engine — unchanged and unreadable from this harness."
+  ],
+  "revision_history": [
+    {
+      "version": 1,
+      "change": "initial pre-registration, before generator implementation and before any vector exists",
+      "utc": "2026-09-25"
+    },
+    {
+      "version": 1,
+      "change": "POST-RUN NOTE ONLY — no threshold, metric or criterion in this file was altered. (a) The run happened: 192 vectors, 2026-09-25, results in reports/space/DOPPLER_EXPERIMENT_RESULTS.md; criterion no_false_decode_under_trajectory FAILED at 54/192 and the STOP rule is in force. (b) Correction of a factual error in that criterion's 'basis' field: the bar of 0 was described as INHERITED from bench-v2, but bench-v2's applicable inherited bar for a catalogue-class wrong payload is wrong_structure_or_payload_is_rare at <= 2%, not 0 (0/<=1% applies to null-class false accepts). The bar was NOT changed in response to the result; the measured 28.1% overall / 56.3% on treated cells fails both bars by more than an order of magnitude, so the verdict does not depend on the error.",
+      "utc": "2026-09-25"
+    }
+  ]
+}

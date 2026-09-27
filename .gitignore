@@ -2,7 +2,29 @@ __pycache__/
 *.pyc
 # Regenerate deterministically from repo root: python src/generate.py sealed | train
 data/
-results/
+results/*
+# SPACE-DOPPLER (2026-09-25) failed its pre-registered headline criterion. Its measured outcomes are
+# evidence, not regenerable output: the vectors regenerate byte-identically from seeds (verified against
+# eval/space_doppler_manifest.json), but the verdicts only exist if the engine is re-run, so the rows are
+# version-controlled. Never regenerate or overwrite them (reports/space/DOPPLER_EXPERIMENT_RESULTS.md).
+!results/space_doppler_rows.jsonl
+!results/space_doppler_diagnostic_scores.jsonl
+!results/space_doppler_mech_rows.jsonl
+!results/space_doppler_mech_f4_margins.jsonl
+!results/f4_margin_rows.jsonl
+!results/carrier_est_rows.jsonl
+!results/carrier_est_regression_rows.jsonl
+!results/carrier_est_diag_rows.jsonl
+!results/frontend_sensitivity_rows.jsonl
+!results/frontend_mechanism_rows.jsonl
+!results/frontend_mechanism_fronts.jsonl
+!results/offcarrier_census_rows.jsonl
+# results/offcarrier_census_admitted.jsonl is NOT tracked: 57 MB of per-front-end detail
+# (115,057 rows). It regenerates byte-identically with `python eval/offcarrier_census.py run`
+# (verified across two runs). The per-capture evidence the reports cite is the _rows file above.
+!results/track_readout_rows.jsonl
+!results/track_readout_blocks.jsonl
+!results/track_validity_rows.jsonl
 
 # Deployment secrets and certificates: never committed (deploy/README.md).
 deploy/certs/

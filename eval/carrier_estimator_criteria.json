@@ -1,0 +1,227 @@
+{
+  "experiment_id": "SPACE-CARRIER-EST-01",
+  "version": 1,
+  "committed_utc": "2026-09-26",
+  "question": "Can the blind carrier estimator demonstrated in SPACE-DOPPLER-MECH-01 arm D be placed in front of ICHNOVA's analysis path without unacceptable degradation of existing static-carrier behaviour or structural safety? The experiment measures the COST on everything that already works, not just the gain on time-varying carriers.",
+  "pre_registration_statement": "This file is committed BEFORE eval/carrier_estimator.py exists, BEFORE any vector is generated and BEFORE any outcome is measured. Every arm, grid level, seed rule, scoring category, acceptance bar, regression population and decision rule below is fixed at commit time. Nothing here may be changed after a result is observed; a failure is reported, never tuned away.",
+  "source_design": "reports/space/CARRIER_ESTIMATOR_EXPERIMENT.md (arms, grid, sample-size derivation, the six criterion families, the decision table). Additions traceable to the authorising turn are marked ADDED-BY-AUTHORISATION below.",
+
+  "arms": {
+    "A_production": "analyze_iq(iq) on the unmodified shipped engine. The baseline every criterion is measured against.",
+    "B_candidate": "The capture is pre-corrected by the candidate estimator, then analysed by the unmodified engine. THE SUBJECT OF THE EXPERIMENT.",
+    "C_ideal": "The injected trajectory is removed exactly (oracle), then the unmodified engine. DIAGNOSTIC CEILING ONLY - it cannot ship, it is never an implementation target, and no criterion is written to be satisfied by it."
+  },
+
+  "estimator": {
+    "identity": "THE EXACT ESTIMATOR FROM SPACE-DOPPLER-MECH-01 ARM D. The harness IMPORTS space_doppler_mech.estimate_trajectory rather than reimplementing it, so identity is structural and cannot drift.",
+    "n_blocks": 8,
+    "per_block_frequency": "most significant candidate (lowest log10 p) of pipeline._cfo_candidates(block)",
+    "min_block_samples": 32,
+    "interpolation": "linear between block centres, constant extrapolation outside",
+    "derotation": "iq * exp(-2j*pi*cumsum(f_hat))",
+    "failure_handling": "a block yielding no candidate contributes no knot; if no block yields a candidate the capture passes through uncorrected and the row records knots = 0",
+    "no_tuning": "No knob may be changed at any point in this experiment. If the estimator fails a criterion, the failure is reported and a remediation is separately pre-registered - the estimator is NOT modified and the experiment is NOT re-run.",
+    "production_boundary": "Prototyped only in eval/carrier_estimator.py. Nothing is added to src/, server/, frontend/, deploy/, Dockerfile or requirements.txt."
+  },
+
+  "grid": {
+    "namespace": "data/space_bench/carrier_est",
+    "trajectory_classes": ["static", "linear", "pass"],
+    "severity_x_CFO_MAX": [0.04, 0.1, 0.2, 0.4, 0.7, 1.0],
+    "lengths_symbols": {"short": 412, "long": 1200},
+    "lengths_n_info_bits": {"short": 200, "long": 594},
+    "esn0_db": [12, 6],
+    "reps": 4,
+    "distinct_captures": 288,
+    "static_captures": 96,
+    "treated_captures": 192,
+    "arms": 3,
+    "scored_analyses": 864,
+    "signal": "Continuous rate-1/2 K=7 convolutional stream, BPSK, sps drawn from {4,6,8}, beta ~ U(0.2,0.5) - the identical transmitter definition to SPACE-DOPPLER and SPACE-DOPPLER-MECH-01, so all three are comparable.",
+    "kappa": 4.0,
+    "trajectory_definition": "eval/space_doppler.py::trajectory, imported - the shared definition of the impairment",
+    "static_mapping": "As MECH-01 DEV-3: a static cell carries the same peak offset as its matched treated cell with zero variation, so peak magnitude is controlled and drift rate is the varying factor.",
+    "sample_size_basis": "CARRIER_ESTIMATOR_EXPERIMENT.md section 4.3: bench-v2's Wilson convention (eval/bench2.py::wilson_hi) gives, for 0 events in n, an upper bound of 3.84/(n+3.84). 96 static captures put a 0-event claim's upper bound at 3.8% (inside bench-v2's 5% null bar) and 192 treated captures put it at 1.96% (inside bench-v2's 2% catalogue-wrong bar). 4 repetitions double the 2-rep cell convention of both prior experiments so a per-cell difference cannot be a single-sample artefact."
+  },
+
+  "seeds": {
+    "seed0": 700000,
+    "rule": "Each capture's seed is SEED0 + index over the pure-function job list (trajectory x severity x length x esn0 x rep, in the declared order). Generation is a pure function of that seed: no wall clock, no unseeded randomness. The ARM is not part of the seed - all three arms analyse byte-identical samples, which is what makes the comparison paired.",
+    "disjointness": "700000-700287, disjoint from SPACE-DOPPLER (500000-500191) and SPACE-DOPPLER-MECH-01 (600000-600143)."
+  },
+
+  "scoring": {
+    "categories": {
+      "CORRECT_STRUCTURE_CORRECT_PAYLOAD": "status DECODED, true code family, true modulation, payload BER < 0.01",
+      "CORRECT_STRUCTURE_WRONG_PAYLOAD": "status DECODED, true code family, true modulation, payload BER >= 0.01 - NOT a structural false accept",
+      "WRONG_STRUCTURE": "status DECODED with a code family or modulation that is not the transmitted one - a structural false accept",
+      "REFUSED": "status SIGNAL_NO_CODE or UNKNOWN"
+    },
+    "separation_requirement": "Structural correctness and payload correctness are scored and reported SEPARATELY and never merged into one number.",
+    "ber": "bench2._ber, imported verbatim (polarity-insensitive, as the codes leave polarity unresolved).",
+    "regression_scoring": {
+      "bench2_sealed": "eval/bench2.py::_score imported verbatim for per-file outcomes, and eval/bench2.py::_evaluate_criterion imported verbatim to evaluate all 9 pre-registered bench-v2 criteria on arm-A and arm-B rows held IN MEMORY. bench-v2's own rows file is never written.",
+      "bench1_sealed": "sealed_test.py's rule: DECODED with a conv K7 claim and payload BER < 0.01 against the recorded original_bits.",
+      "nullset": "eval/nullset.py's ACTUAL taxonomy, which is mixed: 900 TRUE NULLS (noise, uncoded_bpsk, uncoded_qpsk, 8psk_k7) where any DECODED is a false accept, and 450 CATALOGUE-CODED controls (k7, k5, k3) where a correct decode exists and requires a matching code label, a matching interleaver and BER < 0.01. Scoring all 1,350 as nulls is the error made in the first pass of SPACE-F4-MARGIN-01 and corrected there; it must not recur.",
+      "realsig": "The verdicts tests/test_realsig.py asserts, via realsig.analyze_capture on each recording: JJY / DCF77 / MSF / WWV must remain DECODED with the correct protocol and GPS-verified timing, WWVB must remain SIGNAL_NO_CODE, DDH47 must remain a 50-baud ITA2 decode naming itself, AIR Chennai must remain a carrier characterisation."
+    }
+  },
+
+  "recorded_fields": [
+    "arm, trajectory, severity, peak, achieved max drift rate, length, n_symbols, esn0_db, rep, seed",
+    "outcome (the four categories), status, payload BER",
+    "accepted code family, reported modulation, reported sps vs true sps, code-family correctness, modulation correctness",
+    "F4 best_log10_p, F4 bar, F4 margin (best - bar, eval/ladder.py:65 convention; negative = accepted), F4 accepted, accepted hypothesis identity, n_codewords, n_converged, zero-convergence flag",
+    "F2 accepted and its code; which family supplied the published code",
+    "estimator: knots obtained, coverage flag, RMSE against the true trajectory (new vectors only, where truth exists), estimator-failure flag",
+    "per-family hypothesis multiplicity M and each family's bar (ADDED-BY-AUTHORISATION: the integration-cost measurement the authorising turn requires - a production estimator changes the samples every family searches, so M and the bars are recorded per arm and reported)",
+    "runtime"
+  ],
+
+  "integration_cost_metrics": {
+    "status": "REPORTED, no bar (ADDED-BY-AUTHORISATION)",
+    "why": "The authorising turn requires the experiment to measure whether putting the estimator in front of the search creates regressions elsewhere, not merely to report a decode rate. A pre-correction changes the samples every hypothesis family consumes, so the hypothesis burden and the resulting bars are recorded per arm.",
+    "metrics": ["F1/F2/F3/F4 tested_hypotheses (M) per capture per arm", "each family's log10 bar per capture per arm", "the number of front ends and tracked front ends per capture per arm", "the F4 margin distribution per arm", "runtime per arm"],
+    "limitation_that_must_be_stated": "Arm B is a PRE-CORRECTION, not a front end inside the engine's hypothesis enumeration. A real integration would add a front end that is counted in every family's M, raising every bar. This experiment therefore measures an UPPER BOUND on the benefit and a LOWER BOUND on the cost of integration. No result here may be presented as a measurement of integration itself."
+  },
+
+  "acceptance_criteria": {
+    "C1_static_carrier_regression": {
+      "rank": "HARD",
+      "checks": {
+        "bench1_sealed": "30/30 decoded, 0 false accepts - exact",
+        "bench2_sealed": "all 9 pre-registered bench-v2 criteria still PASS under arm B",
+        "nullset_true_nulls": "0 false accepts on the 900 true nulls, and the 95% Wilson upper bound <= 5%",
+        "nullset_catalogue_controls": "correct decodes on the 450 k7/k5/k3 controls not lower than arm A's by more than 5 files (declared tolerance)",
+        "realsig": "JJY, DCF77, MSF, WWV still DECODED with the correct protocol and GPS-verified timing; DDH47 still a 50-baud ITA2 decode; AIR still a carrier characterisation; AND WWVB STILL SIGNAL_NO_CODE - a WWVB decode under arm B is an AUTOMATIC FAILURE OF THE WHOLE EXPERIMENT",
+        "new_static_cells": "0 wrong payloads AND 0 wrong structures on the 96 static captures, and correct-payload rate >= (arm A's rate - 0.05, declared tolerance)"
+      }
+    },
+    "C2_time_varying_payload_reliability": {
+      "rank": "PASS/FAIL",
+      "checks": {
+        "wrong_payload_rate_treated": "<= 0.05 (DECLARED TOLERANCE, anchored on MECH-01's measured prototype rate of 0.031 rounded up - explicitly not inherited from any prior benchmark)",
+        "correct_payload_rate_treated": ">= 0.80 (INHERITED: bench-v2 continuous_stream_code_recall)",
+        "reporting": "arm B must appear beside arm A and arm C in every table"
+      }
+    },
+    "C3_structural_safety": {
+      "rank": "HARD - OUTRANKS C2",
+      "checks": {
+        "wrong_structures": "0 in every arm on every dataset. ANY wrong structure under arm B -> STOP: the estimator is not a candidate, whatever the payload gains",
+        "f4_zero_convergence": "any accepted block-code hypothesis with 0 converged codewords is a structural-safety FAILURE, whether or not its code matches (bar preserved exactly as pre-registered in CARRIER_ESTIMATOR_EXPERIMENT.md section 6.3; see recorded_tensions.T1)",
+        "f4_minimum_margin": "arm B must not reduce the minimum F4 margin below arm A's on the same captures",
+        "nullset": "0 accepts on the 900 true nulls"
+      }
+    },
+    "C4_refusal_behaviour": {
+      "rank": "REPORTED with hard sub-bars",
+      "checks": {
+        "reported_no_bar": "refusal rate per arm, per trajectory, per severity, per length, per Es/N0 - always printed NEXT TO the correct-payload rate, so a safety gain bought with recall is visible in the same row. An increase in refusals under arm B is NOT a failure.",
+        "hard_nullset": "refusals on the null set must not decrease",
+        "hard_contradictory_reason": "a refusal whose stated reason contradicts the injected trajectory is a failure (see recorded_tensions.T2 for its applicability)",
+        "reported_migration": "the DECODED -> refusal migration direction across severity"
+      }
+    },
+    "C5_estimator_coverage_and_failure": {
+      "rank": "one bar, the rest reported",
+      "checks": {
+        "coverage": ">= 0.95 of captures yield the full 8-knot set (HEALTH BAR: below it the estimator is not characterised and C2's result is uninterpretable)",
+        "rmse": "REPORTED, no bar - NOT ESTABLISHED. No prior measurement of trajectory-estimation accuracy exists in this repository, so any figure would be invented",
+        "failure_landing": "reported as a 2x2 table (estimator degraded or not x outcome). HARD SUB-BAR: no estimator failure may produce a WRONG_STRUCTURE",
+        "harmlessness": "reported: the estimator's behaviour on static captures and on the null set, where there is nothing to correct",
+        "claim_limit": "estimator coverage may NOT be described as validated outside this experiment"
+      }
+    },
+    "C6_runtime": {
+      "rank": "PASS/FAIL",
+      "checks": {
+        "mean": "arm B mean per-file analysis time <= 3x arm A's mean on the same captures",
+        "max": "arm B maximum <= 120 s",
+        "basis": "the same 3x / 120 s convention as the sealed Doppler experiment's runtime_guard"
+      }
+    }
+  },
+
+  "regression_populations": {
+    "bench1_sealed": {"path": "data/sealed", "n": 30, "arms": ["A", "B"], "access": "read-only"},
+    "bench2_sealed": {"path": "data/bench2/sealed", "n": 430, "arms": ["A", "B"], "access": "READ-ONLY, ONE LOGGED ACCESS ENTRY (see bench2_access_policy)"},
+    "nullset": {"path": "data/nullset", "n": 1350, "composition": "900 true nulls + 450 catalogue-coded controls", "arms": ["A", "B"], "access": "read-only"},
+    "realsig": {"path": "recordings/real", "n_recordings": 7, "note": "the design says '6 transmitters'; 7 wav recordings are present (JJY, DCF77, MSF, WWV, WWVB, DDH47, AIR Chennai) and ALL are run - more, not fewer", "arms": ["A", "B"], "access": "read-only"},
+    "no_substitution": "No smaller sample may be substituted and no difficult capture may be excluded."
+  },
+
+  "decision_rules": {
+    "note": "From CARRIER_ESTIMATOR_EXPERIMENT.md section 7, applied verbatim. Exactly one outcome is chosen, and it is chosen by the rules, not by preference.",
+    "INTEGRATION_SUPPORTED": "C1 and C3 fully pass AND C2 passes. Still requires a separate production-change proposal, because arm B is a pre-correction and not a front end inside the hypothesis structure.",
+    "INTEGRATION_NOT_SUPPORTED_structural": "C1 passes, C2 passes, C3 fails -> structural safety outranks payload recovery.",
+    "INTEGRATION_NOT_SUPPORTED_regression": "C1 fails on any bench, null-set or real-signal population -> the existing evidence base is the asset and nothing may be traded for it.",
+    "INTEGRATION_PARTIALLY_SUPPORTED_WITH_COSTS": "C1 and C3 pass but C2 fails, or a REPORTED family shows a material cost - every cost named in the same sentence as every gain.",
+    "INTEGRATION_NOT_ESTABLISHED": "C5 coverage below 0.95, or the evidence does not resolve the criteria.",
+    "immediate_stop": "Any WWVB decode, any null-set false accept, or any wrong structure under arm B -> immediate STOP whatever else passed."
+  },
+
+  "recorded_tensions": [
+    {
+      "id": "T1",
+      "tension": "CARRIER_ESTIMATOR_EXPERIMENT.md section 6.3 pre-registers 'any accepted block-code hypothesis with 0 converged codewords is a structural-safety FAILURE'. SPACE-F4-MARGIN-01 subsequently established (F4_MARGIN_RESULTS.md section 0, from src/blockcode.py lines 175-177 and bench-v2's TP_PARTIAL rule) that convergence is a per-block PROVENANCE MARKER and not an acceptance requirement, so zero convergence is not inherently unsafe.",
+      "resolution": "THE BAR IS APPLIED EXACTLY AS PRE-REGISTERED, because the authorising turn instructs that the pre-registered F4 condition be preserved and not quietly weakened. If it fires, the report states BOTH the bar's verdict AND the blockcode.py semantics, so the reader can see that a zero-convergence accept is a pre-registered failure of THIS experiment and not, on current evidence, a demonstrated defect of the engine. No production change is derived either way."
+    },
+    {
+      "id": "T2",
+      "tension": "C4's 'refusal reason contradicts the injected trajectory' sub-bar assumes the engine emits drift-referenced refusal reasons.",
+      "resolution": "The shipped engine's refusal reasons come from sufficiency analysis and structural rejections and do not reference carrier drift. If no such reason exists in the run, the sub-bar is reported NOT APPLICABLE with that explanation rather than silently passed."
+    },
+    {
+      "id": "T3",
+      "tension": "SPACE-F4-MARGIN-01 measured the tightest static F4 margin on record as +0.116 (MECH-01 population, static_0009), while its own 1,810-capture population's tightest static margin was +0.399. The C3 minimum-margin comparison is therefore against arm A ON THE SAME CAPTURES, not against any historical figure.",
+      "resolution": "C3's margin check is strictly paired: arm B's minimum margin versus arm A's minimum margin over identical captures. Historical figures are context, never the bar."
+    }
+  ],
+
+  "no_optimization_clause": [
+    "This is a validation experiment, not a tuning loop.",
+    "No estimator parameter is tuned before, during or after the run; the estimator is imported from MECH-01 and cannot drift.",
+    "No F4 threshold, acceptance bar, family weight, ALPHA, CFO_MAX, TRACK_MIN_SYMBOLS or F2_AGREEMENT_FLOOR is modified.",
+    "Hypothesis enumeration and the F1 -> F4 -> F2 resolution order are unchanged.",
+    "No payload threshold and no new rejection rule is added.",
+    "No vector is cherry-picked and none is removed.",
+    "If the estimator fails, the failure is REPORTED. It is not fixed and re-run; a remediation is separately pre-registered."
+  ],
+
+  "stop_conditions": [
+    "Production source modification appears necessary -> STOP and report.",
+    "The pre-registered design proves internally inconsistent -> STOP and report the conflict (T1-T3 are the tensions already identified and resolved before measurement).",
+    "A protected sealed dataset would need modification -> STOP and report.",
+    "Criteria would need changing after results are observed -> STOP and report.",
+    "A regression requires changing the estimator to continue -> STOP and report."
+  ],
+
+  "bench2_access_policy": {
+    "authorised": "The authorising turn explicitly authorises the bench-v2 sealed re-analysis under arm B.",
+    "constraints": ["read-only", "ONE logged access entry", "bench-v2 criteria not modified", "vectors not regenerated", "manifest not rewritten", "original result not modified", "historical report not altered"],
+    "log": "One entry appended to eval/bench2_access_log.jsonl in the exact shape eval/bench2.py::_log_access writes (utc, commit, split, n_files, manifest_sha256, criteria_sha256, higher_modulations, outcomes, runtime_s), extended with experiment, purpose, arms and read_only so the entry is self-describing. Appending is the protocol's own mechanism, so it modifies no historical content.",
+    "harness": "The re-analysis reads data/bench2/sealed directly and imports bench-v2's scoring and criterion evaluator; eval/bench2.py itself is not modified and its rows file is never written."
+  },
+
+  "immutability": [
+    "SPACE-DOPPLER (192 vectors, manifest f9823ef5a45c97f106825ac51768b9412db5c65460d3574cd06b813627fe50ea): not read, not regenerated, not re-scored, not overwritten.",
+    "SPACE-DOPPLER-MECH-01 (144 captures, manifest a152d682a811f973f4c4c14b...): not regenerated, not re-scored; its rows, F4 margins and reports stand as published. Its estimator function is IMPORTED, which reads code and touches no data.",
+    "bench-v1, bench-v2, the null set and the real-signal recordings: read-only inputs. No dataset, seed, criteria file, manifest or original result of theirs is written - the single exception being the one authorised append to bench-v2's access log.",
+    "The new 288-vector dataset is sealed after generation: manifest hash recorded, regeneration verified byte-identical, and accidental overwrite refused by the harness."
+  ],
+
+  "outputs": [
+    "data/space_bench/carrier_est/ - 288 captures + ground truth",
+    "eval/carrier_estimator_manifest.json - manifest hash",
+    "results/carrier_est_rows.jsonl - the 864 new-vector analyses",
+    "results/carrier_est_regression_rows.jsonl - the regression analyses (arms A and B)",
+    "reports/space/CARRIER_ESTIMATOR_RESULTS.md - the report"
+  ],
+
+  "claim_discipline": "Even if every criterion passes, the strongest permitted conclusion is 'carrier-estimation integration is supported WITHIN THE TESTED CONDITIONS'. Forbidden regardless of outcome: orbital Doppler validated, spacecraft RF validated, real-world space deployment, space-ready, universal blind decoding, production deployment approved. SPACE_CLAIM_FIREWALL.md section 2a stands unchanged.",
+
+  "revision_history": [
+    {"version": 1, "change": "initial pre-registration: arms, estimator identity and knobs, grid, seeds, scoring, recorded fields, the integration-cost metrics added by the authorising turn, the six acceptance-criterion families with their exact bars, the regression populations including the corrected null-set taxonomy, the decision rules, the three recorded tensions with their pre-measurement resolutions, the no-optimization clause, the stop conditions, the bench-v2 access policy and the immutability rules - all committed before the harness existed and before any vector was generated", "utc": "2026-09-26"}
+  ]
+}

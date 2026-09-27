@@ -21,7 +21,31 @@
 | 11 | Orbital pass model (TLE/elevation-aware replay) | Realism for pass geometry | NOT ESTABLISHED — deferred until D1–D8 pass | Medium | #2, #3, experiment success | Geometry unit tests vs MathWorks reference model (S14) | Richer replay realism | Medium (must stay SIMULATED-labelled) | Medium |
 | 12 | Packet/transfer-frame semantic parsing (132.0/133.0 fields) | Deeper CCSDS interpretation | NOT SUPPORTED — frame-map layer only today (FACT) | Medium-High | #5 | Semantic unit tests against standards examples | Field-level decode claims | Medium (scope discipline: only if frames support it) | Medium |
 
+## 1a. RECLASSIFICATION 2026-09-25 — after the Doppler experiment failed (supersedes §2 where they differ)
+
+The Doppler experiment ran and failed its headline criterion. **Remediation does not automatically become P0 implementation.** This classification exists specifically to stop a measured failure from turning into a feature-building sprint:
+
+| Item | Classification | Why |
+|---|---|---|
+| **Doppler mechanism experiment** (`SPACE-DOPPLER-MECH-01`, `DOPPLER_REMEDIATION_EXPERIMENT.md`) | **P0 — RESEARCH / DIAGNOSTIC** | The only authorised next step. It identifies the mechanism; it fixes nothing and touches no production file |
+| **Doppler algorithm remediation** (payload-reliability gate; drift-aware front end; piecewise-linear correction) | **BLOCKED — pending diagnostic evidence** | The mechanism is not established. Building a fix now means guessing, and the cheapest candidate can cost static-carrier recall — the property all existing evidence rests on |
+| **Trajectory read-out** (`_track_phase` → `diagnostics`) | **DONE — APPROVED AND DELIVERED 2026-09-27** | Gate §9.3. `SPACE-TRACK-READOUT-01` + `SPACE-TRACK-VALIDITY-01`: write-only `_trace` and two `diagnostics` keys, `src/pipeline.py` +61/−3, verdicts verified unchanged. It settled H3 (SUPPORTED as a mechanism for ≤24 of 54 failures, REFUTED as the complete explanation) and **confirmed** D1/D2/D8 as NOT ESTABLISHED — the tracker has no trajectory model |
+| #1 trajectory generator | **DONE** | `eval/space_doppler.py`, unit-tested, sealed dataset generated |
+| #2 SPACE-BENCH sealed run | **NARROWED** | Families A–E only, criteria to be rewritten first (`SPACE_BENCH_SPECIFICATION.md` §0) |
+| #4 static-vs-time-varying classification | **BLOCKED** | Depends on the read-out, and on a trajectory estimate whose reliability is exactly what is in question |
+| #5 CCSDS profile view + assumption ledger | **P1, UNCHANGED** | Presentation over evidence that already exists; no dependency on the Doppler result |
+| #6 space receipt extension (LINK EVIDENCE) | **DEFERRED** | It would carry a trajectory the project cannot yet measure or trust |
+| **#7 Mission Replay** | **DEFERRED** | A pass replay over an unvalidated pass capability is precisely the overclaim the firewall exists to prevent |
+| **#8 Telemetry Forensics view** | **DEFERRED** | As #7 — presentation work waits for evidence |
+| **#11 Orbital pass model** | **DEFERRED** | Already conditional on D1–D8 passing. They did not |
+| **#9 Real spacecraft capture** | **FUTURE / NOT ESTABLISHED** | Hardware- and logistics-bound; and a real capture would now land on a known payload-reliability limitation, which is an argument for the diagnostic first |
+| #10 higher-order modulations, #12 semantic parsing | **UNCHANGED** (gated off / not supported) | Nothing in this result touches them |
+
+**Feature creep is the named risk here.** A failed experiment creates pressure to *do something visible*. The authorised something is one diagnostic experiment on a new dataset namespace, and nothing else.
+
 ## 2. Classification
+
+> **§2 below is the pre-experiment classification, superseded by §1a where they differ. Kept for the record.**
 
 **P0 — essential (build first):**
 - #1 trajectory generator → #2 SPACE-BENCH (spec already pre-registered) → #3 trajectory evidence → #4 classification.

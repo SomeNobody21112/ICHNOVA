@@ -1,0 +1,88 @@
+{
+  "experiment_id": "SPACE-OFFCARRIER-CENSUS-01",
+  "committed_utc": "2026-09-27",
+  "kind": "READ-ONLY census of the SHIPPED engine on the existing sealed populations. No carrier correction, no ablation, no oracle, no new dataset, no production change. Every threshold, bar and criterion in src/ is used exactly as shipped.",
+
+  "question": "How often does the shipped engine admit an off-carrier and/or noise-like front end with NO carrier correction at all, and does that ever reach or pass F4 or produce a wrong claim?",
+
+  "why_now": "SPACE-FRONTEND-MECH-01 established that a carrier pre-correction relocates the weakest of the six CFO candidates off-carrier, that the de-rotated stream is then serially INDEPENDENT, and that the serial gate therefore admits it exactly as specified, taking F4's multiplicity 0 -> 2048. The band-edge candidate is produced by pipeline._cfo_candidates on EVERY capture. Whether the shipped engine already meets this class of front end under normal operation is unmeasured, and SPACE-F4-MARGIN-01 left the F4 margin question PARTIALLY RESOLVED.",
+
+  "what_was_inspected_before_committing_these_criteria": "Only cost and metadata: recorded per-capture runtimes from results/f4_margin_rows.jsonl, ground-truth KEY availability per dataset (cfo present for 1800/1810), the analyze_iq signature, and the wall-clock of one engine call and one replication call on two captures. NO outcome, margin, agreement or candidate-placement data was examined.",
+
+  "population": {
+    "census_not_sample": "ALL 1810 sealed captures of the three read-only populations already used by SPACE-F4-MARGIN-01, via f4_margin.DATASETS and f4_margin.jobs(): bench2_sealed (430), bench1_sealed (30), nullset (1350). The SPACE-DOPPLER, DOPPLER-MECH and CARRIER-EST datasets are NOT read: they are Doppler/correction-specific and this question is about the uncorrected engine on its own evidence base.",
+    "class_distinctions_preserved": [
+      "catalogue-coded, a correct decode exists: bench2_sealed coded classes, all 30 bench1_sealed, nullset k7/k5/k3 (450)",
+      "true nulls for ACCEPTANCE but carrying a genuine modulated carrier: nullset uncoded_bpsk (150), uncoded_qpsk (150), 8psk_k7 (100), bench2 uncoded_* and mod_64qam and idle_carrier",
+      "NO-SIGNAL captures, where no meaningful carrier exists at all: class 'noise' (nullset 500 + bench2 10). For these the on/off-carrier distinction is UNDEFINED and they are reported separately, never pooled into an off-carrier rate."
+    ],
+    "correctness": "Reused VERBATIM by import from f4_margin._correct, which encodes each dataset's own pre-existing rule (bench2._score; sealed_test's conv-K7-plus-BER rule; nullset's mixed-population rule with NULLSET_CATALOGUE_CLASSES). No new correctness rule is defined."
+  },
+
+  "instrumentation": {
+    "published_only_stage_1": "analyze_iq(iq, _all_hypotheses=True). This flag is EXISTING evaluation-only instrumentation (src/pipeline.py:113, documented '_top_k / _keep_bits only widen the logged hypothesis list (eval)'; already used by eval/similarity.py:44 and tests/test_fingerprint.py). It is read AFTER all acceptance decisions are made and CANNOT change a verdict. Stage 1 must confirm this by checking that status, code, F4 acceptance and F4 best p are identical to the values SPACE-F4-MARGIN-01 recorded with the flag OFF; if any capture differs, the flag is NOT verdict-neutral and the experiment STOPS and reports that.",
+    "replication_stage_2": "frontend_mechanism._front_candidates, imported unchanged. It calls the production functions and recomputes the front-end loop's own gate arithmetic with the production constants. It is trusted ONLY where it reproduces the engine's published n_front_ends and front_ends_rejected_serial_dependence for that capture; per-front-end claims are restricted to captures where it matches, and the match rate is reported.",
+    "no_new_metric": "Every quantity is either published by the engine, recomputed by the verified replication, or read from ground truth."
+  },
+
+  "definitions_committed_before_measurement": {
+    "true_carrier_reference": "gt['cfo'] in cycles/sample. Where gt records cfo_drift_per_sample != 0 the carrier moves, so the reference is the MEAN over the capture, cfo + drift*(N-1)/2, and the capture is flagged drifting and reported separately as well as pooled.",
+    "delta": "delta = |candidate_cfo - true_carrier_reference| in cycles/sample.",
+    "residual_rotation": "rot = delta * sps, in cycles per SYMBOL, using the capture's TRUE sps from gt. This is the physically meaningful quantity: it is how far the de-rotated constellation turns between adjacent symbols, which is what destroys the coherence the demodulator needs.",
+    "bands": {
+      "on_carrier": "rot <= 0.01 cyc/symbol (<= 3.6 deg/symbol)",
+      "near_carrier": "0.01 < rot <= 0.1",
+      "off_carrier": "rot > 0.1 cyc/symbol (> 36 deg/symbol)",
+      "rationale": "0.1 cyc/symbol is a tenth of a turn per symbol; by 0.25 the constellation is unrecoverable without tracking. The MECH-01 survivor candidate sat at ~0.33. The raw delta distribution is reported alongside so that no conclusion depends on the band edge, and the headline frequencies are also reported at rot > 0.05 and rot > 0.2 as a sensitivity check.",
+      "band_edge_flag": "separately, a candidate is flagged band_edge when |candidate_cfo| > 0.9 * CFO_MAX, the MECH-01 signature."
+    },
+    "noise_like_candidate_spectral": "A CFO candidate is noise-like when its published peak_to_floor_db is at or below the MEDIAN peak_to_floor_db of all candidates measured on the NO-SIGNAL ('noise') captures of the same population. That reference is a property of a known-null population, fixed by this rule (median, not a tuned quantile) before any result is seen, and the full distribution of both populations is reported.",
+    "noise_like_front_end_postdemod": "An admitted front end is noise-like when its replicated symbol SNR (analyze.symbol_snr_m2m4, as the production loop computes it) is <= 0 dB.",
+    "serially_independent": "EXACTLY the production predicate: log10(bdtrc(same-1, n_pairs, SERIAL_AGREEMENT_MAX=0.60)) > log10(ALPHA). No separate definition is introduced.",
+    "explicitly_not_assumed": [
+      "serially independent does NOT mean noise-like: the 2x2 cross-tabulation of the two is a required output, not an assumption.",
+      "off-carrier does NOT mean harmful: whether an off-carrier candidate is harmful is decided only by whether it reaches F4, passes F4, and produces a wrong claim."
+    ]
+  },
+
+  "the_seven_distinctions_required": {
+    "1_candidate_exists": "the CFO candidate is in diagnostics.cfo_candidates (per-capture, all 1810)",
+    "2_on_off_carrier": "its band, per the committed rot bands",
+    "3_noise_like": "spectral (peak_to_floor_db) for candidates; post-demod (symbol SNR) for admitted front ends",
+    "4_serially_independent": "the front end passes the production serial gate (replication, verified per capture)",
+    "5_reaches_F4": "the front end contributes at least one F4 hypothesis: its cfo appears in diagnostics.all_hypotheses.cfo",
+    "6_passes_F4": "the best-ranked F4 hypothesis of the capture is attributable to that cfo AND block_code.accepted is true",
+    "7_final_claim": "the capture's final status/code, and whether f4_margin._correct scores it a FALSE_ACCEPT",
+    "admission_vs_existence": "'candidate exists' (1) and 'admitted into the final decision' (5,6,7) are reported as separate columns everywhere. A candidate existing is NOT evidence of a threat."
+  },
+
+  "decision_rules": {
+    "T1_existence": "fraction of signal-bearing captures with >= 1 off-carrier CFO candidate",
+    "T2_admission": "fraction with >= 1 off-carrier front end passing the serial gate",
+    "T3_reaches_f4": "fraction with >= 1 off-carrier cfo present in all_hypotheses",
+    "T4_passes_f4": "fraction where F4 accepted AND the accepted (best-p) hypothesis's cfo is off-carrier",
+    "T5_wrong_claim": "fraction where T4 holds AND f4_margin._correct returns FALSE_ACCEPT",
+    "threat_verdict": {
+      "MEANINGFUL_THREAT": "T5 > 0 on any capture class. Quantify with an exact binomial interval.",
+      "LATENT_NOT_REALIZED": "T2 > 0 or T3 > 0 while T4 == 0 and T5 == 0. Report the Wilson upper bound 3.84/(n+3.84) for the zero counts and say plainly that the mechanism occurs but is not consummated.",
+      "NOT_PRESENT": "T2 == 0: the shipped engine never admits an off-carrier front end on this evidence base. Report the Wilson upper bound."
+    },
+    "f4_margin_linkage": "For the captures nearest the F4 bar without accepting (smallest positive margin) and for every accepting capture, record whether the closest-approaching / accepted hypothesis is off-carrier and whether its convergence count is zero. This is the only pre-registered claim connecting this census to SPACE-F4-MARGIN-01's PARTIALLY RESOLVED status.",
+    "no_root_cause_by_correlation": "A field that merely correlates with an outcome is not called a cause. A causal claim requires that the production code branch on it. Any explanation not established by this design is labelled ENGINEERING INTERPRETATION or UNRESOLVED QUESTION.",
+    "insufficiency_is_a_valid_result": "If the sealed populations cannot support the characterization (for example if the replication does not match on the classes of interest, or if no capture class exercises the phenomenon), the report says so and no new dataset is manufactured to make the question answerable."
+  },
+
+  "constraints": [
+    "No production file modified. No threshold, bar, family weight, serial criterion, sps ranking or CFO generator changed.",
+    "No carrier correction of any kind is applied; the carrier estimator is not imported.",
+    "No previous experiment's dataset, manifest, row file, criteria file or report is altered. No access-log entry is written.",
+    "Nothing is tuned to obtain a desired result; the band edges, the noise-like rule and the threat verdicts above are fixed by this file.",
+    "No remediation is recommended by this experiment; the result determines the next step."
+  ],
+
+  "outputs": [
+    "results/offcarrier_census_rows.jsonl (one row per capture, 1810)",
+    "results/offcarrier_census_admitted.jsonl (one row per ADMITTED front end)",
+    "reports/space/OFFCARRIER_CENSUS_RESULTS.md"
+  ]
+}

@@ -4,6 +4,33 @@
 
 ---
 
+## 0. REVISION 2026-09-25 — re-prioritised after the Doppler result (read before §3)
+
+The controlled Doppler experiment has run and **failed its headline criterion** (`DOPPLER_EXPERIMENT_RESULTS.md`): 54 wrong payloads beneath true structural claims in 96 time-varying-carrier captures, 0 in 96 static controls, 0 wrong structures in all 192. That result identifies a **meaningful failure family**, and it changes what this benchmark should contain and in what order.
+
+**SPACE-BENCH families A–J are NOT all to be implemented.** The scope is now:
+
+| Family | Priority | Why |
+|---|---|---|
+| **A — clean telemetry** | **PRIORITISED** | The baseline any later comparison needs |
+| **B — low SNR** | **PRIORITISED** | Separates noise-driven refusal from carrier-driven failure — which the Doppler result showed are distinct (wrong payloads were flat across 12/9/6 dB) |
+| **C — static CFO** | **PRIORITISED** | The validated case, and the control the failure family is measured against |
+| **D — time-varying carrier** | **PRIORITISED — now the centre of the benchmark** | The measured failure family. Its criteria must be rewritten against what was *measured*, not what was assumed |
+| **E — time-varying carrier + noise** | **PRIORITISED** | The interaction, which the sealed run sampled at only three SNRs |
+| **F — fading** | **DEFERRED** | Another impairment stacked on an unexplained failure would confound it |
+| **G — timing offset** | **DEFERRED** | As F |
+| **H — short observation window** | **DEFERRED** (partly answered already: the Doppler run measured 0/48 correct below `TRACK_MIN_SYMBOLS`) | As F |
+| **I — adversarial / misleading hypotheses** | **DEFERRED** | Valuable, but it tests the *structural* gates — which held 192/192. It is not where the known failure is |
+| **J — unsupported / insufficient evidence** | **DEFERRED** | Already covered by the existing 1,350-file null set (0/900 false accepts) |
+
+**The rule behind the deferral:** a family that adds a *second* impairment on top of an unexplained failure cannot isolate anything. Until the Doppler mechanism is understood (`DOPPLER_REMEDIATION_EXPERIMENT.md`), each additional impairment class is a confound rather than a measurement.
+
+**Two consequences for families D and E specifically:**
+1. Their acceptance criteria must be **rewritten before any vector exists**, and must not repeat the sealed experiment's criterion-1 error: a bar of "0 wrong payloads" was described there as inherited from bench-v2, when bench-v2's applicable inherited bar for a catalogue-class wrong payload is `wrong_structure_or_payload_is_rare` at ≤ 2% (`DOPPLER_EXPERIMENT_RESULTS.md` §4.1). State the bar, state where it comes from, and do not conflate the null-class bar with the catalogue-class one.
+2. They must distinguish, in the criteria themselves, **a wrong structure** from **a wrong payload beneath a true structure**. The sealed experiment scored both in one category; the measurement then showed the two behave completely differently (0 vs 54). A benchmark that cannot tell them apart cannot report this failure family honestly.
+
+**Unchanged:** the independence rules of §1, the pre-registration and sealing protocol of §4, and the rule that a failure is documented rather than tuned away. **Scale is revised** from §5: ~60 vectors × 5 prioritised families ≈ 300 files, not 600.
+
 ## 1. Independence from bench-v2 (non-negotiable)
 
 - bench-v2 (430 sealed files, 9/9 criteria, pre-registered) is **untouched**: same directory, same seeds, same criteria file, same one-run discipline.
@@ -52,6 +79,8 @@ Each family defines: **ground truth, hidden parameters, impairments, expected sy
 - Expected: migration DECODED → refusal as conditions degrade (the verdict must *move*, not lie).
 - Accept: monotonic refusal migration across the severity sweep; 0 false decodes.
 - Fail: a DECODED at severity s+1 where s refused on the same capture class with a *structural* reason (indicates luck, not evidence).
+
+> **DEFERRED (2026-09-25).** Families F through J are deferred per §0 until the Doppler mechanism is understood. Their specifications below are retained unchanged so that nothing has to be re-derived when they are reopened.
 
 ### FAMILY F — fading
 - Ground truth: A's signal through the existing `rician` block-flat-fading class (K-factor hidden).

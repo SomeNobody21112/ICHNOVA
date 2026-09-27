@@ -194,7 +194,8 @@ def analyze_iq(iq, fs=None, _oracle=None, _top_k=5, _keep_bits=False, _all_hypot
                 rots = (list(constellations.ROTATIONS[mod]) if higher_mod else
                         [0.0] if (mod == 'BPSK' or 'phase' in o) else [0.0, np.pi / 2])
                 variants = [('static', ys, S, N)]
-                tracked = _track_phase(y, mod)
+                track_trace = {}                     # write-only diagnostic; never read below
+                tracked = _track_phase(y, mod, _trace=track_trace)
                 if tracked is not None:
                     St, Nt = (constellations.symbol_snr(tracked, mod) if higher_mod
                               else symbol_snr_m2m4(tracked))
@@ -237,6 +238,11 @@ def analyze_iq(iq, fs=None, _oracle=None, _top_k=5, _keep_bits=False, _all_hypot
                     fronts.append({'cfo': cfo, 'sps': s, 'modulation': mod, 'phase': phase,
                                    'rotation': rot, 'llrs': llrs, 'th': th,
                                    'phase_tracking': tracking, 'active_bits': active_bits,
+                                   # write-only: how close this front end's phase tracker ran to
+                                   # its unwrap ambiguity. None unless this variant IS the tracked
+                                   # one. Nothing downstream reads it (13.1: evidence, not a gate).
+                                   'unwrap_margin_rad': (track_trace.get('unwrap_margin_rad')
+                                                         if tracking == 'block_tracked' else None),
                                    'symbol_snr_db': float(10 * np.log10(Sv / Nv + 1e-30)), **span})
                     spec_list = ([as_spec(o['interleaver'])] if 'interleaver' in o
                                  else interleavers.candidates(len(llrs), INTERLEAVER_TYPES,
@@ -459,6 +465,12 @@ def analyze_iq(iq, fs=None, _oracle=None, _top_k=5, _keep_bits=False, _all_hypot
         'n_front_ends': len(fronts), 'front_ends_rejected_serial_dependence': rejected_serial,
         'modulation_gates': gates,
         'phase_tracked_front_ends': sum(1 for f in fronts if f['phase_tracking'] == 'block_tracked'),
+        'phase_tracking_validity': _tracking_validity(fronts),
+        # Per front end, aligned with the SAME index the accepted stream hypothesis already
+        # publishes (`stream_code.accepted_hypothesis.front`), so the validity of the tracker
+        # behind a reported claim is readable. None where that front end is not the tracked
+        # variant. Write-only: no decision consults it.
+        'unwrap_margin_by_front_end': [f['unwrap_margin_rad'] for f in fronts],
         'timers_s': timers,
     }
     if _all_hypotheses and M:
@@ -742,13 +754,42 @@ def _structural_rejection(d):
     return None
 
 
-def _track_phase(y, mod):
+def _tracking_validity(fronts):
+    """Write-only EVIDENCE: how close the phase trackers ran to their own unwrap ambiguity.
+
+    `_track_phase` unwraps the M-power block angles, which is correct only while the true
+    block-to-block change stays below pi. `unwrap_margin_rad` is pi minus the largest wrapped
+    change a front end actually presented, so a margin near pi means the assumption was never
+    stressed and a margin near 0 means the unwrap ran at its ambiguity, where its branch may be
+    wrong. `None` means no tracked front end exists, i.e. the condition is INDETERMINATE — the
+    capture was too short for the tracker to run at all.
+
+    This reports a condition; it is NOT a verdict and NOT a confidence score. Nothing in the
+    engine reads it, no acceptance, refusal or ranking consults it, and a small margin does not
+    mean the decode failed. Validated in reports/space/TRACK_VALIDITY_RESULTS.md.
+    """
+    m = [f['unwrap_margin_rad'] for f in fronts if f.get('unwrap_margin_rad') is not None]
+    if not m:
+        return None
+    return {'bound_rad': float(np.pi), 'n_tracked_front_ends': len(m),
+            'min_unwrap_margin_rad': float(min(m)), 'max_unwrap_margin_rad': float(max(m))}
+
+
+def _track_phase(y, mod, _trace=None):
     """Block-wise carrier phase tracking, or None when the capture is too short to justify it.
 
     The M-power estimate of one block of TRACK_BLOCK symbols is unwrapped across blocks, so a slow
     drift (phase noise, a CFO error, a linear drift) is followed instead of being averaged away.
     Nothing here is data-aided, so it adds no hypotheses of its own: the tracked symbol stream is
-    one more front end, counted in every family M exactly like the untracked one."""
+    one more front end, counted in every family M exactly like the untracked one.
+
+    `_trace` is evaluation-only instrumentation (eval/track_readout.py): pass a dict and it is
+    filled with the estimate this function made — the chosen block length and the coherence of each
+    length considered, the per-block M-power angles BEFORE unwrapping, and the per-symbol phase
+    AFTER unwrapping and division by M. It is write-only. Nothing here reads it, no caller inside
+    this module passes it, and the returned stream is identical whether or not it is supplied, so
+    it cannot change a verdict. It exists because a 2*pi/M unwrap slip is not recoverable from the
+    returned stream: the slip is exactly what the wrapped output hides."""
     m_power = {'BPSK': 2, 'QPSK': 4, '8PSK': 8, '16QAM': 4}[mod]
     y = np.asarray(y)
     if len(y) < TRACK_MIN_SYMBOLS:
@@ -767,6 +808,8 @@ def _track_phase(y, mod):
         p = blocks ** m_power
         z = np.mean(p, axis=1)
         coherence = float(np.mean(np.abs(z)) / (np.mean(np.abs(p)) + 1e-30))
+        if _trace is not None:                       # write-only; never read by this function
+            _trace.setdefault('coherence_by_block', {})[blk] = coherence
         if best is None or coherence > best[0]:
             best = (coherence, blk, z)
     if best is None:
@@ -777,6 +820,21 @@ def _track_phase(y, mod):
     per_symbol = np.repeat(phi, blk)
     if len(per_symbol) < len(y):
         per_symbol = np.concatenate([per_symbol, np.full(len(y) - len(per_symbol), phi[-1])])
+    if _trace is not None:                           # write-only; the return value is unaffected
+        # The unwrap's OWN validity condition. np.unwrap keeps the wrapped block-to-block change
+        # and assumes it is the true one, which holds only while |true change| < pi. The largest
+        # wrapped change this capture actually presented is therefore how close the unwrap ran to
+        # its ambiguity, and pi minus it is the margin. Both are read off `ang`, which this
+        # function already computed: no new statistic, no score and no threshold is introduced.
+        wrapped = (np.diff(ang) + np.pi) % (2 * np.pi) - np.pi if len(ang) > 1 else np.zeros(0)
+        worst = float(np.max(np.abs(wrapped))) if len(wrapped) else 0.0
+        _trace.update({'m_power': m_power, 'block': blk, 'n_blocks': int(len(phi)),
+                       'coherence': float(best[0]), 'n_symbols': int(len(y)),
+                       'unwrap_bound_rad': float(np.pi),
+                       'max_wrapped_advance_rad': worst,
+                       'unwrap_margin_rad': float(np.pi) - worst,
+                       'block_angles': [float(a) for a in ang],    # BEFORE unwrap
+                       'phase': [float(a) for a in phi]})          # AFTER unwrap, divided by M
     return y * np.exp(-1j * per_symbol[:len(y)])
 
 

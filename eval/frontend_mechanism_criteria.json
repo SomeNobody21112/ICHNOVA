@@ -1,0 +1,51 @@
+{
+  "experiment_id": "SPACE-FRONTEND-MECH-01",
+  "committed_utc": "2026-09-26",
+  "kind": "READ-ONLY mechanism analysis. Production functions are CALLED from eval; no production file is modified, no threshold touched, no dataset generated, no prior experiment altered.",
+
+  "question": "WHY does a small IQ correction change ICHNOVA's hypothesis search space? Specifically: why does the serial-independence survivor set change, why does the sps candidate list change, and are those two the same upstream effect?",
+
+  "what_the_code_says_before_any_measurement": {
+    "serial_gate": "src/pipeline.py, front-end loop: same = count((llrs[step:] < 0) == (llrs[:-step] < 0)); n_pairs = len(llrs) - step; the front end is REJECTED when log10(bdtrc(same-1, n_pairs, SERIAL_AGREEMENT_MAX=0.60)) <= log10(ALPHA). So the gate is decided by ONE scalar per candidate front end: the neighbouring hard-decision AGREEMENT RATE.",
+    "sps_ranking": "src/pipeline.py::_sps_table computes q4 = analyze.lag1_correlation(y**4) where y = matched_filter_demod(iq, rrc_filter(RX_BETA, s), s) - computed on the IQ AS GIVEN, with no CFO removal. _sps_candidates then takes the best N_SPS_RANKED sps by q4 plus their integer divisors plus the raw spectral estimate. So the candidate LIST is decided by the q4 ORDERING.",
+    "shared_upstream": "Both scalars are statistics of the matched-filter output y. ENGINEERING HYPOTHESIS to be tested: both are driven by the residual per-symbol carrier rotation of y, which a correction changes directly."
+  },
+
+  "hypotheses": {
+    "M1": "The serial-gate flip is explained by the neighbouring hard-decision agreement rate crossing the declared 0.60 spec: uncorrected front ends agree far above it (rejected), corrected ones do not.",
+    "M2": "The sps candidate-list change is explained by a re-ORDERING of q4 across sps, not by candidates entering or leaving the domain.",
+    "M3": "M1 and M2 are manifestations of ONE upstream quantity - the residual per-symbol rotation of the matched-filter output - rather than two independent effects.",
+    "M4": "Alternative: the divergence is in the CFO candidate list (which cfo values are offered), not in the matched-filter statistics.",
+    "acceptable": "Any of M1-M4 may be supported, refuted or left UNRESOLVED. 'The earliest divergence is not localisable with published functions' is an acceptable conclusion."
+  },
+
+  "method": {
+    "replication_not_instrumentation": "The harness CALLS the production functions (pipeline._cfo_candidates, pipeline._sps_table, pipeline._sps_candidates, analyze.matched_filter_demod, analyze.estimate_carrier_phase, analyze.symbol_snr_m2m4, analyze.psk_llrs, modem.rrc_filter, pipeline._track_phase) and recomputes the SAME scalars the production loop computes, using the SAME constants imported from pipeline (SERIAL_AGREEMENT_MAX, ALPHA, RX_BETA, SPS_RANGE, MIN_SYMBOLS). Nothing is added to src/ and no production behaviour changes.",
+    "verification_of_replication": "The harness must reproduce the engine's own published n_front_ends and front_ends_rejected_serial_dependence for every condition. If the replication does not match the published counts exactly, the analysis is reported as UNVERIFIED and no mechanism claim is made from it.",
+    "captures": "The existing primary capture data/bench2/sealed/idle_carrier_0411.iq, plus two existing secondary captures already used by SPACE-FRONTEND-SENSITIVITY-01: nullset/k3_120_008 (front count identical, sps list changed, TP -> FN) and carrier_est/static_0000 (negative control, nothing moved). Read-only.",
+    "conditions": "Imported from eval/carrier_est_diag.py, no new magnitudes: A original; B zero correction through the same path; C estimator exact; constant m=0.5 (0 survivors) and m=1.0 (18 survivors); varying_only m=0.5 (0) and m=1.0 (18); pass_mean m=0.01 (18, and the accept). For the secondary captures: A, zero, estimator exact."
+  },
+
+  "measured_fields": {
+    "per_condition": ["cfo candidate list (count and values)", "sps_table q4 and q2 for every sps in the domain", "sps_candidates list", "raw_sps_estimate", "engine-published n_front_ends and front_ends_rejected_serial_dependence for cross-checking the replication"],
+    "per_candidate_front_end": ["cfo, sps, modulation, rotation, tracking variant", "residual per-symbol rotation: angle(E[y(k+1) y*(k)]) in cycles/symbol, and its magnitude", "lag-1 magnitude of y, y^2, y^4", "symbol SNR from symbol_snr_m2m4", "agreement rate same/n_pairs", "the binomial log10 tail against SERIAL_AGREEMENT_MAX", "pass or reject under the production rule"]
+  },
+
+  "decision_rules": {
+    "M1": "SUPPORTED if, in the 0-survivor conditions, essentially every candidate front end has an agreement rate significantly above 0.60, and in the surviving conditions the survivors are precisely those whose agreement rate is not significantly above it.",
+    "M2": "SUPPORTED if the sps DOMAIN (the set of sps with enough symbols) is unchanged while the q4 ordering changes, so the candidate list changes by re-ranking rather than by domain membership.",
+    "M3": "SUPPORTED if the agreement rate and the q4 values are both monotone functions of the measured residual per-symbol rotation across conditions; REFUTED if one moves while the other does not.",
+    "M4": "SUPPORTED if the cfo candidate VALUES offered to the front-end loop differ in a way that alone accounts for the survivor change; REFUTED if the candidate list is materially the same while survivors change.",
+    "no_root_cause_by_correlation": "A field that merely correlates with the final verdict is not called a cause. A mechanism claim requires that the field be the one the production code actually branches on, and that the replication reproduce the published counts."
+  },
+
+  "constraints": [
+    "No production behaviour modified; no threshold, bar or criterion changed.",
+    "The carrier estimator is imported unchanged and is not integrated anywhere.",
+    "No previous experiment's data, rows or report is altered.",
+    "No new dataset; no new correction magnitude or shape.",
+    "Refusal behaviour is not weakened: nothing in this experiment changes what the engine does."
+  ],
+
+  "outputs": ["results/frontend_mechanism_rows.jsonl", "results/frontend_mechanism_fronts.jsonl", "reports/space/FRONTEND_MECHANISM_RESULTS.md"]
+}

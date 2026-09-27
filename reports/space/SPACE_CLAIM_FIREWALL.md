@@ -15,9 +15,31 @@
 | **SIMULATED** | Every synthetic capture, every replay timeline, every simulated pass parameter (duration/elevation/Doppler/noise), and inside every exported package's provenance section |
 | **BENCHMARK** | Every SPACE-BENCH-derived screen, number, or figure |
 | **EXPERIMENTAL** | 8PSK/16-QAM anywhere they are mentioned; any feature behind a flag; the fingerprint/similarity features |
-| **NOT ESTABLISHED** | Anything implemented but unvalidated at space conditions (Doppler behaviour until the experiment runs; block-LDPC TM; real-capture space validation; field deployment; TLS; pen test) |
+| **NOT ESTABLISHED** | Anything implemented but unvalidated at space conditions (block-LDPC TM; real-capture space validation; field deployment; TLS; pen test; and, within row 6, trajectory measurement / classification / receipt — D1, D2, D8) |
+| **MEASURED LIMITATION** | Time-varying carrier (Doppler). The experiment has run: wrong payload beneath a true structural claim in **54 of 96** treated captures, **0 of 96** on static controls (2026-09-25, `reports/space/DOPPLER_EXPERIMENT_RESULTS.md`). This label is **stronger than NOT ESTABLISHED** and replaces it for Doppler: the answer is known and it is negative. Any statement about decoding must carry the **static-carrier** qualifier, and the three-outcome guarantee must never be presented in a way that implies a *payload* guarantee. |
 | **PARTIALLY SUPPORTED** | CCSDS layers where only part of the semantics exist (transfer frames, CLTU, modulation assumptions) |
 | **NOT SUPPORTED** | CCSDS layers not implemented (block-LDPC TM, turbo, packet semantics, GMSK, PCM/PSK/PM carriers) |
+
+## 2a. The Doppler sentence: permitted and forbidden forms (2026-09-25, post-experiment)
+
+**PERMITTED — this exact statement is evidence-backed and may be used as written:**
+
+> "ICHNOVA's blind-inference core and refusal discipline are validated within its documented benchmark scope; controlled time-varying-carrier testing has identified a measured limitation in payload reliability."
+
+Permitted variants must keep **both halves** — the validated scope *and* the measured limitation. Dropping the second half is a false claim by omission.
+
+**FORBIDDEN — each of these is prohibited unless and until future evidence establishes it:**
+
+| Forbidden statement | Why |
+|---|---|
+| "ICHNOVA handles satellite Doppler." | Measured: 54 wrong payloads in 96 time-varying-carrier captures |
+| "ICHNOVA is Doppler robust." | The opposite is what was measured |
+| "ICHNOVA is validated on satellite links." | No spacecraft capture exists in this project |
+| "ICHNOVA can decode telemetry during a satellite pass." | No pass has ever been analysed; the trajectory tested is CONTROLLED SYNTHETIC |
+| "ICHNOVA is space-ready." | Never supported, and now contradicted by measurement |
+| Any presentation of the three-outcome guarantee that implies a **payload** guarantee without the static-carrier qualifier | What held is the guarantee about *structure*: 0 wrong structures in 192. Payload reliability is the measured gap |
+
+**The one-sentence test applied to this result** — *"would this still be true if the reader re-ran every measurement it rests on?"*: the permitted statement survives it because both halves are measured; every forbidden statement fails it.
 
 ## 3. Forbidden claims (absolute)
 
@@ -35,7 +57,7 @@
 ## 4. Allowed claims (as they stand today, each FACT-backed)
 
 - "Evidence-first blind RF analysis: infers signal structure by hypothesis testing under family-wise error control and issues DECODED / SIGNAL_NO_CODE / UNKNOWN."
-- "Refuses to claim a decode the evidence has not earned" — backed by sealed 0/120 false accepts and 0/900 null accepts (bench-v2 — FACT).
+- "Refuses to claim a decode the evidence has not earned" — backed by **two separate artefacts, each cited as its own**: bench-v2 sealed **0/120** false accepts on non-catalogue classes (430-file sealed run, 95% Wilson upper bound 3.10% — FACT), and the independent **1,350-file null set** at **0/900** false accepts on non-catalogue files with **0/450** wrong decodes on coded files (`eval/nullset.py`, seed 500000, parameter ranges deliberately different from bench-v1 — FACT). Neither number may be attributed to the other benchmark.
 - "CCSDS-aligned within the searched domain" (ASMs, randomizers, conv/RS/concatenated/TC-LDPC validated at bench conditions — FACT), **with** the CCSDS profile's out-of-domain ledger shown.
 - "Space positioning: a candidate evidence-first analysis layer for partially unknown spacecraft RF recordings, **conditional on SPACE-BENCH validation**" (SPACE_GROUND_SEGMENT_POSITIONING.md §2).
 - Real-signal validation *as actually measured*: JJY/DCF77/MSF/WWV time codes with GPS agreement, DDH47 FSK, AIR carriers, one live SDR capture ending in SIGNAL_NO_CODE (§22 — FACT).

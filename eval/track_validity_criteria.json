@@ -1,0 +1,51 @@
+{
+  "experiment_id": "SPACE-TRACK-VALIDITY-01",
+  "committed_utc": "2026-09-27",
+  "kind": "Validation of ONE additive write-only diagnostic field the engine now publishes. No tracking, phase estimation, unwrap, threshold, F4, candidate generation, acceptance or refusal behaviour is changed. No remediation, no new estimator, no new dataset.",
+
+  "question": "Can the engine report whether its phase tracker is operating within the assumption its own unwrap depends on, as evidence rather than as a verdict?",
+
+  "the_condition_and_why_it_is_the_trackers_actual_assumption": {
+    "code": "src/pipeline.py::_track_phase computes per-block M-power angles `ang` and calls np.unwrap(ang). np.unwrap keeps the WRAPPED block-to-block change and assumes it is the true one. That is correct if and only if |true change| < pi. So pi is not a chosen threshold: it is the exact discriminant of the operation the shipped tracker performs.",
+    "quantity": "max_wrapped_advance_rad = max over blocks of |wrap(diff(ang))|, and unwrap_margin_rad = pi - that. Both are read off `ang`, which the tracker already computed. No score, no confidence, no invented threshold.",
+    "what_it_cannot_do": "Aliasing is intrinsic: a true advance of exactly 2*pi wraps to 0 and is indistinguishable from no advance. The margin therefore measures PROXIMITY TO THE AMBIGUITY, not the violation itself. This limitation is to be stated, not engineered around."
+  },
+
+  "published_field": {
+    "where": "result['diagnostics']['phase_tracking_validity']",
+    "shape": "{bound_rad, n_tracked_front_ends, min_unwrap_margin_rad, max_unwrap_margin_rad}, or null",
+    "null_means": "no tracked front end exists (the capture was too short for the tracker to run at all) -> the condition is INDETERMINATE. This is the third required state and it is computed, not assumed.",
+    "write_only": "Nothing in src/ reads the field or the per-front-end unwrap_margin_rad it aggregates. No acceptance, refusal, ranking, bar or multiplicity consults it. A small margin is EVIDENCE, never a verdict, and must not be reported as 'decode failed'."
+  },
+
+  "which_aggregate_is_meaningful": {
+    "declared_before_the_full_sweep": "A pilot on 32 captures showed min_unwrap_margin_rad reaching 0.0003 rad on STATIC controls. That is expected and is not a fault: the front-end search deliberately includes wrong-cfo and wrong-sps candidates, whose trackers SHOULD be beyond the bound. So the minimum over front ends is not a warning signal and must not be presented as one.",
+    "primary": "max_unwrap_margin_rad — the largest headroom any tracked front end achieved, i.e. 'was ANY tracked front end operating within its unwrap assumption?'. The full sweep must confirm it separates static controls from time-varying captures.",
+    "both_reported": "Both aggregates are published because both are facts; the report states which one answers the question and why the other does not."
+  },
+
+  "validation_required": [
+    "verdicts unchanged: status and code for all 192 sealed Doppler captures must equal the recorded SPACE-DOPPLER values",
+    "the diagnostic is deterministic: two runs byte-identical",
+    "the diagnostic corresponds to the actual tracker computation: the published margin must equal pi - max|wrap(diff(block_angles))| recomputed from the tracker's own trace",
+    "static controls acquire no spurious warning: their max_unwrap_margin_rad must stay clearly away from 0",
+    "sealed datasets and all previous evidence files unchanged",
+    "full test suite passes"
+  ],
+
+  "decision_rules": {
+    "SEPARATES": "static controls and time-varying captures occupy non-overlapping ranges of max_unwrap_margin_rad, and the time-varying captures known to slip sit nearest the bound.",
+    "DOES_NOT_SEPARATE": "the ranges overlap, or static controls sit near the bound. Then the field is reported as insufficient and NO proxy is substituted.",
+    "no_threshold_in_production": "The engine publishes the number and the bound. No cut-off is compiled in. Any banding in the report is descriptive of the measured populations, not a rule the engine applies.",
+    "three_states": "INDETERMINATE = field is null (tracker never ran). The other two states are read off the published margin against the measured separation, in the report layer only."
+  },
+
+  "constraints": [
+    "Tracking, phase estimation and unwrap behaviour unchanged; no threshold, F4, serial-independence, sps ranking, candidate generation, acceptance or refusal change.",
+    "No remediation and no new estimator. A margin near zero triggers nothing.",
+    "No sealed dataset altered; no previous experiment's rows, manifests, criteria or reports regenerated, overwritten or edited to agree with this result.",
+    "If the exposed field did not separate, the report says so rather than inventing a substitute."
+  ],
+
+  "outputs": ["results/track_validity_rows.jsonl", "reports/space/TRACK_VALIDITY_RESULTS.md"]
+}
