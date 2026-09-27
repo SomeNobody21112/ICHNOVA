@@ -620,6 +620,7 @@ Rules: prefer MIT/BSD/Apache; pin versions; offline wheels for air-gapped instal
 | Sealed tripwire | `python sealed_test.py data/sealed 30 --min-pass 28 --max-false-accept 0` | CI gate; reference machine 30/30, 0 FA |
 | Train | `python sealed_test.py data/train 100` | ≥ 63/100, 0 false accepts (no silent regression) |
 | Frontend | `cd frontend && npm ci && npm run build` | Type-check + build |
+| Frontend logic | `cd frontend && npm run check` | **21 passed.** Asserts the live-stage machine (including that a verdict outranks the ordinary end of stream, which once masked every successful capture as DISCONNECTED) and the globe geometry against external facts - solstice declination, the equation-of-time bound, known great-circle distances. CI gate |
 | Decision-changing engine change | Null set + wrong-structure null + report | Criteria fixed before running |
 | Performance change | Decision-identity check on sealed + train + null set | 0 differences |
 | UI change | §29.6 screenshots | No overflow, both themes |

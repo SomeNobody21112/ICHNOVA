@@ -1104,24 +1104,41 @@ details.more[open] > summary::before { content: '−'; }
 
 /* --- the satellite view. Land and borders are Natural Earth (public domain) served from /geo. --- */
 .globe-box { position: relative; display: grid; place-items: center; }
-.globe { display: block; }
+.globe { display: block; cursor: grab; touch-action: none; outline: none; }
+.globe.dragging { cursor: grabbing; }
+.globe:focus-visible { box-shadow: 0 0 0 2px var(--ring); border-radius: 50%; }
 .globe-wait { position: absolute; font-size: 11.5px; color: var(--muted); }
 .globe-grat { fill: none; stroke: var(--line); stroke-width: 0.5; opacity: 0.55; }
 .globe-land { fill: var(--line); opacity: 0.85; stroke: none; }
 .globe-border { fill: none; stroke: var(--bg-2); stroke-width: 0.45; opacity: 0.9; }
 .globe-hi { fill: var(--cyan); fill-opacity: 0.32; stroke: var(--cyan); stroke-width: 0.9; }
 .globe-limb { fill: none; stroke: var(--line-2); stroke-width: 1; }
+.globe-star { fill: var(--text-2); pointer-events: none; }
+/* the terminator: computed from the viewer's clock, so it is the real night side */
+.globe-night { fill: #000; fill-opacity: 0.42; stroke: color-mix(in srgb, var(--cyan) 30%, transparent);
+  stroke-width: 0.8; pointer-events: none; }
 
 .globe-arc { fill: none; stroke: var(--cyan); stroke-width: 1; opacity: 0.4;
   stroke-dasharray: 1 260; animation: globe-draw 1.5s cubic-bezier(.16,1,.3,1) forwards; }
-.globe-arc.on { opacity: 0.95; stroke-width: 1.7; }
+.globe-arcg.on .globe-arc { opacity: 0.95; stroke-width: 1.7; }
 @keyframes globe-draw { to { stroke-dasharray: 260 0; } }
+
+/* A short dash whose offset animates: one pulse running the path, transmitter to receiver, so the
+   direction on screen is the direction the signal travels. Only the selected or hovered path shows
+   one, which keeps it meaningful and keeps twelve of them off the compositor. */
+.globe-pulse { fill: none; stroke: var(--cyan); stroke-width: 2.4; stroke-linecap: round;
+  opacity: 0; stroke-dasharray: 4 400; }
+.globe-arcg.on .globe-pulse { opacity: 0.95; animation: globe-travel 2.2s linear infinite; }
+@keyframes globe-travel { from { stroke-dashoffset: 404; } to { stroke-dashoffset: 0; } }
 
 .globe-leader { fill: none; stroke: var(--line-2); stroke-width: 0.7; opacity: 0.8; }
 .globe-dot { fill: var(--panel); stroke: var(--text-2); stroke-width: 1.5; transition: fill .2s, stroke .2s; }
 .globe-name { font-size: 10.5px; fill: var(--text-2); paint-order: stroke; stroke: var(--bg);
   stroke-width: 3px; stroke-linejoin: round; pointer-events: none; }
 .globe-mark { cursor: pointer; }
+.globe-halo { fill: none; stroke: var(--cyan); stroke-width: 1; opacity: 0.5; pointer-events: none;
+  transform-box: fill-box; transform-origin: center; animation: globe-halo .35s ease-out; }
+@keyframes globe-halo { from { transform: scale(.4); opacity: 0; } }
 .globe-mark:hover .globe-dot, .globe-mark:focus-visible .globe-dot,
 .globe-mark.on .globe-dot { fill: var(--cyan); stroke: var(--cyan); }
 .globe-mark:hover .globe-name, .globe-mark.on .globe-name { fill: var(--text); }
@@ -1132,6 +1149,21 @@ details.more[open] > summary::before { content: '−'; }
 .globe-ripple { fill: none; stroke: var(--cyan); stroke-width: 1.2; transform-box: fill-box;
   transform-origin: center; animation: globe-ping 2.8s ease-out infinite; }
 @keyframes globe-ping { 0% { transform: scale(.5); opacity: .7; } 100% { transform: scale(4.5); opacity: 0; } }
+
+.obs-globe-hint { color: var(--muted); }
+
+.globe-hud { position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 6px; padding: 5px 7px; font-size: 11px;
+  border: 1px solid var(--line); border-radius: 999px;
+  background: color-mix(in srgb, var(--panel) 88%, transparent); backdrop-filter: blur(6px); }
+.globe-hud-read { color: var(--text-2); padding: 0 4px; }
+.globe-zv { color: var(--muted); min-width: 2.4rem; text-align: center; }
+.globe-zb { min-width: 22px; height: 22px; padding: 0 6px; border: 1px solid var(--line);
+  border-radius: 999px; background: var(--panel-2); color: var(--text-2); font: inherit;
+  cursor: pointer; transition: color .15s, border-color .15s; }
+.globe-zb.wide { padding: 0 9px; }
+.globe-zb:hover:not(:disabled) { color: var(--cyan); border-color: var(--cyan); }
+.globe-zb:disabled { opacity: 0.4; cursor: default; }
 
 .obs-freq { font-size: 12px; color: var(--cyan); min-width: 5.6rem; }
 
@@ -1179,9 +1211,11 @@ details.more[open] > summary::before { content: '−'; }
 .obs-half.no .obs-half-v { color: var(--amber); }
 
 @media (prefers-reduced-motion: reduce) {
-  .obs-stage.on .obs-stage-dot, .globe-ripple, .globe-arc { animation: none; }
+  .obs-stage.on .obs-stage-dot, .globe-ripple, .globe-arc, .globe-halo,
+  .globe-arcg.on .globe-pulse { animation: none; }
   .globe-arc { stroke-dasharray: none; }
   .globe-ripple { opacity: .35; }
+  .globe-arcg.on .globe-pulse { opacity: 0; }
   .obs-loc:hover { transform: none; }
 }
 

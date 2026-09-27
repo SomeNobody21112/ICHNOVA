@@ -30,25 +30,42 @@ export const STAGE_LABEL: Record<Stage, string> = {
 /** How long without a spectrum row before the link is called stale rather than merely quiet. */
 export const STALE_MS = 8000
 
+/** EventSource fires `onerror` whenever the stream closes — including the normal close the server
+ *  performs after sending the verdict (`live.ts` closes the source itself on the `closed` phase, which
+ *  immediately re-enters onerror with readyState CLOSED). So this exact message is a transport
+ *  lifecycle event, NOT a failure, and it must never outrank a verdict. Treating it as a failure was
+ *  why a successful capture reported DISCONNECTED. */
+export const BENIGN_STREAM_END = 'event stream closed'
+
 export interface StageView { stage: Stage; blocked: Blocked | null; reached: number }
 
 /**
  * Derive the stage from live state. `rows` is how many spectrum rows have arrived and `lastRowAt`
  * when the last one did — both facts about the transport, not guesses.
+ *
+ * Order matters and is deliberate: a real link failure first, then a verdict (which always wins, even
+ * if the stream has since closed), then an ended stream, then progress.
  */
 export function deriveStage(st: LiveState, rows: number, lastRowAt: number, now: number): StageView {
   const has = (phase: string) => st.statuses.some((s) => s.phase === phase)
   const at = (stage: Stage, blocked: Blocked | null = null): StageView =>
     ({ stage, blocked, reached: STAGES.indexOf(stage) })
 
-  // the link itself failed: the server said so, or the feed reported an error
-  if (st.error || has('receiver_failed')) return at('CONNECTING', 'DISCONNECTED')
-  // a verdict exists — the only path to DECISION
+  // a real failure: the server said the receiver failed, or the feed reported something other than
+  // the ordinary end of stream
+  const hardError = Boolean(st.error) && st.error !== BENIGN_STREAM_END
+  if (has('receiver_failed') || hardError) return at('CONNECTING', 'DISCONNECTED')
+
+  // a verdict exists — the only path to DECISION, and it outranks any later stream close
   if (st.result) return at('DECISION')
-  // the session ended without the engine reaching a verdict
-  if (st.closed || has('closed')) {
-    return at(rows ? 'QUALIFYING' : 'CONNECTING', 'INSUFFICIENT CAPTURE')
+
+  // the stream ended without a verdict
+  const ended = st.closed || has('closed') || st.error === BENIGN_STREAM_END
+  if (ended) {
+    // rows arrived but the engine never answered; or nothing ever arrived at all
+    return rows > 0 ? at('QUALIFYING', 'INSUFFICIENT CAPTURE') : at('CONNECTING', 'DISCONNECTED')
   }
+
   // the engine is working on the capture
   if (has('analysing')) {
     // TESTING once family-level evidence exists; SEARCHING while hypotheses are still forming
@@ -177,3 +194,42 @@ export function placeLabels<T extends LabelMark>(marks: T[], cx: number, minGap:
   }
   return out
 }
+
+/* --------------------------------------------- day/night and interaction maths (pure, checkable) */
+
+/** Sub-solar point for a UTC instant: where the Sun is directly overhead. Good to a fraction of a
+ *  degree, which is far finer than a 1-pixel terminator needs, and it means the night side on the
+ *  globe is the real one for the user's clock rather than an ornament. */
+export function subsolar(d: Date): { lat: number; lon: number } {
+  const day = (Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())
+    - Date.UTC(d.getUTCFullYear(), 0, 1)) / 86400000 + 1
+  const secs = d.getUTCHours() * 3600 + d.getUTCMinutes() * 60 + d.getUTCSeconds()
+  // declination: the tilt term, peaking at ±23.44° at the solstices
+  const gamma = (2 * Math.PI / 365) * (day - 1 + (secs / 86400 - 0.5))
+  const decl = 0.006918 - 0.399912 * Math.cos(gamma) + 0.070257 * Math.sin(gamma)
+    - 0.006758 * Math.cos(2 * gamma) + 0.000907 * Math.sin(2 * gamma)
+    - 0.002697 * Math.cos(3 * gamma) + 0.00148 * Math.sin(3 * gamma)
+  // equation of time, in minutes, then longitude of the sub-solar meridian
+  const eqt = 229.18 * (0.000075 + 0.001868 * Math.cos(gamma) - 0.032077 * Math.sin(gamma)
+    - 0.014615 * Math.cos(2 * gamma) - 0.040849 * Math.sin(2 * gamma))
+  let lon = -15 * (secs / 3600 + eqt / 60 - 12)
+  lon = ((lon + 180) % 360 + 360) % 360 - 180
+  return { lat: (decl * 180) / Math.PI, lon }
+}
+
+/** Antipode — the terminator is drawn as a 90° cap around the anti-solar point. */
+export function antipode(p: { lat: number; lon: number }) {
+  return { lat: -p.lat, lon: ((p.lon + 360) % 360) - 180 }
+}
+
+export const ZOOM_MIN = 0.85
+export const ZOOM_MAX = 4
+export const clampZoom = (z: number) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z))
+
+/** Latitude is clamped so a drag can never flip the globe upside-down. */
+export const clampTilt = (deg: number) => Math.min(89, Math.max(-89, deg))
+
+/** Per-frame inertia decay after a drag ends: multiplicative, so it always settles. */
+export const SPIN_FRICTION = 0.94
+/** Below this the drift is invisible, so it is dropped rather than ticking forever. */
+export const SPIN_EPSILON = 0.02

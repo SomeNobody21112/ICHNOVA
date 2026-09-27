@@ -1,5 +1,52 @@
 # SIH26147 — Session Progress Report
 
+## The globe becomes an instrument, and a verdict stops reading as a dropped link — 27 September 2026
+
+- **The bug: every successful capture reported DISCONNECTED.** Clicking a signal produced a correct
+  decode and then showed `DISCONNECTED · event stream closed`. The cause was not the receiver.
+  `EventSource` fires `onerror` **whenever** the stream closes, and `live.ts` closes the source itself
+  when the server sends the `closed` phase (`frontend/src/lib/live.ts:185`) — so the *normal* end of a
+  successful run always pushes `error: 'event stream closed'`. `deriveStage` tested `st.error` before
+  `st.result`, so that benign transport event masked the answer the engine had already given.
+- **The fix is an ordering rule, not a suppression.** `BENIGN_STREAM_END` names that one message, and
+  `deriveStage` now resolves in the order **real failure → verdict → ended stream → progress**. Any
+  *other* error still reports DISCONNECTED immediately, `receiver_failed` still reports DISCONNECTED,
+  a stream that closes with rows but no verdict still reports INSUFFICIENT CAPTURE, and one that closes
+  with nothing at all still reports DISCONNECTED. Nothing was made to look successful — a verdict now
+  simply outranks the close that always follows it.
+- **The globe is now handled, not watched.** Pointer **drag to spin** with real inertia (multiplicative
+  decay, so it always settles), **wheel zoom** clamped to 0.85–4× with degrees-per-pixel scaled by zoom
+  so the drag stays 1:1 with the surface, **tilt clamped to ±89°** so it can never flip over a pole,
+  **double-click** or the on-globe control to re-centre, and full keyboard control (arrows, `+`/`-`,
+  `0`). A drag that ends over a marker does **not** also select it. Idle drift yields to your hand.
+  *(One more real defect found while building it: React registers `wheel` as a **passive**
+  listener, so `preventDefault` inside an `onWheel` prop is a no-op and zooming would have
+  scrolled the page as well. The listener is attached natively with `{ passive: false }`.)*
+- **New animation, all of it derived from something real.** A **day/night terminator** computed from the
+  viewer's own clock — solar declination and the equation of time, drawn as a 90° cap around the
+  anti-solar point and refreshed each minute — so the night side on screen is the actual night side. A
+  **travelling pulse** runs the selected great-circle path *transmitter → receiver*, so its direction on
+  screen is the direction the signal travels; only the selected or hovered path carries one, which keeps
+  it meaningful and keeps twelve animations off the compositor. Plus a hover halo, a seeded star field,
+  and grab/grabbing cursors.
+- **The checks are now permanent, and they are in CI.** `frontend/checks/observatory.check.mjs`
+  (`npm run check`) runs **21 assertions** against the real `observatory.ts` — no test runner added:
+  Node's own type-stripping imports the TypeScript directly. It pins the defect above with the exact
+  state shape the server produces, all seven blocked/progress paths, and the interaction maths. The
+  astronomy is checked against facts, not against itself: declination **±23.44°** at both solstices and
+  **0°** at the March equinox; noon UTC in mid-April puts the Sun on the prime meridian, and on every
+  other day of the year stays inside the **±4.1° equation-of-time bound**; Delhi–London **6,708 km**
+  bearing **313°**. Wired into the `frontend` job in `.github/workflows/ci.yml`.
+  *(One tolerance in the first draft was wrong, not the code: ±2° at noon on 20 March ignored an ≈8
+  minute equation-of-time offset, which is a genuine ≈2° shift. The assertion was corrected to state
+  the physics.)*
+- **Checks.** 21/21 observatory checks, 258/258 backend tests, `tsc -b --force` clean, oxlint clean on
+  every changed file, `vite build` passes. Every new animation is disabled under
+  `prefers-reduced-motion`. No engine file, threshold, sealed dataset, Space report or the Request-B
+  constant was touched.
+
+---
+
 ## Observatory: a satellite view into the live pipeline — 27 September 2026
 
 - **The receiver step is now the centrepiece.** `/app/observatory` opens on an **orthographic satellite

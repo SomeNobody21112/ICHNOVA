@@ -186,6 +186,7 @@ export default function Observatory() {
                 {anchor
                   ? <>Listening from <b>{shortSite(anchor.site.name)}</b>. Each arc is a great-circle path to a transmitter this place can hear — click one to open it.</>
                   : <>Earth, with every verified transmitter in the registry. Pick a region to listen from.</>}
+                {' '}<span className="obs-globe-hint">Drag to spin · scroll to zoom · double-click to re-centre. The night side is the real one, for your clock.</span>
               </div>
             </div>
 

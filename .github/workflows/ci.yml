@@ -35,5 +35,7 @@ jobs:
         with:
           node-version: '22'
       - run: npm ci
+      - name: Observatory logic checks
+        run: npm run check
       - name: Type-check and build
         run: npm run build
