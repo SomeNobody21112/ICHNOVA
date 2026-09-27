@@ -32,3 +32,8 @@ deploy/certs/
 deploy/acme/
 deploy/config/
 deploy/.env
+
+# Rendered launch video (20 MB). Kept locally and reproducible from
+# media/ichnova-launch.composition.html, but it is referenced by nothing in the repo and every
+# deployment build would otherwise clone it. The composition source stays committed.
+ichnova-launch.mp4

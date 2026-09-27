@@ -39,6 +39,114 @@ plus one full-size analysis, ~464 MB — which leaves no room for a higher cap w
 Sizing table and the procedure for a larger instance: `deploy/README.md`. Tests 258 → 262.
 
 
+## v2.7 — 2026-09-27 — The payload-reliability gate: a wrong answer becomes a refusal
+
+**One acceptance-adjacent behaviour changed, deliberately, with the cost measured first.** No weight,
+family, catalogue item, FWER rule or structural acceptance threshold was touched: the change is at
+*publication*, after acceptance has already happened.
+
+`PAYLOAD_CONSISTENCY_MIN = 0.97427` (`src/pipeline.py`) is one named production constant, set to the
+bar that was pre-registered and measured in `reports/space/PAYLOAD_GATE_RESULTS.md` and not tuned
+afterwards. When an accepted F2 continuous-stream hypothesis has re-encode `consistency` below the
+floor the **payload is withheld**: the verdict becomes `SIGNAL_NO_CODE`, `payload_withheld` states the
+statistic, its value, the floor and a plain reason, and the structural claim is kept. That reason
+rides in the **signed receipt** (`server/evidence.py`), so the refusal is explained rather than silent.
+
+Measured **before** integration, then re-verified after:
+
+| | |
+|---|---|
+| Working decodes lost | **0 of 1,278** |
+| Wrong Doppler payloads now refused | **52 of 54** |
+| Long-standing structural false accepts now refused | **3 of 3** - bench-v2 `wrong_structure_or_payload` **3/310 to 0/310** |
+| Post-integration bench-v1 | **30/30** |
+| Post-integration bench-v2 | **9/9** criteria, `continuous_stream_code_recall` **16/16** |
+| Post-integration null set | **0/900** false accepts |
+
+**The status guard found during the experiment is retained:** the gate is reached only from a would-be
+`DECODED`, so it can never convert `UNKNOWN` into `SIGNAL_NO_CODE`. Turning "we found nothing" into "a
+signal is there" would have been a worse defect than the one being fixed.
+
+§24 row 13 is re-classified: **RETIRED as acceptance, REINSTATED as a payload-publication gate.** It
+is still not an acceptance statistic (AUC 0.834, TPR 0 for that purpose). §14 gains the
+withheld-payload outcome row.
+
+**The gate is bounded, and §25 limitation 11 says so:** it applies to F2 only, because F1, F3 and F4
+publish no comparable payload-side statistic; **2 of the 54** measured wrong payloads still clear the
+floor; and because the bar was set by the no-regression constraint, "zero cost" is an **empirical
+floor on the captures measured**, not a guarantee for unseen captures. The Doppler limitation
+therefore **stands** - the payload is withheld, not recovered.
+
+Two things found while integrating were reported rather than smoothed over. A console string claimed
+"no code could be established" for `SIGNAL_NO_CODE`, which is untrue when a code *was* established and
+only the payload withheld; it is now conditional on `payload_withheld`. And one null-set capture
+(`k5_120_027`) moved DECODED to UNKNOWN: setting the floor to 0.0 reproduced it exactly, so it is
+pre-existing drift against a stale uncommitted baseline and **not** the gate. It was documented, not
+patched.
+
+---
+
+## v2.6 — 2026-09-27 — Space-ground extension: measured, bounded, frozen
+
+**No rule, weight, catalogue item or acceptance threshold changed.** The only production change in
+this version is **write-only diagnostics** (`src/pipeline.py`, +61/-3 at the audit): verdicts were
+verified unchanged on all 192 sealed Doppler captures, and the read-out was verified never consulted
+by any decision.
+
+Ten pre-registered experiments, with criteria committed before the vectors existed, sealed datasets
+carrying sha256 manifests, byte-identical regeneration, and declared peeks. The headline result is a
+negative one, which is why §7 gains two evidence classes: **MEASURED LIMITATION** - the question was
+asked and the answer is negative, which is stronger than NOT ESTABLISHED - and **NOT ESTABLISHED**.
+
+- **`SPACE-DOPPLER` (2026-09-25).** 192 sealed synthetic vectors. Signal structure stayed correct in
+  **192/192**; the published **payload was wrong in 54 of 96** treated time-varying-carrier captures,
+  against **0 of 96** static controls. The headline criterion **FAILED** and the pre-registered STOP
+  rule went into force. The decode verdict is therefore scoped to a carrier that is **static within
+  the capture** (§25 limitation 10, §24 row 48).
+- **`DOPPLER_MECHANISM` (2026-09-25).** Mechanism **SUPPORTED**: residual carrier error that the front
+  end does not model. An ideal correction removes the failure entirely - **0/96 against 57/96**. One
+  pre-registered STOP bar fired.
+- **`SPACE-CARRIER-EST-01` (2026-09-26) - the obvious fix, built and rejected.** A blind per-block
+  carrier pre-correction fixed Doppler (**108 to 2** wrong payloads) and simultaneously cost bench-v1
+  **30/30 to 22/30**, bench-v2 **9/9 to 8/9** criteria and the null-set catalogue **128 to 87**, and
+  manufactured a `ccsds_tc_ldpc_128_64` claim out of an idle carrier the engine correctly refuses. Two
+  pre-registered rules fired. **DECISION: INTEGRATION NOT SUPPORTED** (§24 row 49). Not revisited.
+- **`SPACE-F4-MARGIN-01` (2026-09-26).** 1,810 sealed captures on the shipped engine: 34 block-code
+  accepts, **all correct**, 0 zero-convergence, **0 on the 900 true nulls**. An empirical floor, not a
+  guarantee (§24 row 51).
+- **`SPACE-OFFCARRIER-CENSUS-01` (2026-09-27).** Off-carrier, noise-like front ends with no carrier
+  correction at all are admitted on **373 of 1,300** signal-bearing captures and **9,186 of 115,057**
+  admitted front ends - and have **never** produced a claim: all **256** published claims came from an
+  on- or near-carrier front end. This is a **normal operating state, not a fault**; the safeguard is
+  the multiplicity-corrected bar, not a front-end filter (§24 row 52). A pre-registration error found
+  mid-run - `diagnostics.all_hypotheses` is F1's table, not F4's - was **reported in the results
+  rather than edited out of the criteria file.**
+- **`SPACE-TRACK-READOUT-01` (2026-09-27).** The first approved production instrumentation change: one
+  optional **write-only** `_trace` parameter on `_track_phase`. It established what the shipped tracker
+  actually is - a piecewise-constant M-power phase estimator with **no trajectory model** - which is
+  the evidence behind row 53.
+- **`SPACE-TRACK-VALIDITY-01` (2026-09-27).** `diagnostics.phase_tracking_validity`: **pi minus the
+  largest wrapped block advance the tracker's own `np.unwrap` accepted.** pi is the unwrap
+  discriminant already in the code, not a chosen threshold, and no confidence score was invented.
+  Proven inert: corrupting it leaves status, code, payload, M and front-end count identical. It stays
+  **diagnostic-only** because it sits at the bound on **24 wrong claims and 28 correct refusals** - it
+  is evidence, not a verdict (§24 row 50). Two candidate aggregates, `unwrap_corrections` and
+  `min_unwrap_margin_rad`, were tested and **rejected**, with their failure modes recorded.
+
+**The claim firewall is now governing.** `reports/space/SPACE_CLAIM_FIREWALL.md` controls what may be
+said about space, and the narrowed positioning sentence must be stated **with both halves** - dropping
+the second is a false claim by omission. §24 row 53 and §25 limitation 12 record that **real
+spacecraft RF, orbital Doppler modelling (TLE, geometry, pass model) and carrier-trajectory
+measurement or classification are NOT ESTABLISHED**: no spacecraft capture exists in this project and
+no orbit model exists. All space benchmark data is synthetic and labelled SIMULATED.
+
+§24 row 41 records bench-v2 as **MEASURED** (sealed split, 430 files, 9/9 criteria, 0/120 false
+accepts on null classes, 95 % Wilson upper 3.10 %). Audit and freeze:
+`reports/space/SPACE_FINAL_AUDIT.md` - sealed datasets 192/192, 144/144 and 288/288 byte-identical on
+regeneration. §31 records `world-atlas` and the Natural Earth licence for the console's geography.
+
+---
+
 ## v2.5.5 — 2026-09-22 — Row 31 measured (roadmap Phase 2)
 
 No rule, weight, catalogue item or acceptance threshold changed. Row 31 (signal genome similarity)
