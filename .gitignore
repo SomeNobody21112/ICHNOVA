@@ -25,6 +25,7 @@ results/*
 !results/track_readout_rows.jsonl
 !results/track_readout_blocks.jsonl
 !results/track_validity_rows.jsonl
+!results/payload_gate_rows.jsonl
 
 # Deployment secrets and certificates: never committed (deploy/README.md).
 deploy/certs/
