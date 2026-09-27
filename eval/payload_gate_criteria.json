@@ -1,0 +1,53 @@
+{
+  "experiment_id": "SPACE-PAYLOAD-GATE-01",
+  "committed_utc": "2026-09-27",
+  "kind": "READ-ONLY feasibility and cost measurement for request B (the payload-reliability gate). The gate is evaluated as POST-PROCESSING of the engine's own published result. NO production file is modified, no threshold in src/ is changed, and the shipped engine's verdicts are not altered. This experiment does not integrate anything.",
+
+  "question": "Can a bar on a payload-side statistic the engine ALREADY computes convert a wrong payload into a refusal (DECODED -> SIGNAL_NO_CODE) without costing any decode that currently works?",
+
+  "why_this_is_request_B": "SPACE_IMPLEMENTATION_GATE.md and SPACE_ENGINEERING_STATUS.md carry request B: 'downgrade DECODED -> SIGNAL_NO_CODE on a pre-registered payload-side bar'. It has stood BLOCKED with the stated reason 'may cost static-carrier recall, which must be measured first'. This experiment performs exactly that measurement and nothing more.",
+
+  "no_new_statistic": {
+    "statistic": "stream_code.accepted_hypothesis.consistency — the re-encode consistency of the accepted F2 continuous-stream hypothesis. The engine already computes and PUBLISHES it; today it is used only for polarity tie-breaking, never as a gate.",
+    "secondary": "path_metric and agreement from the same published hypothesis are recorded alongside for comparison, so the choice of statistic is itself evidenced rather than asserted.",
+    "not_invented": "No score, confidence or composite is created. No threshold in src/ is touched."
+  },
+
+  "scope_established_before_measurement": {
+    "families": "The gate applies ONLY to claims supplied by family F2 (continuous stream), because that is the only family publishing a per-payload consistency statistic. F1 burst, F3 frame and F4 block-code claims are OUT OF SCOPE and untouched.",
+    "blast_radius_measured_from_existing_rows": "Of 256 DECODED verdicts across the 1,810 sealed captures (results/f4_margin_rows.jsonl), only 40 are F2-supplied, all in bench-v2 sealed: 35 TP + 2 TP_PARTIAL + 3 FALSE_ACCEPT. bench-v1 sealed has 0 F2-supplied decodes and the 1,350-file null set has 0. The gate therefore CANNOT cost bench-v1 or the null set anything, by construction.",
+    "the_doppler_failure_is_in_scope": "Every wrong payload in the sealed Doppler experiment was published as conv_k7_r12_171_133_continuous, i.e. by F2. The failure this gate targets is entirely inside the gate's scope."
+  },
+
+  "bar_selection_rule_fixed_before_the_cost_measurement": {
+    "rule": "bar = the largest value that loses NO currently-correct F2 decode on the static-carrier cost population. Operationally: bar = min(consistency) over the bench-v2 sealed F2 claims scored correct today (TP and TP_PARTIAL). The bar is therefore defined by 'cost nothing on what works' and is never chosen to maximise benefit.",
+    "why_this_direction": "A gate whose bar is tuned against the failures it is meant to catch is threshold tuning. Setting it from the no-regression constraint instead means the COST is zero by construction on the measured population, and the BENEFIT is whatever falls out. If the benefit is nil, the answer is that no useful bar exists.",
+    "consequence_accepted_in_advance": "Because the bar is set from the cost population, C1 (static-carrier regression) cannot fail on that population. This is a strength for the decision and a LIMITATION of the evidence: it is an empirical floor on the captures measured, not a guarantee for unseen captures. That caveat must appear in the report."
+  },
+
+  "declared_peek": "BEFORE writing this file the consistency distribution of the SEALED DOPPLER set was inspected for feasibility (correct-payload 0.9805-1.0000 vs wrong-payload 0.8634-0.9808 on the shipped-engine arm of results/space_doppler_mech_rows.jsonl). That peek is why this experiment was judged worth running. It means the Doppler BENEFIT figure is NOT a blind estimate and must be reported as such. The consistency values of the bench-v2 cost population were NOT inspected before the bar rule above was committed.",
+
+  "populations": {
+    "cost": "bench-v2 sealed, 430 captures (read-only). The only population carrying F2 decodes that currently work.",
+    "benefit_structural": "the 3 known FALSE_ACCEPTs in bench-v2 sealed, all F2 continuous claims.",
+    "benefit_doppler": "the sealed SPACE-DOPPLER set, 192 captures (read-only, never regenerated).",
+    "out_of_scope_and_verified_untouched": "bench-v1 sealed and the 1,350-file null set carry 0 F2-supplied decodes; the run confirms this rather than assuming it. Real-signal recordings are checked for F2-supplied decodes and reported."
+  },
+
+  "decision_rules": {
+    "SUPPORTED": "The bar loses 0 currently-correct F2 decodes AND converts a material share of the 54 sealed-Doppler wrong payloads into refusals. Report the share; do not round it up.",
+    "WEAK": "The bar loses 0 correct decodes but converts only a small share of the wrong payloads. Then the gate is honest but of limited value, and that is what is reported.",
+    "NOT SUPPORTED": "No bar separates: the minimum consistency among correct decodes lies at or below the maximum among wrong payloads, so any bar that catches failures also destroys working decodes. A legitimate outcome.",
+    "integration_is_not_decided_here": "This experiment measures. Whether the gate is integrated into src/ is a separate, explicitly authorised decision, and this file does not pre-approve it. In particular a gate that converts a wrong payload into SIGNAL_NO_CODE changes REFUSAL BEHAVIOUR, which every prior authorisation in this branch withheld."
+  },
+
+  "constraints": [
+    "No production file modified. No threshold, bar, family weight, serial criterion, sps ranking or candidate generator changed.",
+    "The gate is applied in eval as post-processing of the published result; the engine's own verdict is recorded unchanged alongside the gated one.",
+    "No sealed dataset altered; no previous experiment's rows, manifests, criteria or reports regenerated or overwritten.",
+    "The structural claim is preserved: the gate downgrades DECODED to SIGNAL_NO_CODE, which withholds the payload while keeping the structure the evidence supports. It never manufactures a structural claim and never upgrades a refusal.",
+    "Nothing here licenses a space capability claim; SPACE_CLAIM_FIREWALL.md is unchanged."
+  ],
+
+  "outputs": ["results/payload_gate_rows.jsonl", "reports/space/PAYLOAD_GATE_RESULTS.md"]
+}
