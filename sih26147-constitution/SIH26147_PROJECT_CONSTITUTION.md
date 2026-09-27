@@ -3,7 +3,7 @@
 **Problem statement:** SIH26147 (Smart India Hackathon 2026; sponsor listed in the problem statement: NTRO)
 **Product:** ICHNOVA — *From noise to harmony* (blind signal analysis engine + operator console)
 **Document:** Master Project Constitution — **the single source of truth**
-**Version:** 2.7 (Space-ground branch measured and frozen; the payload-reliability gate integrated - see changelog v2.6 and v2.7) - earlier 2.5.5 (row 31 measured: Phase 2 fingerprints on synthetic data) · earlier 2.5.4 (deployment invariants: one writer per results directory §9.12, reachable-is-not-fresh §9.13; TLS reverse proxy CONFIGURED but never exercised; in-memory rate limiting and revocation recorded as a limitation) · **Date:** 2026-09-27
+**Version:** 2.7.1 (deployment sizing: a measured 512 MB envelope - see changelog v2.7.1) - 2.7 (Space-ground branch measured and frozen; the payload-reliability gate integrated - see changelog v2.6 and v2.7) - earlier 2.5.5 (row 31 measured: Phase 2 fingerprints on synthetic data) · earlier 2.5.4 (deployment invariants: one writer per results directory §9.12, reachable-is-not-fresh §9.13; TLS reverse proxy CONFIGURED but never exercised; in-memory rate limiting and revocation recorded as a limitation) · **Date:** 2026-09-27
 **Verified against:** branch `sih-readiness`. v2.5 text verified against `acf4201`; the v2.5.1 status rows are measured on the engine as committed, with the default path unchanged (0 decision differences on 1,350 null-set files, sealed 30/30, train 63/100). Evidence per phase in `reports/SIH_READINESS_EXECUTION.md`
 **Supersedes:** v2.0 (research-verified, 2026-09-16), v2.1–v2.4, and every earlier plan document where they disagree (§3)
 
@@ -447,7 +447,7 @@ FSK tone-pair search: one STFT per shift class (30 s → 2.5 s on 125 s). RRC ta
 | 16 | bench-v1 train | **63/100, 0 false accepts** | §18 | Low Es/N0 recall |
 | 17 | Vectorised hypothesis search | **PROVEN** | 3.0–3.8×, 0 decision differences on 1,480 files | — |
 | 18 | Rank-based blind FEC ID | **PARTIALLY PROVEN** | Collapses at 0.1% BER | Clean-signal tool only |
-| 19 | Tests + CI | **PROVEN on GitHub** | **258 tests** (253 + 5 skipped on a fresh clone, where benchmark captures are regenerated rather than committed); CI green on both jobs (tests, sealed tripwire, frontend build) | — |
+| 19 | Tests + CI | **PROVEN on GitHub** | **262 tests** (257 + 5 skipped on a fresh clone, where benchmark captures are regenerated rather than committed); CI green on both jobs (tests, sealed tripwire, frontend build) | — |
 | 20 | Deterministic data generation | **PROVEN** | Byte-identical from seed | — |
 | 21 | Reject path (3 outcomes) | **PROVEN** | Null set; WWVB time refused | — |
 | 22 | Time-code receivers (5 protocols) | **PROVEN on real signal** | §22: 4 decoded ±1.9–23.4 ms, 1 correctly refused | Receiver delay calibration |
@@ -499,7 +499,8 @@ FSK tone-pair search: one STFT per shift class (30 s → 2.5 s on 125 s). RRC ta
 9. Console monitoring-network data is simulated.
 10. **Time-varying carrier (Doppler) is a MEASURED LIMITATION, not an open question.** The decode verdict is validated only for a carrier that is **static within the capture**. Any statement about decoding must carry that qualifier, and the three-outcome guarantee must never be presented as a *payload* guarantee. Since v2.7 an unreliable payload is **withheld** rather than published - it is still not *recovered*, so the limitation stands.
 11. The payload gate (row 13) is **bounded**: it applies only to F2 continuous-stream claims, because F1, F3 and F4 publish no comparable payload-side statistic; 2 of the 54 measured wrong payloads still clear the floor; and because the bar was set by the no-regression constraint, "zero cost" is an **empirical floor on the captures measured**, not a guarantee for unseen captures.
-12. No spacecraft capture exists in this project. Real spacecraft RF, orbital modelling and carrier-trajectory measurement are **NOT ESTABLISHED** (row 53). All space benchmark data is synthetic and labelled SIMULATED; the space positioning is a research claim, not a capability statement.
+12. The deployed instance runs inside a **measured 512 MB envelope**, and that envelope is a limit on what it will answer, not just on how fast. `analyze_iq` needs **~674 bytes of working memory per input sample** (measured), the server is **100 MB resident** before any analysis, so `MAX_ANALYSIS_SAMPLES = 400,000` (~257 MB peak) is the ceiling and a larger capture is **refused with a 413 naming the measured reason, never truncated**. Every committed recording fits (largest 375,040 samples), and a test fails if a future one does not. Worst case - three full-length live sessions plus one full-size analysis - is ~464 MB, so the envelope has no room for a higher cap without new arithmetic (`deploy/README.md`).
+13. No spacecraft capture exists in this project. Real spacecraft RF, orbital modelling and carrier-trajectory measurement are **NOT ESTABLISHED** (row 53). All space benchmark data is synthetic and labelled SIMULATED; the space positioning is a research claim, not a capability statement.
 
 ---
 
@@ -616,7 +617,7 @@ Rules: prefer MIT/BSD/Apache; pin versions; offline wheels for air-gapped instal
 
 | Gate | Command | Must hold |
 |---|---|---|
-| Tests | `python -m pytest -q tests` | **258 passed** (253 + 5 skipped on a fresh clone: five read benchmark captures, which are regenerated, not committed) |
+| Tests | `python -m pytest -q tests` | **262 passed** (257 + 5 skipped on a fresh clone: five read benchmark captures, which are regenerated, not committed) |
 | Sealed tripwire | `python sealed_test.py data/sealed 30 --min-pass 28 --max-false-accept 0` | CI gate; reference machine 30/30, 0 FA |
 | Train | `python sealed_test.py data/train 100` | ≥ 63/100, 0 false accepts (no silent regression) |
 | Frontend | `cd frontend && npm ci && npm run build` | Type-check + build |
@@ -847,6 +848,7 @@ Possible application areas (**not deployment claims**): spectrum monitoring and 
 | **2.5.4** | **2026-09-20** | **Deployment amendment. §9.12: one writer per results directory — the ledger and outbox fork if two processes share one, so an OS lock makes the unsafe configuration impossible rather than merely documented, and `deploy.replicas: 1` is pinned. §9.13: a reachable source is not a fresh one; health reports what was actually received. §25.8 limitation 8 records the TLS reverse proxy as CONFIGURED and never exercised, and container base-image CVEs as NOT ESTABLISHED; limitation 8a records rate limiting and revocation as in-process and in-memory by design. No rule, weight, catalogue item or acceptance threshold changed** |
 | **2.5.3** | **2026-09-19** | **Platform amendment. §25.8: the API is authenticated (scrypt passwords, signed session tokens with expiry and revocation, per-endpoint role permissions, rate limiting), so the "unauthenticated API" limitation is retired and only the missing TLS remains. §9.2: the Salesforce case hand-off is approved as the one permitted cloud integration, bound by the clause it was written under. Capture quality (`src/quality.py`), evidence sufficiency (`src/sufficiency.py`), evidence receipts (`src/receipt.py`) and the signal-source registry (`server/sources.py`) are recorded, each reported separately from the decode verdict. §24 row 34 re-measured over the full null set: the cost of enabling 8PSK/16-QAM is a wrong decode from a structural alias, not the false accepts previously feared. No rule, weight, catalogue item or acceptance threshold changed** |
 
+| **2.7.1** | **2026-09-27** | **Deployment sizing amendment. The deployed instance is a 512 MB free tier, and the limit on what it can answer is memory, not upload size: `analyze_iq` needs a measured ~674 bytes per input sample and the server is 100 MB resident, so `MAX_ANALYSIS_SAMPLES = 400,000` caps a single analysis at ~257 MB and a larger capture is refused with a 413 naming the measured reason rather than truncated. `MAX_UPLOAD` 64 MB to 8 MB (and `client_max_body_size` to match), the compressed static cache bounded at 8 MB, 637 kB of unreferenced brand PNGs moved out of `frontend/public`, and the Docker build context cut from 46 MB to 26 MB. §25 limitation 12 records the envelope. No rule, weight, catalogue item, acceptance threshold or engine behaviour changed** |
 Details: `SIH26147_CONSTITUTION_CHANGELOG.md`.
 
 ## 45. Doctrine

@@ -1,5 +1,53 @@
 # SIH26147 — Session Progress Report
 
+## Sized for the 512 MB free tier it actually runs on — 27 September 2026
+
+- **The real limit was memory, and nothing expressed it.** The only ingress limit was a 64 MB byte
+  cap. Measured: `analyze_iq` peaks at **~674 bytes of working memory per input sample** (673.5–676.8
+  B/sample at 20k, 80k and 320k — the intermediate FFTs, matched filters and LLR arrays, not the
+  16-byte sample), and the server is **100 MB resident** after importing numpy, scipy and the engine.
+  So a 64 MB float32 I/Q upload is 8M samples asking for **~5.4 GB**: the honest answer to a large
+  capture was the platform killing the process.
+- **`MAX_ANALYSIS_SAMPLES = 400,000`** (~257 MB peak), budgeted from those two measurements, enforced
+  at the existing lower-bound sample guard so one check covers both upload formats. A larger capture
+  is **refused with a 413 naming the measured reason, never truncated** — analysing a prefix answers a
+  different question from the one asked. Every committed recording fits (largest: `wwv-10mhz-montana`
+  at 375,040 samples) and a test fails if a future one does not.
+- **`MAX_UPLOAD` 64 MB → 8 MB**, with `client_max_body_size` lowered to match, so the byte cap can
+  never be the thing that rejects an analysable capture (400,000 samples is 3.2 MB in the largest
+  accepted encoding). A test asserts that relationship rather than trusting the two numbers to stay
+  consistent.
+- **The compressed static cache was unbounded**, which in a long-lived process serving ~14 MB of
+  evidence JSON is a memory leak measured in uptime. Now `GZ_CACHE_MAX_BYTES = 8 MB` under a lock, so
+  two threads missing on the same file cannot both admit it and overshoot; past the budget it keeps
+  compressing on the fly — CPU, not correctness.
+- **637 kB of dead weight found in the published payload.** `ichnova-logo-dark.png` (430 kB),
+  `ichnova-logo.png`, `ichnova-emblem.png` and `ichnova-mark.png` are referenced **nowhere in the
+  repo** — the console draws its mark as inline SVG — yet everything under `frontend/public/` is
+  copied into `dist/` and served. PNG does not compress on the wire, so they were the single largest
+  thing the deployment carried, larger than all the evidence packs put together once gzipped. Moved
+  to `brand/` with a README, not deleted. **Console on the wire: 4.04 → 3.42 MB.**
+- **Docker build context 46 MB → 26 MB** — the 20 MB launch video and `media/`, neither of which is
+  `COPY`ed. `frontend/public` was checked and deliberately left in: the build copies it into `dist/`,
+  so excluding it would have silently emptied the console's evidence pages. Same check spared
+  `recordings/real/*.wav`, which `/api/recordings/` serves; only the `.npz` band file, read by an
+  offline export script, is excluded.
+- **What was measured and then deliberately left alone.** The 67,950-row hypothesis tables look like
+  the obvious win at 4.27 MB each, but they are columnar and gzip **~20×** (4.27 MB → 217 kB): the
+  whole console is 3.42 MB on the wire against 18.26 MB on disk. Trimming evidence to save ~800 kB
+  would have been a bad trade, so the measurement is the reason it was not made.
+- **Worst case, stated rather than discovered later.** Three full-length live sessions
+  (`MAX_SESSIONS = 3`, ~107 MB) plus one full-size analysis (257 MB) on top of 100 MB resident is
+  **~464 MB of 512 MB**. It fits, and it is the ceiling — raising either cap needs new arithmetic.
+  Recorded in §25 limitation 12 with the sizing table in `deploy/README.md`.
+- **Checks.** **262/262 backend tests** (4 new: the oversized-capture refusal, the two caps' mutual
+  consistency, every shipped recording fitting, and the cache bound), 21/21 observatory checks,
+  `vite build` passes, build-context exclusions verified against five sanity cases. Constitution
+  v2.7.1. No engine file, threshold, sealed dataset, Space report, evidence pack or the Request-B
+  constant was touched.
+
+---
+
 ## The globe becomes an instrument, and a verdict stops reading as a dropped link — 27 September 2026
 
 - **The bug: every successful capture reported DISCONNECTED.** Clicking a signal produced a correct

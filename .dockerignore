@@ -11,3 +11,15 @@ __pycache__
 sih26147-constitution
 tests
 eval
+
+# None of the following is COPYed into the image, so keeping it out of the build context saves the
+# upload to the daemon and the layer-cache churn on every deploy. The launch video alone is 20 MB,
+# more than everything the image actually needs.
+#
+# frontend/public is deliberately NOT here: `npm run build` copies it into dist/, which is the
+# console's evidence data.
+*.mp4
+media
+deploy
+frontend/checks
+recordings/**/*.npz

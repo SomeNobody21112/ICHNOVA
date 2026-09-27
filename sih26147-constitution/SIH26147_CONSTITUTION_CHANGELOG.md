@@ -1,5 +1,44 @@
 # SIH26147 — CONSTITUTION CHANGELOG
 
+## v2.7.1 — 2026-09-27 — Deployment sizing: a measured 512 MB envelope
+
+No rule, weight, catalogue item, acceptance threshold or engine behaviour changed. The engine was not
+touched; every limit here is at the server's ingress.
+
+The deployed instance runs on a free tier with **512 MB of RAM**, and the quantity that decides
+whether a capture can be answered is working memory, not the size of the upload. Measured:
+`analyze_iq` peaks at **~674 bytes per input sample** (673.5–676.8 B/sample at 20k, 80k and 320k —
+the intermediate FFTs, matched filters and LLR arrays, not the 16-byte sample), and the server is
+**100 MB resident** once numpy, scipy and the engine are imported.
+
+- **`MAX_ANALYSIS_SAMPLES = 400,000`** (~257 MB peak), budgeted from those two numbers. A larger
+  capture is **refused with a 413 that names the measured reason**, never truncated: analysing a
+  prefix would answer a different question from the one asked. The previous byte-only cap could not
+  express this at all — 64 MB of float32 I/Q is 8M samples, which would have asked for ~5.4 GB and
+  been killed by the platform instead of answered. Every committed recording fits, the largest being
+  `wwv-10mhz-montana` at 375,040 samples, and a test fails if a future one does not.
+- **`MAX_UPLOAD` 64 MB → 8 MB**, with `client_max_body_size` in `deploy/nginx.conf` lowered to match.
+  400,000 samples is 3.2 MB in the largest accepted encoding, so the byte cap can never be what
+  rejects an analysable capture — a test asserts that relationship.
+- **The compressed static cache is bounded** (`GZ_CACHE_MAX_BYTES = 8 MB`). It was unbounded, which in
+  a long-lived process serving ~14 MB of evidence JSON is a memory leak measured in uptime. Past the
+  budget the server keeps compressing on the fly: CPU, not correctness.
+- **637 kB of unreferenced brand PNGs moved** from `frontend/public/` to `brand/`. Everything under
+  `public/` is published by the build; these four files are referenced nowhere, and PNG does not
+  compress on the wire, so they were the deployment's largest single payload — larger than all the
+  evidence packs combined once gzipped. The console draws its mark as inline SVG.
+- **Docker build context 46 MB → 26 MB** (the 20 MB launch video and `media/`). `frontend/public` is
+  deliberately still included: the build copies it into `dist/`, which is the console's evidence data.
+- **Evidence packs were deliberately NOT trimmed.** The 67,950-row hypothesis tables look like the
+  obvious saving at 4.27 MB each, but they are columnar and gzip ~20× to 217 kB, so the whole console
+  is 3.4 MB on the wire against 18.3 MB on disk. Removing evidence to save ~800 kB would have been a
+  bad trade, and the measurement is why it was not made.
+
+§25 limitation 12 records the envelope, including the worst case — three full-length live sessions
+plus one full-size analysis, ~464 MB — which leaves no room for a higher cap without new arithmetic.
+Sizing table and the procedure for a larger instance: `deploy/README.md`. Tests 258 → 262.
+
+
 ## v2.5.5 — 2026-09-22 — Row 31 measured (roadmap Phase 2)
 
 No rule, weight, catalogue item or acceptance threshold changed. Row 31 (signal genome similarity)

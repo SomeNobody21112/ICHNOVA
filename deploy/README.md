@@ -178,6 +178,43 @@ dependency to a prototype that must run air-gapped would cost more than it buys.
 peer address. Setting `ICHNOVA_TRUSTED_PROXIES` too permissively removes the limiter entirely — a
 client that sends a new value per request gets a fresh bucket per request.
 
+### Memory — what fits in a 512 MB instance
+
+This matters because the deployed instance runs on a free tier with **512 MB of RAM and 0.1 CPU**,
+and because the limit that decides whether a capture can be answered is not the size of the upload.
+All numbers below are measured on this code, not estimated.
+
+| What | Measured | Note |
+|---|---|---|
+| Server resident after startup | **100 MB** | `numpy` + `scipy` + engine + every server module; 29 MB of that is numpy and scipy alone |
+| `analyze_iq` peak working memory | **674 bytes per input sample** | 673.5–676.8 B/sample at 20k, 80k and 320k samples — the intermediate FFTs, matched filters and LLR arrays, not the 16-byte sample |
+| `MAX_ANALYSIS_SAMPLES` | **400,000** → ~257 MB peak | The budget: 512 − 100 resident leaves ~410 MB, and one analysis is allowed 256 MB of it |
+| `MAX_UPLOAD` | **8 MB** | 400,000 samples is 3.2 MB as interleaved float32 I/Q (8 B/sample), the largest accepted encoding |
+| Largest committed recording | **375,040 samples** → ~241 MB | `wwv-10mhz-montana`; a test fails if a future recording exceeds the cap |
+| Compressed static cache | **8 MB budget** | `GZ_CACHE_MAX_BYTES`; once spent the server keeps compressing on the fly instead of caching |
+| Live sessions | **`MAX_SESSIONS = 3`** | each holds up to 185 s of `complex64` at the receiver's audio rate (~12 kHz typical), grown by doubling: ~18 MB held, up to ~36 MB allocated, so ~107 MB for three |
+| Built console (`frontend/dist`) | **18.3 MB on disk, 3.4 MB on the wire** | the 14 MB of evidence JSON is columnar and gzips ~20× (4.27 MB → 217 kB), so it is cheap to serve and is **not** trimmed |
+
+**The worst case is three full-length live sessions plus one full-size analysis: 100 + 107 + 257 ≈
+464 MB.** That fits, but it is the ceiling, so raising `MAX_ANALYSIS_SAMPLES` or `MAX_SESSIONS`
+without redoing this arithmetic is how the instance starts getting killed by the platform.
+
+A capture past the cap is **refused with a 413 that names the measured reason**, never truncated:
+
+```json
+{"error": "capture is 400001 samples; this instance analyses at most 400000",
+ "reason": "the engine needs ~674 bytes of working memory per sample, so this capture would need ~257 MB and the instance has 512 MB in total",
+ "remedy": "split the capture, or decimate it to a lower sample rate before uploading"}
+```
+
+Analysing a prefix would answer a different question from the one that was asked, which for an
+engine whose product is a defensible verdict is worse than refusing. Remember also that a free
+instance **sleeps when idle**: the first request after a sleep pays the cold start, which includes
+importing scipy.
+
+To give a bigger instance more room, raise `MAX_ANALYSIS_SAMPLES` in `server/app.py` by the same
+674 B/sample arithmetic and raise `client_max_body_size` in `nginx.conf` to match `MAX_UPLOAD`.
+
 ### Sessions and revocation
 
 | Property | Behaviour |

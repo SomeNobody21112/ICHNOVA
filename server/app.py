@@ -32,6 +32,7 @@ import queue
 import re
 import sys
 import tempfile
+import threading
 import traceback
 import uuid
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -53,7 +54,23 @@ import store_lock                                                     # noqa: E4
 from stations import STATIONS                                         # noqa: E402
 
 DIST = os.path.join(ROOT, 'frontend', 'dist')
-MAX_UPLOAD = 64 * 1024 * 1024
+#: Ingress limits, set from measured memory cost rather than from a round number.
+#:
+#: `analyze_iq` peaks at ~674 bytes of transient memory per input sample (measured 673.5-676.8
+#: B/sample across 20k, 80k and 320k captures; the factor is the intermediate FFTs, matched filters
+#: and LLR arrays, not the 16-byte input sample itself). The whole server is ~100 MB resident once
+#: numpy, scipy and the engine are imported. On a 512 MB instance that leaves ~410 MB, so a single
+#: analysis is budgeted 256 MB and everything else keeps the rest.
+#:
+#: 400,000 samples x 674 B = 257 MB peak. That admits every recording this project ships - the
+#: largest is wwv-10mhz-montana at 375,040 samples - and refuses only captures that would not fit.
+#: The old byte-only cap could not: 64 MB of float32 I/Q is 8M samples, which would have asked for
+#: ~5.4 GB and been killed by the platform instead of answered.
+MAX_ANALYSIS_SAMPLES = 400_000
+#: 400,000 samples is 3.2 MB as interleaved float32 I/Q (8 B/sample), the largest accepted encoding,
+#: and 1.6 MB as 16-bit mono WAV. 8 MB leaves room for headers and wider WAVs without ever letting
+#: the process buffer a body it could not analyse.
+MAX_UPLOAD = 8 * 1024 * 1024
 
 USERS = auth.Users()
 SESSIONS = auth.Sessions()
@@ -92,7 +109,26 @@ def _parse_fs(value):
     return fs
 
 COMPRESSIBLE = ('.js', '.css', '.html', '.json', '.jsonl', '.svg', '.txt', '.map')
+
+#: Compressed copies of static files, so a repeat request does not pay to compress again. Bounded on
+#: purpose: `frontend/dist` holds ~14 MB of evidence JSON, and an unbounded cache in a long-lived
+#: 512 MB process is a memory leak measured in uptime. Once the budget is spent the server simply
+#: stops caching and keeps compressing on the fly, which costs CPU rather than correctness.
+GZ_CACHE_MAX_BYTES = 8 * 1024 * 1024
 _GZ_CACHE = {}
+_GZ_CACHE_BYTES = 0
+#: Two threads missing on the same file would otherwise both add it and overshoot the budget by
+#: their own size; the server is threaded, so the accounting is locked.
+_GZ_LOCK = threading.Lock()
+
+
+def _gz_remember(key, blob):
+    """Keep a compressed copy only while the cache stays inside its budget."""
+    global _GZ_CACHE_BYTES
+    with _GZ_LOCK:
+        if key not in _GZ_CACHE and _GZ_CACHE_BYTES + len(blob) <= GZ_CACHE_MAX_BYTES:
+            _GZ_CACHE[key] = blob
+            _GZ_CACHE_BYTES += len(blob)
 
 
 class Handler(SimpleHTTPRequestHandler):
@@ -362,7 +398,12 @@ class Handler(SimpleHTTPRequestHandler):
               and 'gzip' in (self.headers.get('Accept-Encoding') or '').lower())
         if gz:
             key = (fs_path, st.st_mtime_ns, st.st_size)
-            data = _GZ_CACHE.get(key) or _GZ_CACHE.setdefault(key, gzip.compress(data, compresslevel=6))
+            hit = _GZ_CACHE.get(key)
+            if hit is None:
+                data = gzip.compress(data, compresslevel=6)
+                _gz_remember(key, data)
+            else:
+                data = hit
         self.send_response(200)
         self.send_header('Content-Type', self.guess_type(fs_path))
         self.send_header('Content-Length', str(len(data)))
@@ -480,6 +521,17 @@ class Handler(SimpleHTTPRequestHandler):
                 fs_source = 'declared' if declared is not None else 'unavailable'
             if len(iq) < 64:
                 return self._json(400, {'error': 'capture too short (need at least 64 samples)'})
+            if len(iq) > MAX_ANALYSIS_SAMPLES:
+                # Refused, not truncated. Analysing a prefix would answer a different question from
+                # the one that was asked, and this engine does not silently change the question.
+                need = len(iq) * 674 // 2**20
+                return self._json(413, {
+                    'error': f'capture is {len(iq)} samples; this instance analyses at most '
+                             f'{MAX_ANALYSIS_SAMPLES}',
+                    'reason': f'the engine needs ~674 bytes of working memory per sample, so this '
+                              f'capture would need ~{need} MB and the instance has 512 MB in total',
+                    'remedy': 'split the capture, or decimate it to a lower sample rate before '
+                              'uploading (the engine estimates the symbol rate relative to fs)'})
             meta = {k: q[k] for k in ('name', 'station', 'center_freq_hz', 'bandwidth_hz', 'antenna',
                                       'captured_at', 'notes') if k in q}
             meta['format'] = fmt
