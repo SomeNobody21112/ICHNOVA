@@ -61,19 +61,22 @@ const CHAIN: { step: string; what: string; got: string }[] = [
   { step: 'Remediation attempted', what: 'A blind carrier pre-correction in front of the structural search.', got: 'It fixed Doppler and broke things that already worked.' },
   { step: 'Remediation rejected', what: 'Two pre-registered rules fired; the decision was taken by the rules, not by preference.', got: 'INTEGRATION NOT SUPPORTED.' },
   { step: 'The boundary is now reported', what: 'The engine publishes how close its phase tracker ran to its own unwrap ambiguity.', got: 'Evidence, consulted by no decision.' },
+  { step: 'A refusal replaces the wrong answer', what: 'A payload-reliability floor on the re-encode consistency the engine already computed, measured before it was integrated.', got: 'Costs 0 of 1,278 working decodes; 52 of 54 wrong payloads are now withheld, and 3 long-standing false accepts became refusals.' },
 ]
 
 const BOUNDARY = {
   established: [
     'Blind identification of modulation, symbol rate, coding and framing — benchmark conditions, carrier static within the capture',
     'Refusal with a stated reason when the evidence is insufficient',
+    'An unreliable payload is withheld rather than published, with the statistic and floor given',
     'Signal structure stays correct even under a moving carrier',
     'Structural acceptance never fired on a true null across 1,810 sealed captures',
     'The engine reports when its phase tracker ran at its own unwrap limit',
   ],
   limitation: [
     'Payload reliability under a carrier that moves during the capture — measured, not suspected',
-    'No refusal is available for an unreliable payload: the verdict does not distinguish it',
+    'The payload itself is still not recovered under a moving carrier — it is withheld, not decoded',
+    '2 of the 54 measured wrong payloads still clear the reliability floor and would be published',
     'The phase tracker fails past a bound written into its own code, and its block adaptation is already at its finest setting',
   ],
   notEstablished: [
@@ -119,9 +122,11 @@ export default function Space() {
         <Icon name="flag" />
         <div>
           <b>MEASURED LIMITATION.</b> Under a carrier that moves during the capture the engine kept the structure right and published
-          a wrong payload in <b>{dp.wrong_payload} of {dp.treated}</b> treated captures, with no refusal available from today's gates.
-          The decode verdict is scoped to a carrier that is <b>static within the capture</b>. This page shows how that was found,
-          what was tried, and why the obvious fix was rejected.
+          a wrong payload in <b>{dp.wrong_payload} of {dp.treated}</b> treated captures. That measurement is what the engine did
+          <i>before</i> the payload-reliability floor was integrated; it now <b>withholds</b> such a payload and reports
+          SIGNAL_NO_CODE with the reason, keeping the structural claim the evidence supports. The decode verdict remains scoped
+          to a carrier that is <b>static within the capture</b>. This page shows how the failure was found, what was tried, why
+          the obvious fix was rejected, and what was finally integrated.
         </div>
       </div>
 

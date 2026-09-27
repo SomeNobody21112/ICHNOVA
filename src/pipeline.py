@@ -92,6 +92,23 @@ TRACK_BLOCK = 64        # symbols per phase estimate (8 or more blocks are neede
 # noisy for the payload to survive.
 F2_AGREEMENT_FLOOR = 0.61
 
+# F2 payload-reliability floor. F2_AGREEMENT_FLOOR above decides whether the stream-code STRUCTURE is
+# accepted; this decides whether that structure's PAYLOAD may be published. `consistency` is the
+# fraction of the observed stream the decoded payload reproduces when re-encoded — stream.decode
+# already computes it, and until now it was used only to break a polarity tie.
+#
+# It exists because a continuous-code hypothesis can be overwhelmingly significant while its payload
+# is wrong: under a carrier that moves during the capture, 54 of 96 treated captures published a wrong
+# payload beneath a CORRECT structural claim (reports/space/DOPPLER_EXPERIMENT_RESULTS.md).
+#
+# Measured, not chosen (reports/space/PAYLOAD_GATE_RESULTS.md, SPACE-PAYLOAD-GATE-01): the value is the
+# smallest consistency among the bench-v2 sealed F2 claims that were already correct, so the bar is
+# set by "lose nothing that works" and never by the failures it catches. At this value, across 2,002
+# captures, 0 of 1,278 correct decodes are lost, all 3 known structural false accepts become refusals,
+# and 52 of 54 wrong Doppler payloads become refusals. It is an empirical floor on the captures
+# measured, not a guarantee: the distributions overlap and 2 of those 54 still clear it.
+PAYLOAD_CONSISTENCY_MIN = 0.97427
+
 
 FS_SOURCES = ('declared', 'wav_header', 'inferred', 'relative_only', 'unavailable')
 
@@ -354,6 +371,8 @@ def analyze_iq(iq, fs=None, _oracle=None, _top_k=5, _keep_bits=False, _all_hypot
         'symbol_rate_est': None,
         'symbol_rate_norm': None, 'fs_hz': float(fs) if fs is not None else None, 'fs_source': fs_source,
         'cfo': None, 'beta': beta, 'phase': None, 'rotation': None,
+        # set only when an accepted structure's payload fails PAYLOAD_CONSISTENCY_MIN
+        'payload_withheld': None,
     }
     accepted_desc = None
     if accepted:
@@ -397,13 +416,36 @@ def analyze_iq(iq, fs=None, _oracle=None, _top_k=5, _keep_bits=False, _all_hypot
                           phase=fr2['phase'], rotation=fr2['rotation'],
                           symbol_rate_est=_rate_hz(fs, fr2['sps']), symbol_rate_norm=1.0 / fr2['sps'])
     elif f2['accepted']:
+        # The stream-code STRUCTURE is accepted here; whether its payload may be published is a
+        # separate question, answered by PAYLOAD_CONSISTENCY_MIN. When the payload is withheld the
+        # verdict is SIGNAL_NO_CODE — "a signal is there and its structure is established, but no
+        # payload this evidence earns". F2 stays accepted, so the stream_code layer remains in
+        # result['structure'] and in stream_code: the evidence is kept and only the unearned claim
+        # is dropped.
+        #
+        # Reached only when F2 accepted, i.e. only from a would-be DECODED. This gate can therefore
+        # never turn UNKNOWN into SIGNAL_NO_CODE — the status guard SPACE-PAYLOAD-GATE-01's own
+        # tests caught missing in the evaluation-side prototype.
         b = f2['accepted_hypothesis']
         fr = fronts[int(b['front'])]
-        result.update(status='DECODED', payload_bits=f2_bits, code=stream.CODE_NAME,
+        cons = b.get('consistency')
+        withheld = cons is not None and float(cons) < PAYLOAD_CONSISTENCY_MIN
+        result.update(status='SIGNAL_NO_CODE' if withheld else 'DECODED',
                       modulation=fr['modulation'], sps=fr['sps'],
                       symbol_rate_est=_rate_hz(fs, fr['sps']), symbol_rate_norm=1.0 / fr['sps'],
                       cfo=fr['cfo'], phase=fr['phase'],
                       rotation=fr['rotation'] + (np.pi if b['polarity_flipped'] else 0.0))
+        if withheld:
+            result['payload_withheld'] = {
+                'family': 'F2_stream_code', 'statistic': 'consistency',
+                'value': float(cons), 'floor': PAYLOAD_CONSISTENCY_MIN,
+                'reason': f'payload withheld: re-encode consistency {float(cons):.4f} is below the '
+                          f'floor {PAYLOAD_CONSISTENCY_MIN} — the decoded bits do not reproduce the '
+                          f'observed stream well enough to be published',
+                'structure_retained': 'the continuous stream-code structure is still accepted and '
+                                      'reported; only its payload is not published'}
+        else:
+            result.update(payload_bits=f2_bits, code=stream.CODE_NAME)
     elif f3['accepted']:
         # A proven frame structure with no accepted code: the frame map is the evidence (13.1 note 6).
         fi = f3['accepted_hypothesis']['front']
@@ -428,6 +470,7 @@ def analyze_iq(iq, fs=None, _oracle=None, _top_k=5, _keep_bits=False, _all_hypot
                         'significant_but_rejected': rejected,
                         'rules': {'bl_delta_symbols': BL_DELTA_SYMBOLS, 'pm_floor': PM_FLOOR,
                                   'f2_agreement_floor': F2_AGREEMENT_FLOOR,
+                                  'payload_consistency_min': PAYLOAD_CONSISTENCY_MIN,
                                   'serial_agreement_max': SERIAL_AGREEMENT_MAX},
                         'families': [{'name': 'F1_burst_code',
                                       'weight': FAMILY_WEIGHTS['F1_burst_code'],

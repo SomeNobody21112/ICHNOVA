@@ -16,7 +16,7 @@
 | **BENCHMARK** | Every SPACE-BENCH-derived screen, number, or figure |
 | **EXPERIMENTAL** | 8PSK/16-QAM anywhere they are mentioned; any feature behind a flag; the fingerprint/similarity features |
 | **NOT ESTABLISHED** | Anything implemented but unvalidated at space conditions (block-LDPC TM; real-capture space validation; field deployment; TLS; pen test; and, within row 6, trajectory measurement / classification / receipt — D1, D2, D8) |
-| **MEASURED LIMITATION** | Time-varying carrier (Doppler). The experiment has run: wrong payload beneath a true structural claim in **54 of 96** treated captures, **0 of 96** on static controls (2026-09-25, `reports/space/DOPPLER_EXPERIMENT_RESULTS.md`). This label is **stronger than NOT ESTABLISHED** and replaces it for Doppler: the answer is known and it is negative. Any statement about decoding must carry the **static-carrier** qualifier, and the three-outcome guarantee must never be presented in a way that implies a *payload* guarantee. |
+| **MEASURED LIMITATION** | Time-varying carrier (Doppler). The experiment has run: wrong payload beneath a true structural claim in **54 of 96** treated captures, **0 of 96** on static controls (2026-09-25, `reports/space/DOPPLER_EXPERIMENT_RESULTS.md`). This label is **stronger than NOT ESTABLISHED** and replaces it for Doppler: the answer is known and it is negative. Any statement about decoding must carry the **static-carrier** qualifier, and the three-outcome guarantee must never be presented in a way that implies a *payload* guarantee. **Update 2026-09-27: the label STANDS.** `PAYLOAD_CONSISTENCY_MIN` is now integrated, so such a payload is **withheld** instead of published (`PAYLOAD_GATE_RESULTS.md`; 52 of those 54 captures become `SIGNAL_NO_CODE` with the reason given). The payload is still **not recovered** — the limitation is unchanged, it is merely no longer asserted, and 2 of the 54 still clear the floor. |
 | **PARTIALLY SUPPORTED** | CCSDS layers where only part of the semantics exist (transfer frames, CLTU, modulation assumptions) |
 | **NOT SUPPORTED** | CCSDS layers not implemented (block-LDPC TM, turbo, packet semantics, GMSK, PCM/PSK/PM carriers) |
 
@@ -27,6 +27,12 @@
 > "ICHNOVA's blind-inference core and refusal discipline are validated within its documented benchmark scope; controlled time-varying-carrier testing has identified a measured limitation in payload reliability."
 
 Permitted variants must keep **both halves** — the validated scope *and* the measured limitation. Dropping the second half is a false claim by omission.
+
+**PERMITTED as of 2026-09-27, because the behaviour now ships** (`PAYLOAD_GATE_RESULTS.md`, `PAYLOAD_CONSISTENCY_MIN` in `src/pipeline.py`):
+
+> "Where the decoded payload does not reproduce the observed stream, ICHNOVA withholds it and reports SIGNAL_NO_CODE with the statistic and floor that refused it, keeping the structural claim the evidence supports."
+
+Measured before integration and re-measured after: 0 of 1,278 previously-correct decodes lost; bench-v1 30/30; bench-v2 sealed 9/9 criteria with false accepts **3 → 0**; null set 0/900 false accepts. **This may NOT be stated as "ICHNOVA handles Doppler" or as a payload capability** — it is a refusal, not a recovery, and the measured limitation above is unchanged.
 
 **FORBIDDEN — each of these is prohibited unless and until future evidence establishes it:**
 

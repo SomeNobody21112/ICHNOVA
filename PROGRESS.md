@@ -4,8 +4,10 @@
 
 - **The result, in one line.** Under a carrier that **moves during the capture**, the engine kept signal
   structure correct in **all 192 of 192** sealed captures and published a **wrong payload in
-  54 of 96** treated captures (0 of 96 on static controls), with no refusal available
-  from today's gates. The decode verdict is therefore scoped to a carrier that is **static within the capture**.
+  54 of 96** treated captures (0 of 96 on static controls), with no refusal available from the gates that existed
+  at the time. The decode verdict is therefore scoped to a carrier that is **static within the capture**.
+  **Superseded in part on 2026-09-27:** `PAYLOAD_CONSISTENCY_MIN` is now integrated and withholds such a payload
+  (`reports/space/PAYLOAD_GATE_RESULTS.md`); 52 of those 54 become refusals.
   Criteria were pre-registered before the first vector existed; the run was published as-is.
 - **Mechanism (SUPPORTED).** Five arms on the same bytes: removing the injected carrier motion exactly
   eliminated the failure (0 wrong payloads), the shipped engine gave 57, tracking-ablated 77, a blind estimator 3.

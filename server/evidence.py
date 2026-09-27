@@ -108,7 +108,10 @@ def build_pack(iq, fs, pack_id, source, capture_meta=None, truth=None, fs_source
     r = analyze_iq(iq, fs=fs, _top_k=20, _all_hypotheses=True, fs_source=fs_source)
     payload = np.asarray(r['payload_bits']).astype(int).tolist()
     result = {k: r[k] for k in ('status', 'code', 'interleaver', 'modulation', 'sps', 'symbol_rate_est',
-                                'symbol_rate_norm', 'cfo', 'beta', 'phase', 'rotation', 'runtime')}
+                                'symbol_rate_norm', 'cfo', 'beta', 'phase', 'rotation', 'runtime',
+                                # why a payload was withheld, when it was: this rides in the
+                                # SIGNED receipt so the refusal is explained, not silent
+                                'payload_withheld')}
     result['payload_bits'] = payload[:512]
     result['payload_len'] = len(payload)
     allh = r['diagnostics'].get('all_hypotheses')

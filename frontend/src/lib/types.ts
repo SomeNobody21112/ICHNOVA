@@ -76,11 +76,15 @@ export interface EvidencePack {
     status: Status; code: string | null; interleaver: number[] | null; modulation: string | null; sps: number | null
     symbol_rate_est: number | null; symbol_rate_norm?: number | null; cfo: number | null; beta: number; phase: number | null; rotation: number | null
     runtime: number; payload_bits: number[]; payload_len: number
+    /** Set when an accepted structure's payload failed the re-encode consistency floor:
+     *  the structure stands, the payload is withheld. Rides in the signed receipt. */
+    payload_withheld?: { family: string; statistic: string; value: number; floor: number
+      reason: string; structure_retained: string } | null
   }
   accept: {
     log10_p: number; log10_threshold: number; n_hypotheses: number; alpha: number
     accepted_hypothesis: Hyp | null; significant_but_rejected: RejectedHyp[]
-    rules: { bl_delta_symbols: number; pm_floor: number }
+    rules: { bl_delta_symbols: number; pm_floor: number; payload_consistency_min?: number }
   }
   diagnostics: {
     cfo_candidates: { cfo: number; order: number; peak_to_floor_db: number; log10_p: number }[]

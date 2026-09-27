@@ -71,16 +71,35 @@ def test_the_tracker_still_declines_short_captures_and_keeps_its_signature():
     assert trace == {}, 'nothing is reported when the tracker declines to run'
 
 
-def test_verdicts_on_a_sealed_capture_are_unchanged():
-    """The engine never passes a trace; its published verdict must match the sealed record."""
+def test_the_payload_gate_now_withholds_this_sealed_capture():
+    """This test used to assert the verdict still matched the sealed record. It no longer can, and
+    the reason is a deliberate, measured change rather than a regression.
+
+    `linear_0098` is one of the 54 sealed-Doppler captures that published a wrong payload beneath a
+    CORRECT structural claim. `PAYLOAD_CONSISTENCY_MIN` was integrated afterwards
+    (reports/space/PAYLOAD_GATE_RESULTS.md), so the engine now withholds that payload. The sealed
+    record is left exactly as it was — it is the evidence that the old behaviour existed — and this
+    test pins the new behaviour against it.
+
+    The instrumentation-neutrality this test originally guarded is covered directly by
+    test_the_trace_does_not_change_what_the_tracker_returns.
+    """
     rows = {json.loads(l)['file']: json.loads(l)
             for l in open(os.path.join(ROOT, 'results', 'space_doppler_rows.jsonl'),
                           encoding='utf-8')}
     name = 'linear_0098'
+    assert rows[name]['status'] == 'DECODED', 'the sealed record must keep the pre-gate verdict'
     r = pipeline.analyze_iq(load_iq(os.path.join(ROOT, 'data', 'space_bench', 'doppler',
                                                  name + '.iq')))
-    assert r['status'] == rows[name]['status'] == 'DECODED'
-    assert r['code'] == rows[name]['est_code']
+    # the payload is withheld, with a reason naming the statistic, its value and the floor
+    assert r['status'] == 'SIGNAL_NO_CODE' and r['code'] is None
+    assert len(r['payload_bits']) == 0
+    w = r['payload_withheld']
+    assert w and w['statistic'] == 'consistency'
+    assert w['value'] < w['floor'] == pipeline.PAYLOAD_CONSISTENCY_MIN
+    # ...while the structure the evidence does support is still reported
+    assert (r.get('stream_code') or {}).get('accepted') is True
+    assert 'stream_code' in [layer['layer'] for layer in r['structure']['layers']]
 
 
 def test_the_slip_rule_is_the_committed_one():

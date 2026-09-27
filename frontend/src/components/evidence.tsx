@@ -289,7 +289,11 @@ export function WhyPanel({ pack, inVerdict }: { pack: EvidencePack; inVerdict?: 
       {r.status !== 'DECODED' && !inVerdict && (
         <motion.div className="refusal" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.16 }}>
           <strong>THE SYSTEM REFUSED TO GUESS.</strong>
-          <span className="dim">{r.status === 'SIGNAL_NO_CODE' ? 'A signal is present, but no code could be established. No payload is asserted.' : 'The evidence does not support any interpretation. No payload is asserted.'}</span>
+          <span className="dim">{r.payload_withheld
+            // a structure WAS established here; it is the payload that was withheld, so the
+            // generic "no code could be established" line would be untrue for this record
+            ? `${r.payload_withheld.structure_retained}. ${r.payload_withheld.reason}.`
+            : r.status === 'SIGNAL_NO_CODE' ? 'A signal is present, but no code could be established. No payload is asserted.' : 'The evidence does not support any interpretation. No payload is asserted.'}</span>
         </motion.div>
       )}
     </Panel>
