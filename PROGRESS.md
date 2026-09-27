@@ -1,5 +1,38 @@
 # SIH26147 — Session Progress Report
 
+## Observatory: a satellite view into the live pipeline — 27 September 2026
+
+- **The receiver step is now the centrepiece.** `/app/observatory` opens on an **orthographic satellite
+  view of Earth** carrying every verified transmitter in the registry. Pick a region and the globe
+  **flies to it** (one rAF loop, eased, shortest way round the sphere), the landmass lights up, and a
+  **great-circle arc draws to each transmitter that place can hear** — d3-geo renders a LineString as a
+  true geodesic under this projection, so the arcs are real paths, not decoration. The horizon hides the
+  far side of the planet exactly as the Earth does.
+- **What was wrong before, and the actual fix.** The first attempt was a small fixed-size dial whose
+  labels collided. Labels are now placed *after* projection and pushed apart per column with leader
+  lines keeping each one tied to its marker (`placeLabels` in `src/lib/observatory.ts`). Verified as a
+  property test: **200 random layouts up to 60 points, zero overlap**. The globe also sizes itself to
+  its container through a `ResizeObserver`, so it is as large as the panel allows on any screen instead
+  of capped at 420 px.
+- **Three acts, not four.** WORLD (location *and* receiver, together) → RF → CAPTURE. Choosing a region
+  and choosing a source no longer cost two separate screens.
+- **Geography is real and self-hosted.** `world-atlas@2.0.2` (ISC; Natural Earth, public domain) is
+  vendored to `frontend/public/geo/countries-110m.json` — 105 kB served by our own host, so the globe
+  works air-gapped and stays out of the JS bundle.
+- **Nothing is faked.** Stage, provenance and every blocked state still come from real application
+  state: the phases the server emits, the spectrum rows that actually arrived, and the engine's own
+  verdict. A failed session start reports **DISCONNECTED**; rows that stop report **STALE**; a capture
+  that ends without a verdict reports **INSUFFICIENT CAPTURE**; and a verdict always beats a stale link
+  so a real answer is never hidden. All 12 stage paths re-verified in node.
+- **Also fixed:** the *Needs attention* overlap. `.pri` had a hard `width` with `white-space: nowrap`,
+  so at larger text-size settings the priority label spilled out of its box into the title. Now
+  `min-width`, which keeps the column alignment the fixed width existed for.
+- **Checks.** 258 / 258 backend tests, `tsc -b` clean, new files lint-clean, `vite build` passes,
+  motion fully disabled under `prefers-reduced-motion`, the world grid collapses at 1100 px. No engine
+  file, threshold, sealed dataset, Space report or the Request-B constant was touched.
+
+---
+
 ## Space-ground extension: measured, bounded, frozen — 27 September 2026
 
 - **The result, in one line.** Under a carrier that **moves during the capture**, the engine kept signal

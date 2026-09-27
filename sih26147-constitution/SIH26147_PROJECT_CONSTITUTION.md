@@ -456,7 +456,7 @@ FSK tone-pair search: one STFT per shift class (30 s → 2.5 s on 125 s). RRC ta
 | 25 | AM characterisation + one-sided passband detection | **PROVEN on real signal** | AIR Chennai | DRM (AIR digital MW) |
 | 26 | MW carrier census vs official list | **PROVEN on real signal** | 5/5 | Wider band, other cities |
 | 27 | Live reception (KiwiSDR, SSE) | **PROVEN** | Live DWD and WWV sessions; replays from same processor | Receiver delay calibration |
-| 28 | Operator console (ICHNOVA) | **FUNCTIONAL** | 16 routes, both themes, CI build (§27) | Usability testing with operators |
+| 28 | Operator console (ICHNOVA) | **FUNCTIONAL** | 18 routes, both themes, CI build (§27). Includes `/app/space` (the Space evidence, read from `results/`) and `/app/observatory` — an orthographic satellite view over the station registry whose stage, provenance and blocked states are derived only from real link and engine state (`src/lib/observatory.ts`) | Usability testing with operators |
 | 29 | Evidence packs / reports / audit trail export | **FUNCTIONAL** | PDF (print), JSON, CSV | Signed packs |
 | 30 | Google sign-in | **FUNCTIONAL (prototype)** | Client-side token decode, not verified server-side | Server-side verification / on-prem IdP |
 | 31 | Signal genome similarity | **EXPERIMENTAL — measured on synthetic data** | `src/fingerprint.py` (engine-measured features, not in the decision path) + `eval/similarity.py`: top-1 same-class 54.2 % (95 % CI 50.5–57.9 %) vs 20.4 % random and 31.5 % verdict-only on 675 held-out null-set queries (`reports/PHASE2_SIMILARITY_REPORT.md`) | Validation on real recordings |
@@ -606,8 +606,8 @@ Every endpoint requires authentication (§25.8) except `/api/health` and the sig
 |---|---|
 | Engine | Python 3.11; **numpy 2.4.2, scipy 1.17.0 — the entire `requirements.txt`**; no GNU Radio, no ML framework |
 | Web tier | Python stdlib only (`http.server`, SSE, websocket client) |
-| Console | React 19, TypeScript, Vite 8, react-router 7, framer-motion, d3-geo + topojson-client, IBM Plex (`@fontsource`), `@react-oauth/google`; hand-written CSS; oxlint |
-| Map data | DataMeet India boundaries, Survey of India depiction (CC BY 4.0) |
+| Console | React 19, TypeScript, Vite 8, react-router 7, framer-motion, d3-geo + topojson-client, `world-atlas` (ISC, data only), IBM Plex (`@fontsource`), `@react-oauth/google`; hand-written CSS; oxlint |
+| Map data | DataMeet India boundaries, Survey of India depiction (CC BY 4.0); world coastlines and borders from Natural Earth via `world-atlas` (**public domain**), vendored to `frontend/public/geo/countries-110m.json` so the satellite view works air-gapped (§9.2) |
 | Tests / CI | pytest; GitHub Actions |
 
 Rules: prefer MIT/BSD/Apache; pin versions; offline wheels for air-gapped installs; **never embed GPL code** in the deliverable (FFTW excluded if liquid-dsp is ever used). Optional references: AFF3CT (MIT), liquid-dsp (MIT without FFTW).

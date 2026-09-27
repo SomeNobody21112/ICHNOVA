@@ -1094,23 +1094,45 @@ details.more[open] > summary::before { content: '−'; }
 .obs-loc-n { font-family: var(--mono); font-size: 11px; color: var(--cyan); }
 .obs-loc-sites { font-size: 11.5px; color: var(--muted); overflow-wrap: anywhere; }
 
-.obs-dial-wrap { display: grid; place-items: center; padding: 14px; }
-.obs-dial { width: 100%; max-width: 420px; height: auto; overflow: visible; }
-.obs-ring, .obs-cross { fill: none; stroke: var(--line); stroke-width: 1; }
-.obs-cross { stroke-dasharray: 2 5; }
-.obs-tick { font-family: var(--mono); font-size: 8.5px; fill: var(--muted); }
-.obs-here { fill: var(--cyan); }
-.obs-pulse { fill: none; stroke: var(--cyan); stroke-width: 1.2; transform-origin: center;
-  animation: obs-ripple 3.4s ease-out infinite; }
-@keyframes obs-ripple { 0% { transform: scale(1); opacity: .55; } 100% { transform: scale(9); opacity: 0; } }
-.obs-mark { cursor: pointer; }
-.obs-arc { stroke: var(--line-2); stroke-width: 1; stroke-dasharray: 3 4; }
-.obs-node { fill: var(--panel); stroke: var(--text-2); stroke-width: 1.4; transition: fill .18s, stroke .18s; }
-.obs-label { font-size: 8.5px; fill: var(--muted); }
-.obs-mark:hover .obs-node, .obs-mark:focus-visible .obs-node, .obs-mark.on .obs-node { fill: var(--cyan); stroke: var(--cyan); }
-.obs-mark:hover .obs-label, .obs-mark.on .obs-label { fill: var(--text); }
-.obs-mark:hover .obs-arc, .obs-mark.on .obs-arc { stroke: var(--cyan); stroke-dasharray: none; }
-.obs-mark:focus-visible { outline: none; }
+.obs-world { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(300px, 0.85fr); gap: 16px;
+  align-items: start; }
+.obs-globe-pane { border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--panel);
+  overflow: hidden; }
+.obs-globe-cap { padding: 11px 16px 13px; border-top: 1px solid var(--line); font-size: 12.5px;
+  color: var(--text-2); }
+.obs-side { display: grid; gap: 16px; align-content: start; }
+
+/* --- the satellite view. Land and borders are Natural Earth (public domain) served from /geo. --- */
+.globe-box { position: relative; display: grid; place-items: center; }
+.globe { display: block; }
+.globe-wait { position: absolute; font-size: 11.5px; color: var(--muted); }
+.globe-grat { fill: none; stroke: var(--line); stroke-width: 0.5; opacity: 0.55; }
+.globe-land { fill: var(--line); opacity: 0.85; stroke: none; }
+.globe-border { fill: none; stroke: var(--bg-2); stroke-width: 0.45; opacity: 0.9; }
+.globe-hi { fill: var(--cyan); fill-opacity: 0.32; stroke: var(--cyan); stroke-width: 0.9; }
+.globe-limb { fill: none; stroke: var(--line-2); stroke-width: 1; }
+
+.globe-arc { fill: none; stroke: var(--cyan); stroke-width: 1; opacity: 0.4;
+  stroke-dasharray: 1 260; animation: globe-draw 1.5s cubic-bezier(.16,1,.3,1) forwards; }
+.globe-arc.on { opacity: 0.95; stroke-width: 1.7; }
+@keyframes globe-draw { to { stroke-dasharray: 260 0; } }
+
+.globe-leader { fill: none; stroke: var(--line-2); stroke-width: 0.7; opacity: 0.8; }
+.globe-dot { fill: var(--panel); stroke: var(--text-2); stroke-width: 1.5; transition: fill .2s, stroke .2s; }
+.globe-name { font-size: 10.5px; fill: var(--text-2); paint-order: stroke; stroke: var(--bg);
+  stroke-width: 3px; stroke-linejoin: round; pointer-events: none; }
+.globe-mark { cursor: pointer; }
+.globe-mark:hover .globe-dot, .globe-mark:focus-visible .globe-dot,
+.globe-mark.on .globe-dot { fill: var(--cyan); stroke: var(--cyan); }
+.globe-mark:hover .globe-name, .globe-mark.on .globe-name { fill: var(--text); }
+.globe-mark:focus-visible { outline: none; }
+.globe-mark:focus-visible .globe-dot { stroke: var(--ring); stroke-width: 2.4; }
+.globe-mark.here .globe-dot { fill: var(--cyan); stroke: var(--cyan); }
+.globe-mark.here .globe-name { fill: var(--text); font-weight: 600; }
+.globe-ripple { fill: none; stroke: var(--cyan); stroke-width: 1.2; transform-box: fill-box;
+  transform-origin: center; animation: globe-ping 2.8s ease-out infinite; }
+@keyframes globe-ping { 0% { transform: scale(.5); opacity: .7; } 100% { transform: scale(4.5); opacity: 0; } }
+
 .obs-freq { font-size: 12px; color: var(--cyan); min-width: 5.6rem; }
 
 .obs-rf { text-align: center; padding: 26px 16px 22px; border: 1px solid var(--line);
@@ -1157,7 +1179,10 @@ details.more[open] > summary::before { content: '−'; }
 .obs-half.no .obs-half-v { color: var(--amber); }
 
 @media (prefers-reduced-motion: reduce) {
-  .obs-pulse, .obs-stage.on .obs-stage-dot { animation: none; }
-  .obs-pulse { opacity: .4; }
+  .obs-stage.on .obs-stage-dot, .globe-ripple, .globe-arc { animation: none; }
+  .globe-arc { stroke-dasharray: none; }
+  .globe-ripple { opacity: .35; }
   .obs-loc:hover { transform: none; }
 }
+
+@media (max-width: 1100px) { .obs-world { grid-template-columns: minmax(0, 1fr); } }

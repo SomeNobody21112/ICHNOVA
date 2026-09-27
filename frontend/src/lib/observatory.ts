@@ -134,3 +134,46 @@ export function branches(st: LiveState, station: StationInfo): Branch[] {
     state: (!answer ? 'open' : k.ok && answer.status === 'DECODED' ? 'won' : 'lost') as Branch['state'],
   }))
 }
+
+/* ------------------------------------------- globe helpers (pure, so they can be checked alone) */
+
+/** Natural Earth spells a few countries differently from the station registry. */
+const NE_ALIAS: Record<string, string> = { 'United States': 'United States of America' }
+export const neName = (c: string) => NE_ALIAS[c] ?? c
+
+/** Shortest signed way round the sphere: -170 to +170 is 20 degrees, not 340. */
+export function shortestTurn(from: number, to: number): number {
+  let d = (to - from) % 360
+  if (d > 180) d -= 360
+  if (d < -180) d += 360
+  return d
+}
+
+export interface LabelMark { x: number; y: number; visible: boolean }
+export interface LabelPlaced { ly: number; side: 1 | -1 }
+
+/**
+ * Place labels after projection, then push them apart vertically so they never overlap — the reason
+ * the first attempt at this view was unreadable. Each column (left of centre, right of centre) is
+ * spaced independently, then nudged back inside the frame.
+ */
+export function placeLabels<T extends LabelMark>(marks: T[], cx: number, minGap: number,
+  top = 10, bottom = Infinity): (T & LabelPlaced)[] {
+  const out = marks.map((m) => ({ ...m, ly: m.y, side: (m.x >= cx ? 1 : -1) as 1 | -1 }))
+  for (const side of [1, -1] as const) {
+    const col = out.filter((m) => m.visible && m.side === side).sort((a, b) => a.y - b.y)
+    for (let i = 1; i < col.length; i++) {
+      if (col[i].ly - col[i - 1].ly < minGap) col[i].ly = col[i - 1].ly + minGap
+    }
+    const over = col.length ? col[col.length - 1].ly - bottom : 0
+    if (over > 0) for (const m of col) m.ly -= over
+    for (let i = col.length - 1; i > 0; i--) {
+      if (col[i].ly - col[i - 1].ly < minGap) col[i - 1].ly = col[i].ly - minGap
+    }
+    if (col.length && col[0].ly < top) {
+      const up = top - col[0].ly
+      for (const m of col) m.ly += up
+    }
+  }
+  return out
+}

@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { useEffect, useMemo, useState } from 'react'
+import { Globe, type GlobePoint } from '../components/Globe'
 import { EvidenceSteps, PathCard, progressSteps, RealWaterfall } from '../components/liveviz'
 import { Icon, Loading, Panel, Stamp, Tag } from '../components/ui'
 import { api } from '../lib/api'
@@ -8,71 +9,31 @@ import { bearingDeg, branches, deriveStage, greatCircleKm, lightMs, PROVENANCE_N
 
 /** The Observatory: a location-first way into the live pipeline.
  *
- *  Four acts — LOCATION → RECEIVER → RF → CAPTURE/DECISION — over the real station registry
- *  (`server/stations.py`, served as /live/stations.json). No location or receiver is hard-coded: the
- *  view is built from whatever the registry holds, so it grows when a verified receiver is added.
+ *  Three acts — WORLD → RF → CAPTURE/DECISION — over the real station registry (`server/stations.py`,
+ *  served as /live/stations.json). No location or receiver is hard-coded: the view is built from
+ *  whatever the registry holds, so it grows the moment a verified receiver is added.
  *
  *  Every animated state is derived from real application state via `lib/observatory.ts`. A LIVE badge
  *  appears only for an actual server session; a recorded capture is always labelled RECORDED. There is
  *  no code path that animates a successful analysis the engine did not produce.
  */
 
-type Act = 'location' | 'source' | 'rf' | 'capture'
+type Act = 'world' | 'rf' | 'capture'
 type Source = { kind: 'live'; session: string; key: string } | { kind: 'replay'; id: string; key: string }
 type Entry = { key: string; station: StationInfo }
-const ACTS: Act[] = ['location', 'source', 'rf', 'capture']
+const ACTS: Act[] = ['world', 'rf', 'capture']
+const ACT_LABEL: Record<Act, string> = { world: 'World', rf: 'RF', capture: 'Capture' }
 
 const fmtKhz = (k: number) => (k >= 1000 ? `${(k / 1000).toFixed(3)} MHz` : `${k} kHz`)
 const COMPASS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW']
 const compassOf = (b: number) => COMPASS[Math.round(b / 45) % 8]
-
-/** The instrument dial: transmitters placed by true bearing and great-circle distance from the
- *  selected location. Real geometry, which is why it is a dial and not a map clone. */
-function Dial({ from, entries, onPick, active }: {
-  from: StationInfo; entries: Entry[]; onPick: (e: Entry) => void; active?: string
-}) {
-  const R = 132
-  const marks = entries.map((e) => {
-    const km = greatCircleKm(from.site, e.station.site)
-    const b = bearingDeg(from.site, e.station.site)
-    // log radius: a 200 km hop and a 12,000 km hop both have to be legible on one dial
-    const r = km < 1 ? 14 : Math.min(R - 16, 16 + (Math.log10(km) / Math.log10(20000)) * (R - 30))
-    const th = ((b - 90) * Math.PI) / 180
-    return { e, km, x: Math.cos(th) * r, y: Math.sin(th) * r }
-  })
-  return (
-    <svg viewBox={`${-R} ${-R} ${R * 2} ${R * 2}`} className="obs-dial" role="group"
-      aria-label="Transmitters by bearing and distance from the selected location">
-      {[0.34, 0.62, 0.9].map((f) => <circle key={f} r={R * f} className="obs-ring" />)}
-      {[0, 45, 90, 135].map((a) => (
-        <line key={a} x1={-R * 0.9} y1={0} x2={R * 0.9} y2={0} className="obs-cross"
-          transform={`rotate(${a})`} />
-      ))}
-      {COMPASS.map((c, i) => {
-        const th = ((i * 45 - 90) * Math.PI) / 180
-        return <text key={c} x={Math.cos(th) * (R - 5)} y={Math.sin(th) * (R - 5)}
-          className="obs-tick" textAnchor="middle" dominantBaseline="middle">{c}</text>
-      })}
-      <circle r={5} className="obs-here" />
-      <circle r={5} className="obs-pulse" />
-      {marks.map(({ e, x, y, km }) => (
-        <g key={e.key} className={`obs-mark${active === e.key ? ' on' : ''}`} tabIndex={0} role="button"
-          aria-label={`${e.station.name}, ${Math.round(km)} kilometres`}
-          onClick={() => onPick(e)} onKeyDown={(ev) => { if (ev.key === 'Enter') onPick(e) }}>
-          <line x1={0} y1={0} x2={x} y2={y} className="obs-arc" />
-          <circle cx={x} cy={y} r={4.5} className="obs-node" />
-          <text x={x} y={y - 9} textAnchor="middle" className="obs-label">{e.station.name}</text>
-        </g>
-      ))}
-    </svg>
-  )
-}
+const shortSite = (s: string) => s.split('(')[0].trim()
 
 export default function Observatory() {
   const [doc, setDoc] = useState<StationsDoc | null>(null)
   const [replays, setReplays] = useState<ReplayIndexEntry[]>([])
-  const [act, setAct] = useState<Act>('location')
-  const [country, setCountry] = useState<string | null>(null)
+  const [act, setAct] = useState<Act>('world')
+  const [anchorKey, setAnchorKey] = useState<string | null>(null)
   const [picked, setPicked] = useState<Entry | null>(null)
   const [source, setSource] = useState<Source | null>(null)
   const [replayDoc, setReplayDoc] = useState<ReplayDoc | null>(null)
@@ -106,6 +67,8 @@ export default function Observatory() {
 
   const entries: Entry[] = useMemo(
     () => Object.entries(doc?.stations ?? {}).map(([key, station]) => ({ key, station })), [doc])
+
+  /** India first: it is the problem statement's country, and it holds one verified source today. */
   const byCountry = useMemo(() => {
     const m = new Map<string, Entry[]>()
     for (const e of entries) {
@@ -117,15 +80,31 @@ export default function Observatory() {
       : a[0].localeCompare(b[0])))
   }, [entries])
 
-  const anchor = useMemo(
-    () => (country ? byCountry.find(([c]) => c === country)?.[1][0]?.station ?? null : null),
-    [country, byCountry])
+  const points: GlobePoint[] = useMemo(() => entries.map(({ key, station }) => ({
+    key, name: station.name, lat: station.site.lat, lon: station.site.lon, country: station.country,
+  })), [entries])
+
+  const anchorEntry = useMemo(
+    () => entries.find((e) => e.key === anchorKey) ?? null, [entries, anchorKey])
+  const anchorPoint = useMemo(
+    () => points.find((p) => p.key === anchorKey) ?? null, [points, anchorKey])
+  const anchor = anchorEntry?.station ?? null
 
   const provenance: Provenance | null = provenanceOf(source?.kind ?? null)
   const stage = useMemo(() => deriveStage(st, feedRows.n, feedRows.at, now), [st, feedRows, now])
   const answer = st.result?.answer
   const replayFor = (key: string) => replays.find((r) => r.station_key === key) ?? null
   const actIdx = ACTS.indexOf(act)
+
+  /** Ranked by how far the signal has to travel from where we are listening. */
+  const reachable = useMemo(() => {
+    if (!anchor) return []
+    return entries.map((e) => ({
+      e,
+      km: greatCircleKm(anchor.site, e.station.site),
+      bearing: bearingDeg(anchor.site, e.station.site),
+    })).sort((a, b) => a.km - b.km)
+  }, [entries, anchor])
 
   async function startLive(e: Entry) {
     setStarting(true); setStartErr(null); setFeedRows({ n: 0, at: 0 })
@@ -157,6 +136,11 @@ export default function Observatory() {
     setSource(null); setReplayDoc(null); setFeedRows({ n: 0, at: 0 }); setStartErr(null); setAct(to)
   }
 
+  function chooseCountry(list: Entry[]) {
+    setAnchorKey(list[0].key)
+    setPicked(null)
+  }
+
   if (!doc) return <div className="page"><Loading label="Loading the receiver registry…" /></div>
 
   return (
@@ -165,8 +149,8 @@ export default function Observatory() {
         <div className="grow">
           <h1 className="page-title">Observatory</h1>
           <div className="page-sub">
-            Pick a location, see which verified transmitters are reachable from it, and watch a capture
-            arrive. Everything here is the real registry and the real link state.
+            Choose where to listen from, see which transmitters that place can actually hear, and watch
+            a capture arrive. The geography, the receivers and the link state are all real.
           </div>
         </div>
         {provenance
@@ -178,82 +162,99 @@ export default function Observatory() {
         {ACTS.map((a, i) => (
           <button key={a} className={`obs-step${act === a ? ' on' : ''}${i < actIdx ? ' past' : ''}`}
             disabled={i > actIdx}
-            onClick={() => { if (a === 'location' || a === 'source') void back(a); else setAct(a) }}>
-            <span className="obs-step-n">{i + 1}</span>
-            {a === 'location' ? 'Location' : a === 'source' ? 'Receiver' : a === 'rf' ? 'RF' : 'Capture'}
+            onClick={() => { if (a === 'world') void back(a); else setAct(a) }}>
+            <span className="obs-step-n">{i + 1}</span>{ACT_LABEL[a]}
           </button>
         ))}
       </nav>
 
       <AnimatePresence mode="wait">
-        {/* ----------------------------------------------------------- ACT 1 · LOCATION */}
-        {act === 'location' && (
-          <motion.div key="loc" className="grid g-2" style={{ alignItems: 'start' }}
-            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
-            <Panel title="Where are we listening from?" sub={`${entries.length} verified transmitters across ${byCountry.length} countries, from the station registry`}>
-              <div className="obs-locs">
-                {byCountry.map(([c, list]) => (
-                  <button key={c} className={`obs-loc${country === c ? ' on' : ''}`}
-                    onClick={() => { setCountry(c); setAct('source') }}>
-                    <span className="obs-loc-name">{c}</span>
-                    <span className="obs-loc-n">{list.length} source{list.length > 1 ? 's' : ''}</span>
-                    <span className="obs-loc-sites">{list.map((e) => e.station.site.name.split('(')[0].trim()).join(' · ')}</span>
-                  </button>
-                ))}
+        {/* ------------------------------------------------- ACT 1 · WORLD (location + receiver) */}
+        {act === 'world' && (
+          <motion.div key="world" className="obs-world"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <div className="obs-globe-pane">
+              <Globe points={points} anchor={anchorPoint} selected={picked?.key ?? null}
+                height={560}
+                onPick={(p) => {
+                  const e = entries.find((x) => x.key === p.key)
+                  if (!e) return
+                  if (!anchorKey) { setAnchorKey(p.key); setPicked(null); return }
+                  setPicked(e); setAct('rf')
+                }} />
+              <div className="obs-globe-cap">
+                {anchor
+                  ? <>Listening from <b>{shortSite(anchor.site.name)}</b>. Each arc is a great-circle path to a transmitter this place can hear — click one to open it.</>
+                  : <>Earth, with every verified transmitter in the registry. Pick a region to listen from.</>}
               </div>
-              <p className="dim" style={{ fontSize: 12.5, marginBottom: 0 }}>
-                India has one verified source today — All India Radio Chennai. This list <i>is</i> the
-                registry, so it grows the moment another verified receiver is added; nothing is hard-coded.
-              </p>
-            </Panel>
-            <Panel title="What this is" sub="A receiver, not a satellite">
-              <ul className="col" style={{ margin: 0, paddingLeft: 18, gap: 9, fontSize: 12.8 }}>
-                <li>Each entry is a <b>real transmitter</b> with an official reference, received through a public receiver.</li>
-                <li>The engine is told only <b>where to listen</b>. Carrier, symbol timing, protocol and payload are established from the signal.</li>
-                <li><b>LIVE</b> means a session is open right now. <b>RECORDED</b> means a real capture replayed with its own timestamps. The badge is never decorative.</li>
-                <li>If the receiver drops, this screen says <b>DISCONNECTED</b>. If the engine refuses, it shows the refusal.</li>
-              </ul>
-            </Panel>
-          </motion.div>
-        )}
+            </div>
 
-        {/* ----------------------------------------------------------- ACT 2 · RECEIVER */}
-        {act === 'source' && anchor && (
-          <motion.div key="src" className="grid g-2" style={{ alignItems: 'start' }}
-            initial={{ opacity: 0, scale: 0.985 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}>
-            <Panel title={`Reachable from ${country}`} sub="Bearing and great-circle distance from the first site in this region — real geometry, not a map" flush>
-              <div className="obs-dial-wrap">
-                <Dial from={anchor} entries={entries} active={picked?.key}
-                  onPick={(e) => { setPicked(e); setAct('rf') }} />
-              </div>
-            </Panel>
-            <Panel title="Sources" sub="Select one to open the RF view" flush>
-              <div className="list">
-                {entries.map((e) => {
-                  const km = greatCircleKm(anchor.site, e.station.site)
-                  const rep = replayFor(e.key)
-                  return (
-                    <div key={e.key} className="list-item" role="link" tabIndex={0}
-                      onClick={() => { setPicked(e); setAct('rf') }}
-                      onKeyDown={(ev) => { if (ev.key === 'Enter') { setPicked(e); setAct('rf') } }}>
-                      <span className="mono obs-freq">{fmtKhz(e.station.frequency_khz)}</span>
-                      <div className="grow" style={{ minWidth: 0 }}>
-                        <div style={{ fontSize: 13 }}>{e.station.name}</div>
-                        <div className="muted" style={{ fontSize: 12 }}>
-                          {e.station.site.name} · {Math.round(km).toLocaleString('en-IN')} km {compassOf(bearingDeg(anchor.site, e.station.site))}
-                        </div>
+            <div className="obs-side">
+              <Panel title="Listen from" sub={`${entries.length} transmitters · ${byCountry.length} countries`} flush>
+                <div className="obs-locs">
+                  {byCountry.map(([c, list]) => (
+                    <button key={c}
+                      className={`obs-loc${anchor?.country === c ? ' on' : ''}`}
+                      onClick={() => chooseCountry(list)}>
+                      <span className="obs-loc-name">{c}</span>
+                      <span className="obs-loc-n">{list.length} source{list.length > 1 ? 's' : ''}</span>
+                      <span className="obs-loc-sites">{list.map((e) => shortSite(e.station.site.name)).join(' · ')}</span>
+                    </button>
+                  ))}
+                </div>
+              </Panel>
+
+              <AnimatePresence>
+                {anchor && (
+                  <motion.div key="reach" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
+                    <Panel title="Reachable from here" sub="Nearest first, by great-circle distance" flush>
+                      <div className="list">
+                        {reachable.map(({ e, km, bearing }, i) => (
+                          <motion.div key={e.key} className="list-item" role="link" tabIndex={0}
+                            initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: Math.min(i * 0.05, 0.4), duration: 0.24 }}
+                            onClick={() => { setPicked(e); setAct('rf') }}
+                            onKeyDown={(ev) => { if (ev.key === 'Enter') { setPicked(e); setAct('rf') } }}>
+                            <span className="mono obs-freq">{fmtKhz(e.station.frequency_khz)}</span>
+                            <div className="grow" style={{ minWidth: 0 }}>
+                              <div style={{ fontSize: 13 }}>{e.station.name}</div>
+                              <div className="muted" style={{ fontSize: 12 }}>
+                                {e.key === anchorKey
+                                  ? 'here · this is the listening site'
+                                  : `${shortSite(e.station.site.name)} · ${Math.round(km).toLocaleString('en-IN')} km ${compassOf(bearing)}`}
+                              </div>
+                            </div>
+                            {replayFor(e.key)
+                              ? <Tag kind="BENCHMARK">RECORDED</Tag>
+                              : <span className="muted mono" style={{ fontSize: 11 }}>live only</span>}
+                          </motion.div>
+                        ))}
                       </div>
-                      {rep ? <Tag kind="BENCHMARK">RECORDED</Tag>
-                        : <span className="muted mono" style={{ fontSize: 11 }}>live only</span>}
-                    </div>
-                  )
-                })}
-              </div>
-            </Panel>
+                    </Panel>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {!anchor && (
+                <Panel title="What this is" sub="A receiver, not a satellite">
+                  <ul className="col" style={{ margin: 0, paddingLeft: 18, gap: 9, fontSize: 12.8 }}>
+                    <li>Every mark is a <b>real transmitter</b> with an official reference, received through a public receiver.</li>
+                    <li>The engine is told only <b>where to listen</b>. Carrier, timing, protocol and payload are established from the signal.</li>
+                    <li><b>LIVE</b> means a session is open now; <b>RECORDED</b> is a real capture replayed. The badge is never decorative.</li>
+                    <li>If the receiver drops, this screen says <b>DISCONNECTED</b>. If the engine refuses, it shows the refusal.</li>
+                  </ul>
+                  <p className="dim" style={{ fontSize: 12.3, marginBottom: 0 }}>
+                    India holds one verified source today. This list <i>is</i> the registry, so it grows the
+                    moment another verified receiver is added — nothing here is hard-coded.
+                  </p>
+                </Panel>
+              )}
+            </div>
           </motion.div>
         )}
 
-        {/* ----------------------------------------------------------- ACT 3 · RF */}
+        {/* ------------------------------------------------------------------ ACT 2 · RF */}
         {act === 'rf' && picked && (
           <motion.div key="rf" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}>
@@ -263,7 +264,9 @@ export default function Observatory() {
               <div className="obs-rf-meta mono">
                 <span>{picked.station.service}</span>
                 <span>{picked.station.site.name}</span>
-                {anchor && <span>{Math.round(greatCircleKm(anchor.site, picked.station.site)).toLocaleString('en-IN')} km · {lightMs(greatCircleKm(anchor.site, picked.station.site)).toFixed(1)} ms light time</span>}
+                {anchor && picked.key !== anchorKey && (
+                  <span>{Math.round(greatCircleKm(anchor.site, picked.station.site)).toLocaleString('en-IN')} km · {lightMs(greatCircleKm(anchor.site, picked.station.site)).toFixed(1)} ms light time</span>
+                )}
               </div>
             </div>
             <div className="grid g-2" style={{ alignItems: 'start', marginTop: 14 }}>
@@ -276,6 +279,7 @@ export default function Observatory() {
                   {replayFor(picked.key)
                     ? <button className="btn" onClick={() => startReplay(picked)}>Replay recorded capture</button>
                     : <span className="muted" style={{ fontSize: 12.5, alignSelf: 'center' }}>No recorded capture for this source yet</span>}
+                  <button className="btn btn-ghost" onClick={() => setAct('world')}>Back to the globe</button>
                 </div>
                 {startErr && (
                   <div className="banner amber" style={{ marginTop: 12 }}>
@@ -299,7 +303,7 @@ export default function Observatory() {
           </motion.div>
         )}
 
-        {/* ----------------------------------------------------------- ACT 4 · CAPTURE */}
+        {/* ------------------------------------------------------------------ ACT 3 · CAPTURE */}
         {act === 'capture' && picked && (
           <motion.div key="cap" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
             {provenance && (
@@ -389,10 +393,9 @@ export default function Observatory() {
             </Panel>
 
             <div className="row-wrap" style={{ gap: 10, marginTop: 14 }}>
-              <button className="btn" onClick={() => void back('source')}>
-                <Icon name="chevron" size={12} /> Another source
+              <button className="btn" onClick={() => void back('world')}>
+                <Icon name="chevron" size={12} /> Back to the globe
               </button>
-              <button className="btn btn-ghost" onClick={() => void back('location')}>Another location</button>
             </div>
           </motion.div>
         )}
