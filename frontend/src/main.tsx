@@ -22,7 +22,7 @@ const load = {
   Review: () => import('./pages/Review'), Incidents: () => import('./pages/Incidents'), Spectrum: () => import('./pages/Spectrum'),
   Genome: () => import('./pages/Genome'), Intelligence: () => import('./pages/Intelligence'), Reports: () => import('./pages/Reports'),
   System: () => import('./pages/System'), Lab: () => import('./pages/Lab'),
-  Space: () => import('./pages/Space'),
+  Space: () => import('./pages/Space'), Observatory: () => import('./pages/Observatory'),
 }
 const Shell = lazy(load.Shell)
 const SignIn = lazy(load.SignIn)
@@ -41,6 +41,7 @@ const Reports = lazy(load.Reports)
 const System = lazy(load.System)
 const Lab = lazy(load.Lab)
 const Space = lazy(load.Space)
+const Observatory = lazy(load.Observatory)
 
 function prefetchAll() {
   const run = () => Object.values(load).forEach((f) => { f().catch(() => { /* retried on navigation */ }) })
@@ -92,6 +93,7 @@ createRoot(document.getElementById('root')!).render(
             <Route path="system" element={<System />} />
             <Route path="lab" element={<Lab />} />
             <Route path="space" element={<Space />} />
+            <Route path="observatory" element={<Observatory />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

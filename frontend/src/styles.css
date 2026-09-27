@@ -377,7 +377,10 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .stamp-lg { font-size: 12.5px; padding: 4px 10px 4px 8px; letter-spacing: 0.1em; }
 .stamp-xl { font-size: 17px; padding: 7px 14px 7px 11px; letter-spacing: 0.12em; gap: 9px; }
 
-.pri { display: inline-flex; align-items: center; gap: 7px; width: 5.6rem; flex: none; font-size: 12px; font-weight: 500; color: var(--text-2); white-space: nowrap; }
+.pri { display: inline-flex; align-items: center; gap: 7px; min-width: 5.6rem; flex: none; font-size: 12px; font-weight: 500; color: var(--text-2); white-space: nowrap; }
+/* min-width, not width: the fixed width kept a column of mixed priorities aligned, but with
+   white-space: nowrap the label spilled out of the box at larger text-size settings and
+   collided with the title beside it. min-width keeps the alignment and lets it grow. */
 .pri svg rect { fill: var(--line-2); }
 .pri-HIGH svg rect.on { fill: var(--red); }
 .pri-HIGH { color: var(--text); font-weight: 600; }
@@ -529,7 +532,9 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
 
 /* ============ Cards / lists ============ */
 .list { display: flex; flex-direction: column; }
-.list-item { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; padding: 10px 16px; min-height: 44px; border-bottom: 1px solid var(--line); cursor: pointer; }
+.list-item { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 10px 16px; min-height: 44px; border-bottom: 1px solid var(--line); cursor: pointer; }
+.list-item > * { min-width: 0; }
+.list-item .grow { overflow-wrap: anywhere; }
 .list-item:hover { background: var(--surface-hover); }
 .list-item:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
 .list-item:last-child { border-bottom: 0; }
@@ -1063,3 +1068,96 @@ details.more[open] > summary::before { content: '−'; }
 .fact-strip b.warn { color: var(--amber); }
 .fact-strip b.no { color: var(--red); }
 @container (max-width: 520px) { .fact-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* ---------------------------------------------------------------- Observatory (live RF experience)
+   Motion is restrained and purposeful: a ripple that means "listening here", arcs that mean "this is
+   the path", a rail that means "this stage was reached". Everything is transform/opacity so it stays
+   on the GPU, and every animation is disabled under prefers-reduced-motion at the end of this block. */
+.obs-rail { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
+.obs-step { display: inline-flex; align-items: center; gap: 8px; padding: 7px 13px; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--panel); color: var(--text-2); font-size: 12.5px;
+  font-weight: 500; cursor: pointer; transition: border-color .18s, color .18s, background .18s; }
+.obs-step:disabled { opacity: 0.45; cursor: default; }
+.obs-step.past { color: var(--text); border-color: var(--line-2); }
+.obs-step.on { color: var(--text); border-color: var(--cyan); background: var(--panel-2); }
+.obs-step-n { display: grid; place-items: center; width: 17px; height: 17px; border-radius: 999px;
+  background: var(--bg-2); font-family: var(--mono); font-size: 10.5px; }
+.obs-step.on .obs-step-n { background: var(--cyan); color: var(--bg); }
+
+.obs-locs { display: grid; grid-template-columns: repeat(auto-fit, minmax(176px, 1fr)); gap: 10px; }
+.obs-loc { display: grid; gap: 3px; text-align: left; padding: 13px 14px; border-radius: var(--r-lg);
+  border: 1px solid var(--line); background: var(--panel-2); cursor: pointer;
+  transition: border-color .18s, transform .18s; }
+.obs-loc:hover { border-color: var(--cyan); transform: translateY(-2px); }
+.obs-loc.on { border-color: var(--cyan); }
+.obs-loc-name { font-size: 14px; font-weight: 600; }
+.obs-loc-n { font-family: var(--mono); font-size: 11px; color: var(--cyan); }
+.obs-loc-sites { font-size: 11.5px; color: var(--muted); overflow-wrap: anywhere; }
+
+.obs-dial-wrap { display: grid; place-items: center; padding: 14px; }
+.obs-dial { width: 100%; max-width: 420px; height: auto; overflow: visible; }
+.obs-ring, .obs-cross { fill: none; stroke: var(--line); stroke-width: 1; }
+.obs-cross { stroke-dasharray: 2 5; }
+.obs-tick { font-family: var(--mono); font-size: 8.5px; fill: var(--muted); }
+.obs-here { fill: var(--cyan); }
+.obs-pulse { fill: none; stroke: var(--cyan); stroke-width: 1.2; transform-origin: center;
+  animation: obs-ripple 3.4s ease-out infinite; }
+@keyframes obs-ripple { 0% { transform: scale(1); opacity: .55; } 100% { transform: scale(9); opacity: 0; } }
+.obs-mark { cursor: pointer; }
+.obs-arc { stroke: var(--line-2); stroke-width: 1; stroke-dasharray: 3 4; }
+.obs-node { fill: var(--panel); stroke: var(--text-2); stroke-width: 1.4; transition: fill .18s, stroke .18s; }
+.obs-label { font-size: 8.5px; fill: var(--muted); }
+.obs-mark:hover .obs-node, .obs-mark:focus-visible .obs-node, .obs-mark.on .obs-node { fill: var(--cyan); stroke: var(--cyan); }
+.obs-mark:hover .obs-label, .obs-mark.on .obs-label { fill: var(--text); }
+.obs-mark:hover .obs-arc, .obs-mark.on .obs-arc { stroke: var(--cyan); stroke-dasharray: none; }
+.obs-mark:focus-visible { outline: none; }
+.obs-freq { font-size: 12px; color: var(--cyan); min-width: 5.6rem; }
+
+.obs-rf { text-align: center; padding: 26px 16px 22px; border: 1px solid var(--line);
+  border-radius: var(--r-lg); background: var(--panel-2); }
+.obs-rf-freq { font-size: clamp(30px, 6vw, 54px); font-weight: 600; letter-spacing: -0.02em;
+  line-height: 1.05; font-variant-numeric: tabular-nums; }
+.obs-rf-sub { font-size: 14px; margin-top: 6px; }
+.obs-rf-meta { display: flex; flex-wrap: wrap; gap: 6px 18px; justify-content: center; margin-top: 12px;
+  font-size: 11.5px; color: var(--muted); }
+
+.obs-stages { display: flex; flex-wrap: wrap; gap: 4px 18px; padding: 12px 14px; margin-bottom: 12px;
+  border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--panel); }
+.obs-stage { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; color: var(--muted); }
+.obs-stage-dot { width: 7px; height: 7px; border-radius: 999px; background: var(--line-2); flex: none; }
+.obs-stage.past { color: var(--text-2); }
+.obs-stage.past .obs-stage-dot { background: var(--green); }
+.obs-stage.on { color: var(--text); font-weight: 600; }
+.obs-stage.on .obs-stage-dot { background: var(--cyan); animation: obs-breathe 1.6s ease-in-out infinite; }
+@keyframes obs-breathe { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .45; transform: scale(1.5); } }
+
+.obs-branches { display: grid; gap: 7px; }
+.obs-branch { display: flex; align-items: center; gap: 9px; padding: 8px 11px; font-size: 12.5px;
+  border: 1px solid var(--line); border-radius: var(--r); background: var(--panel-2);
+  transition: border-color .25s, opacity .25s; }
+.obs-branch-m { font-family: var(--mono); width: 1em; text-align: center; }
+.obs-branch.won { border-color: var(--green); }
+.obs-branch.won .obs-branch-m { color: var(--green); }
+.obs-branch.lost { opacity: .5; }
+.obs-branch.lost .obs-branch-m { color: var(--muted); }
+.obs-branch.open .obs-branch-m { color: var(--cyan); }
+
+.obs-verdict { margin-top: 16px; padding: 18px; border: 1px solid var(--line-2);
+  border-radius: var(--r-lg); background: var(--panel-2); }
+.obs-verdict-head { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+.obs-split { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px;
+  margin-top: 16px; }
+.obs-half { display: grid; gap: 4px; padding: 14px 16px; border-radius: var(--r-lg);
+  border: 1px solid var(--line-2); background: var(--panel); }
+.obs-half-k { font-size: 11px; font-weight: 600; letter-spacing: .06em; color: var(--muted); }
+.obs-half-v { font-family: var(--mono); font-size: 16px; font-weight: 600; }
+.obs-half.ok { border-color: color-mix(in srgb, var(--green) 45%, transparent); }
+.obs-half.ok .obs-half-v { color: var(--green); }
+.obs-half.no { border-color: color-mix(in srgb, var(--amber) 45%, transparent); }
+.obs-half.no .obs-half-v { color: var(--amber); }
+
+@media (prefers-reduced-motion: reduce) {
+  .obs-pulse, .obs-stage.on .obs-stage-dot { animation: none; }
+  .obs-pulse { opacity: .4; }
+  .obs-loc:hover { transform: none; }
+}

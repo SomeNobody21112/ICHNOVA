@@ -15,6 +15,7 @@ const NAV: { sec: string; items: Item[] }[] = [
   { sec: 'Work', items: [
     { to: 'analysis', label: 'Analyse a capture', icon: 'analysis' },
     { to: 'monitor', label: 'Live signals', icon: 'monitor' },
+    { to: 'observatory', label: 'Observatory', icon: 'spectrum' },
     { to: 'review', label: 'Review queue', icon: 'review', badge: 'review' },
   ] },
   { sec: 'Records', items: [
