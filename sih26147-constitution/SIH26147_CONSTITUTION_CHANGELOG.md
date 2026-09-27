@@ -308,4 +308,26 @@ Real spacecraft RF, orbital modelling, carrier-trajectory measurement and Dopple
 
 ---
 
+## v2.7 Payload-reliability gate integrated (2026-09-27)
+
+The first change in the Space branch to alter what the engine **decides**, taken on the evidence of
+`SPACE-PAYLOAD-GATE-01` and measured before it was made.
+
+| Update | Document | Change |
+|---|---|---|
+| Request B measured, then integrated | `reports/space/PAYLOAD_GATE_RESULTS.md` | One named constant `PAYLOAD_CONSISTENCY_MIN = 0.97427`, published in `accept.rules`. Where an accepted continuous-stream hypothesis's re-encode consistency falls below the floor the payload is **withheld**: the verdict is `SIGNAL_NO_CODE`, no code or payload is published, and `result.payload_withheld` carries the statistic, its value, the floor and a plain reason |
+| The bar was set by the no-regression constraint | `PAYLOAD_GATE_RESULTS.md` section 4 | `min(consistency)` over the bench-v2 F2 claims that were already correct - never fitted to the failures it catches. Cost is therefore zero by construction on that population, which makes it an empirical floor rather than a guarantee |
+| Structure is kept, only the unearned claim is dropped | `src/pipeline.py` | F2 stays accepted, so the `stream_code` layer remains in `result['structure']`. The gate is reached only from a would-be `DECODED`, so it can never turn `UNKNOWN` into `SIGNAL_NO_CODE` |
+| The refusal is explained, not silent | `server/evidence.py`, `frontend/src/components/evidence.tsx` | `payload_withheld` rides in the **signed receipt**. The console's refusal copy said "no code could be established", which was untrue for this case, and now states that the structure was retained and why the payload was withheld |
+| Post-integration validation | this entry | bench-v1 sealed **30/30**, 0 false accepts; bench-v2 sealed **9/9 criteria**, `wrong_structure_or_payload` **3/310 to 0/310**, `continuous_stream_code_recall` **16/16** unchanged, `FALSE_ACCEPT` **3 to 0**; null set **0/900** false accepts and 0 coded files decoded wrong; full suite **258 passed** |
+| Claim firewall | `SPACE_CLAIM_FIREWALL.md` sections 2 and 2a | The **MEASURED LIMITATION** label **STANDS** - the payload is withheld, not recovered, and 2 of the 54 measured wrong payloads still clear the floor. One new sentence becomes permitted now that the behaviour ships, and it may **not** be stated as Doppler handling or as a payload capability |
+
+**Classification changes: none.** Time-varying carrier remains a **MEASURED LIMITATION**. Real
+spacecraft RF, orbital modelling and carrier-trajectory measurement remain **NOT ESTABLISHED**. What
+changed is that an unreliable payload is no longer asserted.
+
+**Still not approved:** request D (drift-aware front end) and the rejected carrier estimator.
+
+---
+
 **CHANGELOG COMPLETE**

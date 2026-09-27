@@ -82,7 +82,7 @@ Frontend files are **not** in P0. (P1 touches `frontend/src/components/evidence.
 
 ## 9. GATE REVIEW — 2026-09-25 (recorded, not retro-fitted)
 
-First reviewed against branch `sih-readiness`, commit `3919546`, clean working tree, `python -m pytest -q` → **178 passed**. Re-verified 2026-09-27: **252 passed**, clean tree, the one approved production change delivered (see 9.3).
+First reviewed against branch `sih-readiness`, commit `3919546`, clean working tree, `python -m pytest -q` → **178 passed**. Re-verified 2026-09-27: **258 passed**, clean tree. Two production changes are now delivered: the write-only tracker read-out (see 9.3) and request B, the payload-reliability gate (`PAYLOAD_CONSISTENCY_MIN`, `PAYLOAD_GATE_RESULTS.md`).
 
 ### 9.1 §7 conditions, as assessed
 

@@ -56,7 +56,7 @@ detection calibration (4.2% → 1%) → Es/N0 waterfall
 python src/generate.py sealed        # data/sealed, seed0=99000
 python src/generate.py train         # data/train,  seed0=1000
 
-python -m pytest -q tests                 # 252 passed (178 at this snapshot + the space experiments; see PROGRESS.md)
+python -m pytest -q tests                 # 258 passed (178 at this snapshot + the space experiments; 253 + 5 skipped on a fresh clone - see PROGRESS.md)
 python sealed_test.py                     # must be 30/30, 0 false accepts
 python sealed_test.py data/train 100      # currently 63/100, 0 false accepts
 

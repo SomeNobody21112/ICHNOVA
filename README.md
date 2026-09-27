@@ -4,7 +4,7 @@ Takes a raw IQ capture and, without being told any signal parameters, searches c
 
 Outcomes: **DECODED** (code accepted, Viterbi payload) · **SIGNAL_NO_CODE** (PSK signal detected, no code accepted) · **UNKNOWN** (no evidence).
 
-The decode verdict is validated for a carrier that is **static within the capture**. Under a carrier that moves during the capture — measured on 192 controlled synthetic vectors — signal structure stayed correct in all 192 while the published payload was wrong in 54 of 96 treated captures. That is a **measured limitation**, not an open question; see [Space ground segment](#space-ground-segment).
+The decode verdict is validated for a carrier that is **static within the capture**. Under a carrier that moves during the capture — measured on 192 controlled synthetic vectors — signal structure stayed correct in all 192 while the published payload was wrong in 54 of 96 treated captures. That is a **measured limitation**, not an open question. Since 2026-09-27 the engine **withholds** such a payload instead of publishing it, reporting `SIGNAL_NO_CODE` with the statistic and floor that refused it; the payload is still not *recovered*, so the limitation stands. See [Space ground segment](#space-ground-segment).
 
 **Real transmissions.** The same evidence-first rules run on real, over-the-air government signals received through public KiwiSDR receivers: NIST WWV/WWVB, PTB DCF77, NPL MSF and NICT JJY time codes (decoded blind; decoded minute matches each receiver's GPS clock to within 2–23 ms), the German Weather Service's DDH47 teleprinter (blind 50 Bd / 85 Hz ITA2 decode of its own callsign and frequency) and All India Radio medium-wave carriers matched to Prasar Bharati's official transmitter list. A weak WWVB capture is detected but its time refused. See `reports/REAL_SIGNAL_VALIDATION.md`.
 
@@ -15,7 +15,7 @@ pip install -r requirements.txt pytest
 python src/generate.py sealed        # bench-v1 sealed: 30 files -> data/sealed (seed0=99000)
 python src/generate.py train         # bench-v1 train: 100 files -> data/train (seed0=1000)
 
-python -m pytest -q tests                # 252 tests: engine, catalogue, security, real-signal receivers (recordings/real) + the space experiments
+python -m pytest -q tests                # 258 tests (253 + 5 skipped on a fresh clone: five read benchmark captures, which are regenerated, not committed)
 python sealed_test.py                    # 30/30, 0 false accepts, ~1.5 s
 python sealed_test.py data/train 100     # 63/100, 0 false accepts, ~4.5 s
 ```
@@ -68,6 +68,13 @@ python server/export_space_data.py       # rebuild frontend/public/space.json fo
 - **Now reported as evidence.** The engine publishes how close its phase tracker ran to its own unwrap
   ambiguity (`diagnostics.phase_tracking_validity`). It is write-only: no acceptance, refusal or
   ranking reads it.
+- **A wrong answer became a refusal.** `PAYLOAD_CONSISTENCY_MIN = 0.97427` — one named constant,
+  published in `accept.rules` — withholds a payload whose re-encode consistency is below the floor:
+  the verdict becomes `SIGNAL_NO_CODE`, `result.payload_withheld` carries the reason into the signed
+  receipt, and the structural claim is kept. Measured before integration and re-measured after:
+  **0 of 1,278** working decodes lost, bench-v1 **30/30**, bench-v2 sealed **9/9 criteria** with false
+  accepts **3 → 0**, null set **0/900**, and **52 of 54** Doppler wrong payloads withheld. Two of
+  those 54 still clear the floor (`reports/space/PAYLOAD_GATE_RESULTS.md`).
 - **Not established:** real spacecraft RF (no spacecraft capture exists in this project), orbital
   Doppler modelling, carrier-trajectory measurement, and CCSDS layers outside the searched domain.
 

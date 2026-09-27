@@ -94,7 +94,7 @@ Future experiments use a **new namespace, new criteria file and new experiment I
 
 ## 6. Verification state at this status
 
-`python -m pytest -q` → **252 passed** (178 pre-existing, unchanged, + 74 additive across the nine space experiments and the console export guard). No existing test changed outcome.
+`python -m pytest -q` → **258 passed** (178 pre-existing + 80 additive across the ten space experiments, the console export guard and the payload gate). On a fresh clone it is 253 passed and 5 skipped: those five read benchmark captures, which are regenerated rather than committed (`python eval/space_doppler.py generate`). No pre-existing test changed outcome; one space test was rewritten when the payload gate deliberately changed the verdict it pinned.
 `python sealed_test.py` → **30/30, 0 false accepts**.
 `python eval/space_doppler.py verify` → **192/192 byte-identical**; `python eval/space_doppler_mech.py verify` → **144/144 byte-identical**.
 Protected surfaces (`src/`, `server/`, `frontend/`, `deploy/`, `Dockerfile`, `requirements.txt`, bench-v1/bench-v2 files): **no diff**.
