@@ -94,7 +94,7 @@ Future experiments use a **new namespace, new criteria file and new experiment I
 
 ## 6. Verification state at this status
 
-`python -m pytest -q` → **195 passed** (178 pre-existing, unchanged, + 7 sealed-experiment + 10 mechanism tests, all additive).
+`python -m pytest -q` → **252 passed** (178 pre-existing, unchanged, + 74 additive across the nine space experiments and the console export guard). No existing test changed outcome.
 `python sealed_test.py` → **30/30, 0 false accepts**.
 `python eval/space_doppler.py verify` → **192/192 byte-identical**; `python eval/space_doppler_mech.py verify` → **144/144 byte-identical**.
 Protected surfaces (`src/`, `server/`, `frontend/`, `deploy/`, `Dockerfile`, `requirements.txt`, bench-v1/bench-v2 files): **no diff**.

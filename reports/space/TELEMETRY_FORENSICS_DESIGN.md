@@ -56,6 +56,8 @@ Principle: this screen exposes **evidence, not decoration**. Every value is a me
 | WHY? | Existing WhyPanel + WhatWouldProveIt + assumption ledger (CCSDS profile §3) |
 | Receipt link | Existing ReceiptPanel — FACT |
 
+> **STATUS NOTE (2026-09-27, added after measurement).** The trajectory chart this design centres on is **NOT ESTABLISHED and not buildable as specified**: `TRACK_READOUT_RESULTS.md` measured that the shipped `_track_phase` is a piecewise-constant phase estimator with **no trajectory model**, diverging from a known trajectory by a median worst error of 273-470 rad on a moving carrier. What the engine does publish is a scalar unwrap-validity margin (`phase_tracking_validity`), which is not a trajectory. The D2 classification rule below is likewise NOT ESTABLISHED. This document is retained as the original design record; it is not a build plan.
+
 The screen is thus **an arrangement over existing, tested components** plus one new read-only trajectory chart — deliberately no new inference, no new numbers, nothing that could disagree with the evidence pack.
 
 ## 3. Hard display rules

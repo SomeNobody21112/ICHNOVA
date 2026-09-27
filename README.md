@@ -4,6 +4,8 @@ Takes a raw IQ capture and, without being told any signal parameters, searches c
 
 Outcomes: **DECODED** (code accepted, Viterbi payload) · **SIGNAL_NO_CODE** (PSK signal detected, no code accepted) · **UNKNOWN** (no evidence).
 
+The decode verdict is validated for a carrier that is **static within the capture**. Under a carrier that moves during the capture — measured on 192 controlled synthetic vectors — signal structure stayed correct in all 192 while the published payload was wrong in 54 of 96 treated captures. That is a **measured limitation**, not an open question; see [Space ground segment](#space-ground-segment).
+
 **Real transmissions.** The same evidence-first rules run on real, over-the-air government signals received through public KiwiSDR receivers: NIST WWV/WWVB, PTB DCF77, NPL MSF and NICT JJY time codes (decoded blind; decoded minute matches each receiver's GPS clock to within 2–23 ms), the German Weather Service's DDH47 teleprinter (blind 50 Bd / 85 Hz ITA2 decode of its own callsign and frequency) and All India Radio medium-wave carriers matched to Prasar Bharati's official transmitter list. A weak WWVB capture is detected but its time refused. See `reports/REAL_SIGNAL_VALIDATION.md`.
 
 ## Quick start
@@ -13,7 +15,7 @@ pip install -r requirements.txt pytest
 python src/generate.py sealed        # bench-v1 sealed: 30 files -> data/sealed (seed0=99000)
 python src/generate.py train         # bench-v1 train: 100 files -> data/train (seed0=1000)
 
-python -m pytest -q tests                # 178 tests: engine, catalogue, security + real-signal receivers (recordings/real)
+python -m pytest -q tests                # 252 tests: engine, catalogue, security, real-signal receivers (recordings/real) + the space experiments
 python sealed_test.py                    # 30/30, 0 false accepts, ~1.5 s
 python sealed_test.py data/train 100     # 63/100, 0 false accepts, ~4.5 s
 ```
@@ -43,6 +45,35 @@ python server/export_live_replays.py                                            
 ```
 
 `recordings/real/` holds IQ `.wav` recordings of WWV, WWVB, DCF77, MSF, JJY, DDH47 and All India Radio with GPS start times; any of them can be uploaded in the console's Analysis page. With the server running, the Live Monitor receives these stations live. Method, results and limitations: `reports/REAL_SIGNAL_VALIDATION.md`; related products and literature: `reports/RESEARCH_LANDSCAPE.md`.
+
+## Space ground segment
+
+ICHNOVA is a ground-segment analysis layer: it reads a recording, it does not fly. A pre-registered
+investigation measured what happens when the carrier **moves during the capture**, which is the
+space-relevant impairment:
+
+```bash
+python eval/space_doppler.py verify      # the sealed 192-vector experiment regenerates byte-identically
+python eval/track_validity.py report     # the tracker validity read-out the engine now publishes
+python server/export_space_data.py       # rebuild frontend/public/space.json for the console screen
+```
+
+- **Measured limitation.** 54 of 96 treated captures published a wrong payload beneath a *correct*
+  structural claim; 0 of 96 static controls. Structure was correct in all 192.
+- **Mechanism (SUPPORTED).** Residual carrier error the front end does not model — removing the
+  injected motion exactly eliminates the failure (0/96 against 57/96 for the shipped engine).
+- **Remediation REJECTED.** A blind carrier pre-correction fixed Doppler and cost bench-v1 30/30 to 22/30,
+  bench-v2 9/9 to 8/9 criteria, null-set catalogue 128 to 87, and manufactured a CCSDS LDPC claim out of
+  an idle carrier. Two pre-registered rules fired: **INTEGRATION NOT SUPPORTED**.
+- **Now reported as evidence.** The engine publishes how close its phase tracker ran to its own unwrap
+  ambiguity (`diagnostics.phase_tracking_validity`). It is write-only: no acceptance, refusal or
+  ranking reads it.
+- **Not established:** real spacecraft RF (no spacecraft capture exists in this project), orbital
+  Doppler modelling, carrier-trajectory measurement, and CCSDS layers outside the searched domain.
+
+Reports: `reports/space/` — start with `SPACE_FINAL_AUDIT.md`, then
+`DOPPLER_EXPERIMENT_RESULTS.md` and `CARRIER_ESTIMATOR_RESULTS.md`. The claim boundary is binding:
+`reports/space/SPACE_CLAIM_FIREWALL.md`. The console renders all of it at `/app/space`.
 
 ## Operator console
 
@@ -114,7 +145,8 @@ The complete compiled brief — tech stack, user flows, workflows (data export, 
 | `recordings/` | Real-signal recordings (IQ .wav + GPS sidecar) and official reference data (AIR transmitter list) |
 | `server/` | Local analysis API (`app.py`), evidence packs, frontend data export |
 | `frontend/` | Operator console (React + Vite) |
-| `eval/` | SNR utility, oracle ladder, null set / calibration / scoring comparison |
+| `eval/` | SNR utility, oracle ladder, null set / calibration / scoring comparison, and the space experiment harnesses with their pre-registered criteria |
+| `reports/space/` | The space-ground investigation: pre-registered criteria, measured results (including the failures), the claim firewall and the final audit |
 | `reports/` | Measured reports and their raw evidence |
 | `PROGRESS.md` | Session-by-session engineering log |
 | `sih26147-constitution/` | **Project constitution — the single source of truth** (`SIH26147_PROJECT_CONSTITUTION.md`), changelog, current-state snapshot, historical plans |

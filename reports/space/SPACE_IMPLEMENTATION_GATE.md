@@ -82,7 +82,7 @@ Frontend files are **not** in P0. (P1 touches `frontend/src/components/evidence.
 
 ## 9. GATE REVIEW — 2026-09-25 (recorded, not retro-fitted)
 
-Reviewed against the working tree at branch `sih-readiness`, commit `3919546`, clean working tree, `python -m pytest -q` → **178 passed**.
+First reviewed against branch `sih-readiness`, commit `3919546`, clean working tree, `python -m pytest -q` → **178 passed**. Re-verified 2026-09-27: **252 passed**, clean tree, the one approved production change delivered (see 9.3).
 
 ### 9.1 §7 conditions, as assessed
 
@@ -109,7 +109,7 @@ Rationale for splitting rather than waiting: D6 (false decodes) is the criterion
 | Field | Content |
 |---|---|
 | **File** | `src/pipeline.py`, function `_track_phase` (and the `diagnostics` dict assembled in `analyze_file`). |
-| **Change** | Return, alongside the equalised symbol stream, the per-block unwrapped phase estimates and the chosen block length; surface them under a new `diagnostics` key (e.g. `carrier_trajectory`). Read-out only. |
+| **Change** | Return, alongside the equalised symbol stream, the per-block unwrapped phase estimates and the chosen block length; surface them under a new `diagnostics` key (e.g. `carrier_trajectory`). Read-out only. **As delivered the key is `phase_tracking_validity`, not `carrier_trajectory`** — `TRACK_READOUT_RESULTS.md` measured that the tracker estimates a piecewise-constant phase with no trajectory model, so naming it a trajectory would have implied a capability that does not exist. |
 | **Why it is needed** | D1, D2 and D8 are unanswerable without it. The data already exists inside the function; it is thrown away. |
 | **Why it is not being made now** | It touches a production engine file. The file-scope rule requires a STOP and an explicit record rather than a quiet edit bundled into an experiment. |
 | **Risk assessment** | Low but **not zero**. `_track_phase`'s return value is consumed as a symbol stream; changing its signature touches the hypothesis-enumeration path. The safe form is a separate accessor or an out-parameter, never a changed return type. |

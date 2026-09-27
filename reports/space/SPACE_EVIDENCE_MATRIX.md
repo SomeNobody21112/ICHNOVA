@@ -1,6 +1,6 @@
 # SPACE_EVIDENCE_MATRIX
 **ICHNOVA · SIH26147 — requirement-by-requirement evidence ledger for the space-ground extension**
-**Status: AUDIT ARTEFACT (2026-09-25). Verified against the working tree at branch `sih-readiness`, commit `3919546`, working tree clean, `python -m pytest -q` → 178 passed.**
+**Status: AUDIT ARTEFACT, first published 2026-09-25 against commit `3919546` (178 passed at the time). Rows were revised as later experiments landed; re-verified 2026-09-27 against branch `sih-readiness`, `python -m pytest -q` → 252 passed, sealed datasets byte-identical (192/192, 144/144, 288/288). Audited by `SPACE_FINAL_AUDIT.md`.**
 
 This file is the answer to one question, asked eighteen times: **"what exactly entitles ICHNOVA to say anything about this, and what does not?"** It is the reviewer's checklist for every space claim, and it is deliberately unflattering where the evidence is thin.
 

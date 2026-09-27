@@ -69,7 +69,7 @@ This is not fake telemetry, not fake live data, not mission control (prohibited 
 00:04  CARRIER DETECTED
 00:09  SYMBOL-RATE CANDIDATE
 00:16  CODING: evidence insufficient   (real bar not met — real numbers shown)
-00:22  DEGRADATION: drift increased    (simulated pass geometry, real measured trajectory)
+00:22  DEGRADATION: drift increased    (simulated pass geometry; engine measurements only)
 00:26  SIGNAL_NO_CODE / UNKNOWN        (real refusal + sufficiency reason)
        + "what would settle it"        (real ACHIEVABLE/IMPOSSIBLE_IN_DOMAIN)
 ```
