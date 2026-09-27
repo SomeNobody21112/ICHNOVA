@@ -544,7 +544,6 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
 .philosophy { display: flex; align-items: center; gap: 10px; font-size: 13.5px; color: var(--text-2); }
 .philosophy s { color: var(--faint); text-decoration-color: var(--faint); }
 
-.empty { padding: 36px; text-align: center; color: var(--muted); }
 .skeleton { background: linear-gradient(90deg, var(--panel) 0%, var(--panel-2) 50%, var(--panel) 100%); background-size: 200% 100%; animation: shimmer 1.4s infinite; border-radius: var(--r); }
 @keyframes shimmer { to { background-position: -200% 0; } }
 
@@ -839,7 +838,14 @@ details.more[open] > summary::before { content: '−'; }
 @keyframes sheen { to { background-position: -200% 0; } }
 
 /* An empty state teaches the next action instead of announcing emptiness. */
-.empty { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 22px; border: 1px dashed var(--line-2); border-radius: var(--r-lg); background: var(--panel-2); }
+/* One coherent empty state. Every call site passes a single line, so the default is a compact
+   centred note (the surrounding Panel already supplies the border) instead of a large dashed
+   placeholder box. A structured empty state with its own heading opts into the boxed form. */
+.empty { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 24px 22px;
+  text-align: center; color: var(--muted); font-size: var(--t-sm); }
+.empty:has(h4) { flex-direction: column; align-items: flex-start; justify-content: flex-start;
+  text-align: left; padding: 22px; border: 1px dashed var(--line-2); border-radius: var(--r-lg);
+  background: var(--panel-2); }
 .empty h4 { margin: 0; font-size: var(--t-base); font-weight: 600; }
 .empty p { margin: 0; color: var(--text-2); max-width: 62ch; }
 
