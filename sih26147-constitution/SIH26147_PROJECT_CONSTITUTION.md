@@ -3,9 +3,11 @@
 **Problem statement:** SIH26147 (Smart India Hackathon 2026; sponsor listed in the problem statement: NTRO)
 **Product:** ICHNOVA — *From noise to harmony* (blind signal analysis engine + operator console)
 **Document:** Master Project Constitution — **the single source of truth**
-**Version:** 2.5.5 (row 31 measured: Phase 2 fingerprints on synthetic data; see changelog) · earlier 2.5.4 (deployment invariants: one writer per results directory §9.12, reachable-is-not-fresh §9.13; TLS reverse proxy CONFIGURED but never exercised; in-memory rate limiting and revocation recorded as a limitation) · **Date:** 2026-09-20
+**Version:** 2.7 (Space-ground branch measured and frozen; the payload-reliability gate integrated - see changelog v2.6 and v2.7) - earlier 2.5.5 (row 31 measured: Phase 2 fingerprints on synthetic data) · earlier 2.5.4 (deployment invariants: one writer per results directory §9.12, reachable-is-not-fresh §9.13; TLS reverse proxy CONFIGURED but never exercised; in-memory rate limiting and revocation recorded as a limitation) · **Date:** 2026-09-27
 **Verified against:** branch `sih-readiness`. v2.5 text verified against `acf4201`; the v2.5.1 status rows are measured on the engine as committed, with the default path unchanged (0 decision differences on 1,350 null-set files, sealed 30/30, train 63/100). Evidence per phase in `reports/SIH_READINESS_EXECUTION.md`
 **Supersedes:** v2.0 (research-verified, 2026-09-16), v2.1–v2.4, and every earlier plan document where they disagree (§3)
+
+> **v2.7 in one paragraph.** A pre-registered space-ground investigation measured what happens when the carrier **moves during the capture** - the space-relevant impairment. Signal structure stayed correct in all 192 sealed vectors while the published **payload** was wrong in 54 of 96 treated captures and 0 of 96 static controls, so the decode verdict is scoped to a carrier that is **static within the capture** (a **MEASURED LIMITATION**, section 7, stronger than NOT ESTABLISHED). The mechanism is residual carrier error the front end does not model. The obvious fix - a blind carrier pre-correction - was built, measured and **rejected**: it cost bench-v1 8 of 30 decodes and manufactured a CCSDS LDPC claim out of an idle carrier. What did ship is the honest half: `PAYLOAD_CONSISTENCY_MIN` (section 14) **withholds** a payload whose re-encode consistency is below the floor, reporting SIGNAL_NO_CODE with the reason, at a measured cost of 0 of 1,278 working decodes. Nothing in this version claims real spacecraft RF, orbital modelling or carrier-trajectory measurement; all three remain **NOT ESTABLISHED**. Governing claim boundary: `reports/space/SPACE_CLAIM_FIREWALL.md`. Audit: `reports/space/SPACE_FINAL_AUDIT.md`.
 
 > **v2.5 in one paragraph.** The engineering audit (2026-09-17) found that most explicit SIH26147 capabilities were missing: QAM, RS, concatenated coding, LDPC, three interleaver types, bit-stream correlation, sample-rate provenance. v2.5 re-prioritises the roadmap to close them (§35). It **pre-registers**, before any code or measurement, the finite catalogue to be searched (§12.1), the weighted multiple-testing families that keep the file-level false-accept bound at α = 0.01 (§13.1), the bench-v2 sealed-split policy (§18.1) and sample-rate provenance (§10). New capabilities enter §24 as **LOCKED**. They move up only with committed evidence.
 
@@ -46,6 +48,10 @@ This document defines, in one place: what the project solves, how the engine wor
 | `reports/REAL_SIGNAL_VALIDATION.md` | Government transmissions received blind | Evidence |
 | `reports/PERFORMANCE_REPORT.md` | Vectorised search, decision identity | Evidence |
 | `reports/RESEARCH_LANDSCAPE.md` | Products and literature with sources | Evidence |
+| **`reports/space/SPACE_CLAIM_FIREWALL.md`** | What may and may not be said about space; the permitted sentence and the forbidden list | **GOVERNING for space claims** |
+| `reports/space/SPACE_FINAL_AUDIT.md` | Audit of the whole space branch: established, measured limitations, rejected approaches, NOT ESTABLISHED items | Evidence (start here) |
+| `reports/space/` (31 further documents) | Pre-registered criteria and measured results of the ten space experiments, including the failures | Evidence |
+| `reports/space/SPACE_ENGINEERING_STATUS.md` | Living status board for the space branch | Derived |
 | `reports/TECH_STACK.md` | Stack, user flows, workflows | Reference |
 | `reports/data/` | Raw evidence (JSON, ladders, null-set tables) | Evidence |
 | `reports/AUTONOMOUS_EXECUTION_BASELINE.md` | Re-measured baseline before the v2.5 work | Evidence |
@@ -104,6 +110,8 @@ Research goal: Signal → Initial inference → Demodulation → Soft informatio
 | **LOCKED** | Selected for implementation — does not mean proven |
 | **BLOCKED** | Selected, but a named prerequisite is unmet |
 | **FUTURE** | Relevant, intentionally deferred |
+| **MEASURED LIMITATION** | The question was asked and the answer is negative. **Stronger than NOT ESTABLISHED**: the limit is measured, not merely unproven, and must be disclosed with its number |
+| **NOT ESTABLISHED** | Implemented but unvalidated at the stated conditions, or not implemented at all. Never presented as a capability |
 | **RETIRED** | Previously used; replaced by measured evidence, kept as a diagnostic |
 | **SUPERSEDED** | Replaced by a different approach |
 | **REJECTED** | Excluded on evidence or constraints |
@@ -263,9 +271,10 @@ The v2.5 search has layers whose hypothesis counts differ by orders of magnitude
 |---|---|---|
 | **DECODED** | A hypothesis passes §13 | Zero-start Viterbi payload |
 | **SIGNAL_NO_CODE** | No hypothesis passes, but an x² or x⁴ line (or a real-signal structure) is significant | Hard decisions, explicitly **not decoded** |
+| **SIGNAL_NO_CODE** *(payload withheld)* | A structure passes section 13, but the accepted continuous-stream hypothesis has re-encode `consistency` below `PAYLOAD_CONSISTENCY_MIN` = 0.97427 | **Empty.** `payload_withheld` states the statistic, its value, the floor and a plain reason; the structural layer stays in `structure`. The gate is reached only from a would-be DECODED, so it can never turn UNKNOWN into SIGNAL_NO_CODE. Measured cost 0 of 1,278 working decodes (`reports/space/PAYLOAD_GATE_RESULTS.md`) |
 | **UNKNOWN** | Neither | Empty |
 
-Every result carries `accept{log10_p, log10_threshold, n_hypotheses}`, `accept.significant_but_rejected` (with reasons), all CFO candidates (order, peak-to-floor dB, p), the sps table (q4, q2), modulation statistic per sps candidate with margin, top-5 hypotheses (code, interleaver, sps, CFO, modulation, rotation, checks, positives, log10 p, z, covered/total bits, coverage, consistency, path metric, MDL savings), runner-up margin, front ends searched/rejected, and per-stage timers. The server packages this as an **evidence pack** (`server/evidence.py`, ~1 MB JSON per capture).
+Every result carries `accept{log10_p, log10_threshold, n_hypotheses}`, `accept.significant_but_rejected` (with reasons), all CFO candidates (order, peak-to-floor dB, p), the sps table (q4, q2), modulation statistic per sps candidate with margin, top-5 hypotheses (code, interleaver, sps, CFO, modulation, rotation, checks, positives, log10 p, z, covered/total bits, coverage, consistency, path metric, MDL savings), runner-up margin, front ends searched/rejected, and per-stage timers. Where a payload is withheld, `payload_withheld` rides in the **signed receipt**, so the refusal is explained rather than silent. The server packages this as an **evidence pack** (`server/evidence.py`, ~1 MB JSON per capture).
 
 ## 15. DSP Conventions and Proven Corrections (must never regress)
 
@@ -432,13 +441,13 @@ FSK tone-pair search: one STFT per shift class (30 s → 2.5 s on 125 s). RRC ta
 | 10 | Catalogue code ID (K7/K5/K3, sign test + Bonferroni + MC/BL/PM) | **PROVEN on null set** | 0/900 false accepts, 0/450 wrong decodes; wrong-structure 0.9% | Recalibrate PM for new channels |
 | 11 | Block interleaver ID (≤ 384 bits) | **PARTIALLY PROVEN** | 30/30 sealed; wrong-structure 2/225; ≤ 32-bit blocks unprovable | Multi-block (bench-v2) |
 | 12 | Vectorised soft Viterbi | **PROVEN (self-consistent)** | = exhaustive ML; standard conformance not verified (bit-reversed convention) | Reference vectors |
-| 13 | Re-encode consistency | **RETIRED as acceptance** | AUC 0.834, TPR 0 | Diagnostic only |
+| 13 | Re-encode consistency | **RETIRED as acceptance; REINSTATED as a payload-publication gate (v2.7)** | Still not an acceptance statistic (AUC 0.834, TPR 0 for that purpose). As a *publication* gate it is measured: `PAYLOAD_CONSISTENCY_MIN` = 0.97427 loses 0 of 1,278 currently-correct decodes, converts all 3 long-standing structural false accepts into refusals, and withholds 52 of 54 wrong Doppler payloads (`reports/space/PAYLOAD_GATE_RESULTS.md`) | Extend to F1/F3/F4, which publish no comparable statistic |
 | 14 | Structural acceptance (MC, BL, PM) | **PROVEN on null set** | §19 | Channel generalisation |
 | 15 | bench-v1 sealed | **30/30, 0 false accepts** | Tripwire only | bench-v2 |
 | 16 | bench-v1 train | **63/100, 0 false accepts** | §18 | Low Es/N0 recall |
 | 17 | Vectorised hypothesis search | **PROVEN** | 3.0–3.8×, 0 decision differences on 1,480 files | — |
 | 18 | Rank-based blind FEC ID | **PARTIALLY PROVEN** | Collapses at 0.1% BER | Clean-signal tool only |
-| 19 | Tests + CI | **PROVEN on GitHub** | 30 tests (9 core + 21 real-signal); CI green on PR #2 (tests, sealed gate, frontend build) | — |
+| 19 | Tests + CI | **PROVEN on GitHub** | **258 tests** (253 + 5 skipped on a fresh clone, where benchmark captures are regenerated rather than committed); CI green on both jobs (tests, sealed tripwire, frontend build) | — |
 | 20 | Deterministic data generation | **PROVEN** | Byte-identical from seed | — |
 | 21 | Reject path (3 outcomes) | **PROVEN** | Null set; WWVB time refused | — |
 | 22 | Time-code receivers (5 protocols) | **PROVEN on real signal** | §22: 4 decoded ±1.9–23.4 ms, 1 correctly refused | Receiver delay calibration |
@@ -462,8 +471,14 @@ FSK tone-pair search: one STFT per shift class (30 s → 2.5 s on 125 s). RRC ta
 | 38 | SAGE-Lite feedback | **BLOCKED** | Needs calibrated soft score, frame sync/CRC, bench-v2 | §36.3 |
 | 39 | 2 dB QPSK rescue experiment | **PREMISE CHANGED** | Sealed 2 dB QPSK files pass; test_020/025 failures don't reproduce | Re-target at stress set |
 | 40 | Conformal prediction / formal UNKNOWN | **FUTURE** | — | Research |
-| 41 | bench-v2 (catalogue v1 families, nulls, channel impairments, sealed split §18.1); adversarial benchmark | **LOCKED (v2.5)** for bench-v2; adversarial FUTURE | — | §35 |
+| 41 | bench-v2 (catalogue v1 families, nulls, channel impairments, sealed split §18.1); adversarial benchmark | **bench-v2 MEASURED**; adversarial **FUTURE** | Sealed split, 430 files, **9/9 pre-registered criteria PASS**; 0/120 false accepts on null classes (95% Wilson upper 3.10%); **0/310** wrong structure or payload since v2.7 (was 3/310). Access-logged in `eval/bench2_access_log.jsonl` | Adversarial family §35 |
 | 42 | Real PSK/FEC recording analysed blind vs an independent published decode | **LOCKED (v2.5)** — dataset must first pass the compatibility check in §35 | — | §35 |
+| 48 | Time-varying carrier (Doppler) - payload reliability | **MEASURED LIMITATION** | 192 sealed synthetic vectors, criteria pre-registered before the first vector existed: structure correct in **192/192**, payload wrong in **54 of 96** treated captures and **0 of 96** static controls (`reports/space/DOPPLER_EXPERIMENT_RESULTS.md`). Mechanism SUPPORTED: residual carrier error the front end does not model - ideal correction removes it entirely, 0/96 against 57/96 (`DOPPLER_MECHANISM_RESULTS.md`) | The payload is withheld (row 13), not recovered |
+| 49 | Blind per-block carrier pre-correction | **REJECTED - INTEGRATION NOT SUPPORTED** | Fixed Doppler (108 to 2 wrong payloads) and simultaneously cost bench-v1 30/30 to 22/30, bench-v2 9/9 to 8/9 criteria, null-set catalogue 128 to 87, and manufactured a `ccsds_tc_ldpc_128_64` claim from an idle carrier the engine refuses. Two pre-registered rules fired (`CARRIER_ESTIMATOR_RESULTS.md`) | Not revisited |
+| 50 | Phase-tracking validity read-out | **IMPLEMENTED, write-only evidence** | `diagnostics.phase_tracking_validity`: pi minus the largest wrapped block advance the tracker's own `np.unwrap` accepted. pi is the unwrap discriminant, not a chosen threshold. Proven inert - corrupting it leaves status, code, payload, M and front count identical (`TRACK_VALIDITY_RESULTS.md`) | Remains diagnostic-only: at the bound on 24 wrong claims **and** 28 correct refusals |
+| 51 | F4 structural-acceptance margin at scale | **MEASURED** | 1,810 sealed captures, shipped engine: 34 block-code accepts, **all correct**, 0 zero-convergence, **0 on the 900 true nulls** (`F4_MARGIN_RESULTS.md`) | Empirical floor, not a guarantee |
+| 52 | Off-carrier / noise-like front-end admission | **MEASURED - normal operating state, not a fault** | Admitted on 373 of 1,300 signal-bearing captures and 9,186 of 115,057 admitted front ends, and has **never** produced a claim: all 256 published claims came from an on- or near-carrier front end (`OFFCARRIER_CENSUS_RESULTS.md`). The safeguard is the multiplicity-corrected bar, not a front-end filter | - |
+| 53 | Real spacecraft RF; orbital Doppler (TLE, geometry, pass model); carrier-trajectory measurement or classification | **NOT ESTABLISHED** | No spacecraft capture exists in this project and no orbit model exists. `TRACK_READOUT_RESULTS.md` measured that the shipped tracker is a piecewise-constant phase estimator with **no trajectory model** | Never claimed; `SPACE_CLAIM_FIREWALL.md` governs |
 | 43 | Arbitrary blind LDPC, arbitrary pseudo-random interleaver | **REJECTED** (catalogue versions are LOCKED, rows 36, 36b) | Rank collapse | — |
 | 44 | Generic CNN/ResNet acceptance | **REJECTED** | No per-decision error control | ML only for prioritisation (FUTURE) |
 | 45 | BSS/ICA multi-signal separation | **REJECTED for MVP** | Single-signal scope | — |
@@ -482,6 +497,9 @@ FSK tone-pair search: one STFT per shift class (30 s → 2.5 s on 125 s). RRC ta
 8. Web tier is `http.server`: single process, **no TLS of its own** — demo grade. The API is authenticated since v2.5.3 (scrypt passwords, signed session tokens, role permissions, rate limiting). Since v2.5.4 a TLS reverse proxy is **CONFIGURED** in `deploy/` (nginx, 308 redirect, forwarded headers matched to `Handler._client`, SSE buffering off, upload cap matched to `MAX_UPLOAD`) — but it has **never been exercised or served traffic**: no Docker daemon and no native nginx on the development machine. TLS status is CONFIGURED, not live. Container base-image CVEs are **NOT ESTABLISHED** (no image scanner available); Python and Node dependencies scan clean.
 8a. Rate limiting and session revocation are **in-process and in memory** (v2.5.4). They protect a single process; they are not a distributed quota. A restart clears both — which invalidates every issued session when `ICHNOVA_SECRET_KEY` is unset, and is the safe direction. Deliberately no database: §9.2 keeps the engine air-gap capable.
 9. Console monitoring-network data is simulated.
+10. **Time-varying carrier (Doppler) is a MEASURED LIMITATION, not an open question.** The decode verdict is validated only for a carrier that is **static within the capture**. Any statement about decoding must carry that qualifier, and the three-outcome guarantee must never be presented as a *payload* guarantee. Since v2.7 an unreliable payload is **withheld** rather than published - it is still not *recovered*, so the limitation stands.
+11. The payload gate (row 13) is **bounded**: it applies only to F2 continuous-stream claims, because F1, F3 and F4 publish no comparable payload-side statistic; 2 of the 54 measured wrong payloads still clear the floor; and because the bar was set by the no-regression constraint, "zero cost" is an **empirical floor on the captures measured**, not a guarantee for unseen captures.
+12. No spacecraft capture exists in this project. Real spacecraft RF, orbital modelling and carrier-trajectory measurement are **NOT ESTABLISHED** (row 53). All space benchmark data is synthetic and labelled SIMULATED; the space positioning is a research claim, not a capability statement.
 
 ---
 
@@ -598,7 +616,7 @@ Rules: prefer MIT/BSD/Apache; pin versions; offline wheels for air-gapped instal
 
 | Gate | Command | Must hold |
 |---|---|---|
-| Tests | `python -m pytest -q tests` | 30/30 |
+| Tests | `python -m pytest -q tests` | **258 passed** (253 + 5 skipped on a fresh clone: five read benchmark captures, which are regenerated, not committed) |
 | Sealed tripwire | `python sealed_test.py data/sealed 30 --min-pass 28 --max-false-accept 0` | CI gate; reference machine 30/30, 0 FA |
 | Train | `python sealed_test.py data/train 100` | ≥ 63/100, 0 false accepts (no silent regression) |
 | Frontend | `cd frontend && npm ci && npm run build` | Type-check + build |
