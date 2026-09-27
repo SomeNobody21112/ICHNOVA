@@ -10,6 +10,7 @@ import os
 import sys
 
 import numpy as np
+import pytest
 
 ROOT = os.path.join(os.path.dirname(__file__), '..')
 sys.path.insert(0, os.path.join(ROOT, 'src'))
@@ -18,6 +19,15 @@ sys.path.insert(0, os.path.join(ROOT, 'eval'))
 import pipeline                                        # noqa: E402
 import track_readout as tr                             # noqa: E402
 from modem import load_iq                              # noqa: E402
+# The sealed space-bench captures are deterministic benchmark data and are NOT committed
+# (.gitignore: data/), exactly like the bench-v1 sets. Regenerate them with
+#   python eval/space_doppler.py generate
+# The tests below read a real capture, so they skip where that data is absent — CI included.
+# Everything in this file that does not need a capture still runs everywhere.
+_NEEDS_CAPTURE = pytest.mark.skipif(
+    not os.path.isdir(os.path.join(ROOT, 'data', 'space_bench', 'doppler')),
+    reason='sealed space-bench captures not present: python eval/space_doppler.py generate')
+
 
 
 def _stream(n=4096, drift=2e-4, seed=0):
@@ -71,6 +81,7 @@ def test_the_tracker_still_declines_short_captures_and_keeps_its_signature():
     assert trace == {}, 'nothing is reported when the tracker declines to run'
 
 
+@_NEEDS_CAPTURE
 def test_the_payload_gate_now_withholds_this_sealed_capture():
     """This test used to assert the verdict still matched the sealed record. It no longer can, and
     the reason is a deliberate, measured change rather than a regression.

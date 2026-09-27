@@ -10,6 +10,7 @@ import os
 import sys
 
 import numpy as np
+import pytest
 
 ROOT = os.path.join(os.path.dirname(__file__), '..')
 sys.path.insert(0, os.path.join(ROOT, 'src'))
@@ -21,6 +22,15 @@ from modem import load_iq                              # noqa: E402
 CRITERIA = json.load(open(os.path.join(ROOT, 'eval', 'track_validity_criteria.json'),
                           encoding='utf-8'))
 DOPPLER = os.path.join(ROOT, 'data', 'space_bench', 'doppler')
+# The sealed space-bench captures are deterministic benchmark data and are NOT committed
+# (.gitignore: data/), exactly like the bench-v1 sets. Regenerate them with
+#   python eval/space_doppler.py generate
+# The tests below read a real capture, so they skip where that data is absent — CI included.
+# Everything in this file that does not need a capture still runs everywhere.
+_NEEDS_CAPTURE = pytest.mark.skipif(
+    not os.path.isdir(os.path.join(ROOT, 'data', 'space_bench', 'doppler')),
+    reason='sealed space-bench captures not present: python eval/space_doppler.py generate')
+
 
 
 def _stream(n=4096, drift=3e-4, seed=0):
@@ -66,6 +76,7 @@ def test_indeterminate_is_reported_not_guessed():
     assert v['bound_rad'] == float(np.pi)
 
 
+@_NEEDS_CAPTURE
 def test_the_diagnostic_is_never_consulted_by_any_decision(monkeypatch):
     """The safety claim: corrupt the read-out and the engine must decide exactly the same thing."""
     iq = load_iq(os.path.join(DOPPLER, 'linear_0098.iq'))
@@ -81,6 +92,7 @@ def test_the_diagnostic_is_never_consulted_by_any_decision(monkeypatch):
     assert bad['diagnostics']['n_front_ends'] == good['diagnostics']['n_front_ends']
 
 
+@_NEEDS_CAPTURE
 def test_published_margins_align_with_the_front_end_index_the_engine_already_reports():
     """The claim's own validity is readable because the list shares the published front index."""
     r = pipeline.analyze_iq(load_iq(os.path.join(DOPPLER, 'linear_0098.iq')))
@@ -95,6 +107,7 @@ def test_published_margins_align_with_the_front_end_index_the_engine_already_rep
     assert np.isclose(v['min_unwrap_margin_rad'], min(tracked))
 
 
+@_NEEDS_CAPTURE
 def test_a_static_control_does_not_acquire_a_spurious_warning():
     """A constant carrier must keep a large margin on the front end that produced its claim."""
     r = pipeline.analyze_iq(load_iq(os.path.join(DOPPLER, 'static_0049.iq')))
@@ -109,6 +122,7 @@ def test_a_static_control_does_not_acquire_a_spurious_warning():
             assert m > 1.0, 'no spurious warning on a constant carrier'
 
 
+@_NEEDS_CAPTURE
 def test_the_diagnostic_is_deterministic():
     iq = load_iq(os.path.join(DOPPLER, 'linear_0098.iq'))
     a = pipeline.analyze_iq(iq)['diagnostics']
