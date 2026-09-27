@@ -29,6 +29,7 @@ const NAV: { sec: string; items: Item[] }[] = [
   ] },
   { sec: 'About the engine', items: [
     { to: 'lab', label: 'Evidence lab', icon: 'lab' },
+    { to: 'space', label: 'Space ground segment', icon: 'spectrum' },
     { to: 'system', label: 'System', icon: 'system' },
   ] },
 ]

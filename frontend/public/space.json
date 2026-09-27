@@ -1,0 +1,397 @@
+{
+ "generated_from_commit": "3919546",
+ "doppler": {
+  "n": 192,
+  "treated": 96,
+  "controls": 96,
+  "wrong_payload": 54,
+  "controls_wrong_payload": 0,
+  "wrong_structure": 0,
+  "by_severity": [
+   {
+    "severity": 0.25,
+    "n": 24,
+    "wrong_payload": 14,
+    "correct": 10,
+    "refused": 0,
+    "peak_cyc_per_sample": 0.003125
+   },
+   {
+    "severity": 0.5,
+    "n": 24,
+    "wrong_payload": 22,
+    "correct": 1,
+    "refused": 1,
+    "peak_cyc_per_sample": 0.00625
+   },
+   {
+    "severity": 1.0,
+    "n": 24,
+    "wrong_payload": 17,
+    "correct": 0,
+    "refused": 7,
+    "peak_cyc_per_sample": 0.0125
+   },
+   {
+    "severity": 2.0,
+    "n": 24,
+    "wrong_payload": 1,
+    "correct": 0,
+    "refused": 23,
+    "peak_cyc_per_sample": 0.025
+   }
+  ],
+  "by_trajectory": [
+   {
+    "trajectory": "zero",
+    "n": 48,
+    "treated": false,
+    "wrong_payload": 0,
+    "correct": 48,
+    "refused": 0
+   },
+   {
+    "trajectory": "static",
+    "n": 48,
+    "treated": false,
+    "wrong_payload": 0,
+    "correct": 32,
+    "refused": 16
+   },
+   {
+    "trajectory": "linear",
+    "n": 48,
+    "treated": true,
+    "wrong_payload": 27,
+    "correct": 6,
+    "refused": 15
+   },
+   {
+    "trajectory": "pass",
+    "n": 48,
+    "treated": true,
+    "wrong_payload": 27,
+    "correct": 5,
+    "refused": 16
+   }
+  ],
+  "max_drift_rate": 7.547345339051125e-05,
+  "source": "results/space_doppler_rows.jsonl"
+ },
+ "mechanism": {
+  "arms": [
+   {
+    "arm": "A_no_tracking",
+    "label": "Tracking ablated (does not ship)",
+    "treated": 96,
+    "wrong_payload": 77,
+    "correct": 4,
+    "refused": 14,
+    "wrong_structure": 1
+   },
+   {
+    "arm": "B_existing",
+    "label": "The shipped engine",
+    "treated": 96,
+    "wrong_payload": 57,
+    "correct": 27,
+    "refused": 12,
+    "wrong_structure": 0
+   },
+   {
+    "arm": "C_ideal",
+    "label": "Ideal correction (ground truth removed)",
+    "treated": 96,
+    "wrong_payload": 0,
+    "correct": 90,
+    "refused": 6,
+    "wrong_structure": 0
+   },
+   {
+    "arm": "D_estimated",
+    "label": "Blind estimator (evaluation-side)",
+    "treated": 96,
+    "wrong_payload": 3,
+    "correct": 88,
+    "refused": 5,
+    "wrong_structure": 0
+   }
+  ],
+  "n_analyses": 606,
+  "conclusion_label": "SUPPORTED: residual carrier error the front end does not model",
+  "source": "results/space_doppler_mech_rows.jsonl"
+ },
+ "estimator": {
+  "doppler_gain": [
+   {
+    "arm": "A_production",
+    "treated": 192,
+    "wrong_payload": 108,
+    "correct": 56
+   },
+   {
+    "arm": "B_candidate",
+    "treated": 192,
+    "wrong_payload": 2,
+    "correct": 179
+   },
+   {
+    "arm": "C_ideal",
+    "treated": 192,
+    "wrong_payload": 0,
+    "correct": 181
+   }
+  ],
+  "regression": [
+   {
+    "population": "bench1_sealed",
+    "before": {
+     "n": 30,
+     "correct": 30,
+     "false_accept": 0
+    },
+    "after": {
+     "n": 30,
+     "correct": 22,
+     "false_accept": 0
+    }
+   },
+   {
+    "population": "bench2_sealed",
+    "before": {
+     "n": 430,
+     "correct": 220,
+     "false_accept": 3
+    },
+    "after": {
+     "n": 430,
+     "correct": 197,
+     "false_accept": 6
+    }
+   },
+   {
+    "population": "nullset",
+    "before": {
+     "n": 1350,
+     "correct": 1028,
+     "false_accept": 0
+    },
+    "after": {
+     "n": 1350,
+     "correct": 987,
+     "false_accept": 0
+    }
+   },
+   {
+    "population": "realsig",
+    "before": {
+     "n": 7,
+     "correct": 0,
+     "false_accept": 0
+    },
+    "after": {
+     "n": 7,
+     "correct": 0,
+     "false_accept": 0
+    }
+   }
+  ],
+  "idle_carrier": {
+   "A_production": {
+    "status": "SIGNAL_NO_CODE",
+    "code": null,
+    "f4_margin": 2.6989700043360187,
+    "f4_accepted": false,
+    "n_converged": null,
+    "n_codewords": null
+   },
+   "B_candidate": {
+    "status": "DECODED",
+    "code": "ccsds_tc_ldpc_128_64",
+    "f4_margin": -0.1122889443108166,
+    "f4_accepted": true,
+    "n_converged": 0,
+    "n_codewords": 18
+   }
+  },
+  "decision": "INTEGRATION NOT SUPPORTED",
+  "source": "results/carrier_est_rows.jsonl, results/carrier_est_regression_rows.jsonl"
+ },
+ "f4": {
+  "n": 1810,
+  "accepts": 34,
+  "accepts_correct": 34,
+  "accepts_zero_convergence": 0,
+  "true_nulls": 900,
+  "accepts_on_true_nulls": 0,
+  "outcomes": {
+   "FN": 529,
+   "FALSE_ACCEPT": 3,
+   "TP": 256,
+   "REFUSED_OK": 1020,
+   "TP_PARTIAL": 2
+  },
+  "closest_non_accepting_margin": 0.2303908115052833,
+  "weakest_accepting_margin": -7.251489915561673,
+  "source": "results/f4_margin_rows.jsonl"
+ },
+ "offcarrier": {
+  "n": 1810,
+  "signal_bearing": 1300,
+  "captures_with_off_carrier_admitted": 373,
+  "admitted_front_ends": 115057,
+  "admitted_off_carrier": 9186,
+  "published_claims": 256,
+  "claims_by_band": {
+   "on_carrier": 255,
+   "near_carrier": 1
+  },
+  "f4_passes_from_off_carrier": 0,
+  "source": "results/offcarrier_census_rows.jsonl"
+ },
+ "tracker": {
+  "n": 192,
+  "tracker_ran": 96,
+  "block_choice": {
+   "8": 96
+  },
+  "min_symbols": 512,
+  "by_trajectory": [
+   {
+    "trajectory": "zero",
+    "n": 24,
+    "treated": false,
+    "max_err_rad": {
+     "n": 24,
+     "min": 0.19936243789266916,
+     "med": 0.33994506591384577,
+     "max": 0.597644490681466
+    },
+    "captures_with_slip": 0,
+    "predicted_slip": 0
+   },
+   {
+    "trajectory": "static",
+    "n": 24,
+    "treated": false,
+    "max_err_rad": {
+     "n": 24,
+     "min": 0.17935819227736502,
+     "med": 0.3328671887196897,
+     "max": 0.6433472893220121
+    },
+    "captures_with_slip": 0,
+    "predicted_slip": 0
+   },
+   {
+    "trajectory": "linear",
+    "n": 24,
+    "treated": true,
+    "max_err_rad": {
+     "n": 24,
+     "min": 0.7649757297020301,
+     "med": 278.2947039627992,
+     "max": 1063.9952352136017
+    },
+    "captures_with_slip": 18,
+    "predicted_slip": 17
+   },
+   {
+    "trajectory": "pass",
+    "n": 24,
+    "treated": true,
+    "max_err_rad": {
+     "n": 24,
+     "min": 0.7246720055435674,
+     "med": 480.7753000757563,
+     "max": 1038.0969953722279
+    },
+    "captures_with_slip": 19,
+    "predicted_slip": 19
+   }
+  ],
+  "claim_from_tracked": 39,
+  "slip_outcome_grid": [
+   {
+    "slip": "clean",
+    "outcome": "DECODED_CORRECT",
+    "n": 11
+   },
+   {
+    "slip": "slip",
+    "outcome": "FALSE_DECODE",
+    "n": 24
+   }
+  ],
+  "failures_from_untracked": 30,
+  "failures_total": 54,
+  "source": "results/track_readout_rows.jsonl"
+ },
+ "validity": {
+  "n": 192,
+  "bound_rad": 3.141592653589793,
+  "measured": 39,
+  "indeterminate": 153,
+  "by_trajectory": [
+   {
+    "group": "zero",
+    "treated": false,
+    "n": 2,
+    "min": 2.159007840592359,
+    "med": 2.557962716531766,
+    "max": 2.557962716531766
+   },
+   {
+    "group": "static",
+    "treated": false,
+    "n": 2,
+    "min": 1.623319661716514,
+    "med": 2.7118239181804777,
+    "max": 2.7118239181804777
+   },
+   {
+    "group": "linear",
+    "treated": true,
+    "n": 18,
+    "min": 7.440204279873797e-05,
+    "med": 0.019140626194062094,
+    "max": 0.813372128921328
+   },
+   {
+    "group": "pass",
+    "treated": true,
+    "n": 17,
+    "min": 0.0011877110563434101,
+    "med": 0.012265223562006433,
+    "max": 0.6184161332505731
+   }
+  ],
+  "by_slip": [
+   {
+    "group": "no slip measured",
+    "n": 15,
+    "min": 0.09003006980967143,
+    "med": 0.5096651512928032,
+    "max": 2.7118239181804777
+   },
+   {
+    "group": "slip measured",
+    "n": 24,
+    "min": 7.440204279873797e-05,
+    "med": 0.00556836168873609,
+    "max": 0.0421787620574916
+   }
+  ],
+  "source": "results/track_validity_rows.jsonl"
+ },
+ "reports": [
+  "DOPPLER_EXPERIMENT_RESULTS.md",
+  "DOPPLER_MECHANISM_RESULTS.md",
+  "CARRIER_ESTIMATOR_RESULTS.md",
+  "F4_MARGIN_RESULTS.md",
+  "OFFCARRIER_CENSUS_RESULTS.md",
+  "TRACK_READOUT_RESULTS.md",
+  "TRACK_VALIDITY_RESULTS.md",
+  "SPACE_FINAL_AUDIT.md"
+ ]
+}
