@@ -1172,7 +1172,7 @@ details.more[open] > summary::before { content: '−'; }
 .globe-leader { fill: none; stroke: var(--line-3); stroke-width: 0.7; opacity: 0.85; }
 .globe-dot { fill: var(--panel); stroke: var(--text); stroke-width: 1.6; transition: fill .2s, stroke .2s; }
 .globe-name { font-size: 10.5px; fill: var(--text); paint-order: stroke; stroke: var(--panel);
-  stroke-width: 3.5px; stroke-linejoin: round; pointer-events: none; }
+  stroke-width: 3.5px; stroke-linejoin: round; }
 .globe-mark { cursor: pointer; }
 .globe-halo { fill: none; stroke: var(--cyan); stroke-width: 1; opacity: 0.5; pointer-events: none;
   transform-box: fill-box; transform-origin: center; animation: globe-halo .35s ease-out; }
@@ -1257,3 +1257,35 @@ details.more[open] > summary::before { content: '−'; }
 }
 
 @media (max-width: 1100px) { .obs-world { grid-template-columns: minmax(0, 1fr); } }
+
+/* Analyse a capture: blind recording cards and the before/after reveal. */
+.analyse-grid { display: grid; grid-template-columns: minmax(320px, 0.85fr) minmax(0, 1.15fr); gap: 14px; align-items: start; }
+@media (max-width: 1000px) { .analyse-grid { grid-template-columns: 1fr; } }
+.capcards { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; }
+.capcard { display: flex; flex-direction: column; gap: 6px; text-align: left; padding: 11px 12px; border: 1px solid var(--line); border-radius: var(--r);
+  background: var(--panel); color: var(--text); cursor: pointer; font: inherit; transition: border-color 0.15s, background 0.15s; }
+.capcard:hover:not(:disabled) { border-color: var(--accent); background: var(--surface-hover); }
+.capcard:disabled { cursor: default; opacity: 0.6; }
+.capcard.on, .capcard.on:disabled { border-color: var(--accent); background: var(--surface-selected); opacity: 1; }
+.capcard-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 8px; }
+.capcard-name { white-space: nowrap; font-family: var(--mono); font-size: var(--t-sm); font-weight: 600; }
+.capcard-go { display: inline-flex; align-items: center; gap: 4px; font-size: var(--t-xs); color: var(--accent); font-weight: 600; }
+.capcard-st { white-space: nowrap; font-family: var(--mono); font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 10px; }
+.capcard-st.st-DECODED { background: var(--green-dim); color: var(--green); }
+.capcard-st.st-SIGNAL_NO_CODE { background: var(--amber-dim); color: var(--amber); }
+.capcard-st.st-UNKNOWN { background: var(--panel-3); color: var(--muted); }
+.capcard-facts { display: flex; flex-wrap: wrap; gap: 4px 10px; font-family: var(--mono); font-size: var(--t-xs); color: var(--muted); }
+.capcard-reveal { font-size: var(--t-xs); color: var(--text-2); border-top: 1px dashed var(--line); padding-top: 6px; line-height: 1.4; }
+.bdtab-wrap { overflow-x: auto; }
+.bdtab { width: 100%; border-collapse: collapse; font-size: var(--t-sm); }
+.bdtab th, .bdtab td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.bdtab thead th { font-size: var(--t-xs); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.bdtab tbody th { font-weight: 500; white-space: nowrap; }
+.bdtab tbody td:nth-child(2) { width: 56px; text-align: center; }
+.bdtab-ok { color: var(--green); }
+.bdtab-bad { color: var(--red); }
+.tried-row { display: grid; grid-template-columns: 120px minmax(0, 1fr) auto; gap: 8px; align-items: center; font-size: 12px; padding: 6px 8px; border-radius: 5px; }
+.tried-row.ok { background: var(--green-dim); }
+.tried-row.mid { background: var(--amber-dim); }
+.tried-row.ok .catalogue-verdict { color: var(--green); }
+.tried-row.mid .catalogue-verdict { color: var(--amber); }

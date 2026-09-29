@@ -5,34 +5,91 @@ import { Characteristics, Verdict, WhyPanel } from '../components/evidence'
 import { AmPanel, BlindCatalogue, Teletype } from '../components/liveviz'
 import type { ReplayDoc, ReplayIndexEntry, ResultEv } from '../lib/live'
 import { Icon, Panel, Stamp, Tag } from '../components/ui'
-import { CODE_SHORT, fmtInt, fmtP } from '../lib/format'
-import { STATIONS } from '../lib/sim'
+import { CODE_FULL, STATUS_LABEL, fmtFs, fmtInt, fmtInterleaver, fmtP, fmtSymRate } from '../lib/format'
 import { api } from '../lib/api'
 import { useApp, useCan, whyNot } from '../lib/store'
-import type { EvidencePack, RealAnalysis } from '../lib/types'
+import type { EvidencePack, RealAnalysis, Status } from '../lib/types'
 
 interface Sample { name: string; format: string; fs_hz: number; bytes: number; description: string; evidence_id: string }
+/** What is being decoded. Before the decode only `label` and `facts()` are shown: the blind view. */
+type Source =
+  | { kind: 'file'; key: string; file: File }
+  | { kind: 'bench'; key: string; label: string; sample: Sample }
+  | { kind: 'real'; key: string; label: string; entry: ReplayIndexEntry }
 
-const STEPS = ['Capture', 'Upload', 'Detect', 'Analyse', 'Classify', 'Verify', 'Report']
-const STAGES = [
-  { key: 'detect', name: 'Signal detection' },
-  { key: 'sps', name: 'Symbol-rate search' },
-  { key: 'mod', name: 'Modulation analysis' },
-  { key: 'cfo', name: 'CFO estimation' },
-  { key: 'fec', name: 'FEC hypothesis search' },
-  { key: 'valid', name: 'Statistical validation' },
-]
+const STEPS = ['Choose', 'Detect', 'Analyse', 'Classify', 'Verify', 'Decoded']
+const STAGES = ['Signal detection', 'Symbol-rate search', 'Modulation analysis', 'CFO estimation', 'FEC hypothesis search', 'Statistical validation']
+const RECEIVER: Record<string, string> = { timecode: 'Time-code', fsk: 'Start-stop FSK', am: 'AM broadcast' }
 
-function stageValue(key: string, p: EvidencePack) {
-  const d = p.diagnostics, a = p.accept
-  switch (key) {
-    case 'detect': return d.detection_log10_p <= Math.log10(a.alpha) ? `present · p ${fmtP(d.detection_log10_p)}` : 'not established'
-    case 'sps': return `${d.sps_candidates.length} candidates · ${d.sps_candidates.join(', ')}`
-    case 'mod': return p.result.modulation ?? `${d.top_hypotheses[0]?.modulation ?? '—'} (candidate)`
-    case 'cfo': return `${d.cfo_candidates.length} lines`
-    case 'fec': return `${fmtInt(a.n_hypotheses)} hypotheses`
-    default: return p.result.status === 'DECODED' ? `accepted · ${CODE_SHORT(p.result.code)}` : a.log10_p <= a.log10_threshold ? 'significant, structurally rejected' : 'not significant'
+const kb = (n: number) => (n < 1024 ? `${n} B` : `${(n / 1024).toFixed(1)} KB`)
+const rate = (hz: number) => (hz >= 1e6 ? `${hz / 1e6} Msps` : hz >= 1e3 ? `${(hz / 1e3).toFixed(1)} ksps` : `${hz} sps`)
+const khz = (f: number) => (f >= 1000 ? `${f / 1000} MHz` : `${f} kHz`)
+const same = (a: unknown, b: unknown) => (b == null ? undefined : JSON.stringify(a) === JSON.stringify(b))
+
+/** What a receiver knows before any analysis: container, size, length, clock. Nothing about content. */
+function facts(s: Source): string[] {
+  if (s.kind === 'file') return [s.file.name.split('.').pop()!.toUpperCase(), kb(s.file.size)]
+  if (s.kind === 'bench') {
+    const n = s.sample.format === 'wav' ? (s.sample.bytes - 44) / 4 : s.sample.bytes / 8
+    return [s.sample.format.toUpperCase(), kb(s.sample.bytes), `${fmtInt(n)} samples`, rate(s.sample.fs_hz)]
   }
+  return ['WAV', s.entry.duration_s ? `${Math.round(s.entry.duration_s)} s` : 'length unknown', 'GPS-timed']
+}
+
+interface Row { k: string; after: string | null; expected?: string | null; ok?: boolean }
+
+function packRows(p: EvidencePack, truth: EvidencePack | null): Row[] {
+  const r = p.result, fs = p.capture.fs_hz, t = truth?.benchmark_truth as Record<string, unknown> | undefined
+  const present = p.diagnostics.detection_log10_p <= Math.log10(p.accept.alpha)
+  return [
+    // The detector's line test is blind to QPSK (no x² line); an accepted decode proves presence on its own.
+    { k: 'Signal present', after: present ? `Yes · p ${fmtP(p.diagnostics.detection_log10_p)}` : r.status === 'DECODED' ? 'Yes · proven by the decode' : null },
+    { k: 'Modulation', after: r.modulation, expected: t?.modulation as string, ok: r.modulation ? same(r.modulation, t?.modulation) : undefined },
+    { k: 'Symbol rate', after: r.sps ? `${r.sps} samples/symbol · ${fmtSymRate(r.sps, fs)}` : null, expected: t?.sps ? `${t.sps} samples/symbol` : null, ok: r.sps ? same(r.sps, t?.sps) : undefined },
+    { k: 'Carrier offset', after: r.cfo == null ? null : fs ? `${(r.cfo * fs).toFixed(0)} Hz` : `${r.cfo.toFixed(4)} cycles/sample` },
+    { k: 'Error-correcting code', after: r.code ? CODE_FULL[r.code] ?? r.code : null, expected: t?.code ? CODE_FULL[t.code as string] ?? String(t.code) : null, ok: r.code ? same(r.code, t?.code) : undefined },
+    { k: 'Interleaver', after: r.interleaver ? fmtInterleaver(r.interleaver) : null, expected: t?.interleaver ? fmtInterleaver(t.interleaver as number[]) : null, ok: r.interleaver ? same(r.interleaver, t?.interleaver) : undefined },
+    { k: 'Payload', after: r.payload_withheld ? 'Withheld: failed the consistency floor' : r.status === 'DECODED' && r.payload_len ? `${fmtInt(r.payload_len)} bits recovered` : null },
+    ...(truth ? [{ k: 'Verdict', after: STATUS_LABEL[r.status], expected: STATUS_LABEL[truth.result.status], ok: r.status === truth.result.status }] : []),
+  ]
+}
+
+function realRows(rr: RealAnalysis, entry: ReplayIndexEntry | null): Row[] {
+  const a = rr.answer
+  return [
+    { k: 'Receiver that locked', after: a.status === 'UNKNOWN' ? null : RECEIVER[a.receiver ?? ''] ?? a.receiver ?? null },
+    { k: 'Protocol', after: a.protocol ?? null, expected: entry?.answer.protocol, ok: a.protocol ? same(a.protocol, entry?.answer.protocol) : undefined },
+    { k: 'Decoded content', after: a.summary ?? null },
+    { k: 'Operator', after: a.operator ?? null },
+    ...(entry ? [{ k: 'Station', after: `${entry.station} · ${khz(entry.frequency_khz)}` }] : []),
+  ]
+}
+
+/** One row per blind receiver the engine ran, with what it found. BlindCatalogue only covers time codes. */
+function ReceiversTried({ runs }: { runs: RealAnalysis['runs'] }) {
+  const r = runs as Record<string, { status?: string; reason?: string; protocol?: string | null; code?: string; baud?: number; modulation?: string; carrier_to_noise_db?: number; packets?: unknown[] } | undefined>
+  const rows = [
+    { key: 'timecode', name: 'Time-code', what: (x: NonNullable<typeof r[string]>) => x.protocol ?? x.reason },
+    { key: 'fsk', name: 'Start-stop FSK', what: (x: NonNullable<typeof r[string]>) => x.code ? `${x.code} ${x.baud} Bd` : x.reason },
+    { key: 'chu', name: 'CHU (Canada)', what: (x: NonNullable<typeof r[string]>) => x.packets?.length ? `${x.packets.length} packets` : 'no packets found' },
+    { key: 'am', name: 'AM broadcast', what: (x: NonNullable<typeof r[string]>) => x.modulation ? `${x.modulation}${x.carrier_to_noise_db != null ? ` · ${x.carrier_to_noise_db} dB C/N` : ''}` : x.reason },
+  ].filter((x) => r[x.key])
+  if (!rows.length) return <div className="muted">No receiver results were recorded for this capture.</div>
+  return (
+    <div className="catalogue">
+      <div className="catalogue-head"><span>Receivers tried</span><span className="mono">{rows.length} run</span></div>
+      {rows.map((x) => {
+        const run = r[x.key]!, st = run.status ?? 'UNKNOWN'
+        return (
+          <div key={x.key} className={`tried-row${st === 'DECODED' ? ' ok' : st === 'SIGNAL_NO_CODE' ? ' mid' : ''}`}>
+            <b>{x.name}</b>
+            <span className="muted">{x.what(run) ?? ''}</span>
+            <span className="catalogue-verdict">{STATUS_LABEL[st as Status] ?? st}</span>
+          </div>
+        )
+      })}
+    </div>
+  )
 }
 
 export default function Analysis() {
@@ -41,85 +98,95 @@ export default function Analysis() {
   const cannotAnalyse = whyNot(session?.authRole, 'analyse')
   const nav = useNavigate()
   const [samples, setSamples] = useState<Sample[]>([])
+  const [realList, setRealList] = useState<ReplayIndexEntry[]>([])
+  const [tab, setTab] = useState<'real' | 'bench' | 'file'>('real')
   const [file, setFile] = useState<File | null>(null)
-  const [sample, setSample] = useState<Sample | null>(null)
   const [over, setOver] = useState(false)
-  const [meta, setMeta] = useState({ station: session?.stationId ?? 'MS-07', antenna: 'Discone, vertical', captured: new Date(Date.now() - 5 * 60e3).toISOString().slice(0, 16), centerMHz: '145.8250', bwKHz: '25', fs: '', notes: '' })
+  const [meta, setMeta] = useState({ fs: '', captured: '', notes: '' })
+  const [src, setSrc] = useState<Source | null>(null)
   const [running, setRunning] = useState(false)
   const [progress, setProgress] = useState(-1)
   const [pack, setPack] = useState<EvidencePack | null>(null)
+  const [truth, setTruth] = useState<EvidencePack | null>(null)
+  const [realResult, setRealResult] = useState<RealAnalysis | null>(null)
   const [replay, setReplay] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [recordId, setRecordId] = useState<string | null>(null)
   const [showTech, setShowTech] = useState(false)
-  const [realList, setRealList] = useState<ReplayIndexEntry[]>([])
-  const [real, setReal] = useState<ReplayIndexEntry | null>(null)
-  const [realResult, setRealResult] = useState<RealAnalysis | null>(null)
-  const [sampleTab, setSampleTab] = useState<'real' | 'bench'>('real')
+  const [solved, setSolved] = useState<Record<string, Status>>({})
   const inputRef = useRef<HTMLInputElement>(null)
+  const resultRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => { fetch('/samples/samples.json').then((r) => r.json()).then(setSamples).catch(() => setSamples([])) }, [])
   useEffect(() => { fetch('/live/index.json').then((r) => r.json()).then((x: ReplayIndexEntry[]) => setRealList(x.filter((e) => e.mode === 'iq'))).catch(() => setRealList([])) }, [])
-  const st = STATIONS.find((s) => s.id === meta.station)
-  const step = pack || realResult ? (recordId ? 6 : 5) : running ? 2 + Math.min(3, Math.floor(progress / 2)) : file || sample || real ? 1 : 0
 
-  const runReal = async (entry: ReplayIndexEntry) => {
-    setError(null); setPack(null); setRealResult(null); setRecordId(null); setShowTech(false); setReplay(false)
-    setRunning(true); setProgress(0)
-    const tick = setInterval(() => setProgress((p) => Math.min(p + 1, STAGES.length - 1)), 420)
-    try {
-      if (engine.online) {
-        const meta = await (await api(`/api/recordings/${entry.id}.json`)).json()
-        const body = await (await api(`/api/recordings/${entry.id}.wav`)).arrayBuffer()
-        const c = meta.capture
-        const q = new URLSearchParams({ format: 'wav', fs: String(c.fs_hz), name: `${entry.id}.wav`, t0_unix: String(c.t0_unix), timing: c.timing,
-          center_freq_hz: String(c.tuned_khz * 1e3), notes: `Real recording: ${entry.station} via ${entry.receiver ?? 'KiwiSDR'}` })
-        const res = await api(`/api/analyze?${q}`, { method: 'POST', body })
-        const j = await res.json()
-        setPack(j as EvidencePack)
-        setRealResult((j as EvidencePack).real ?? null)
-      } else {
-        const doc = (await (await fetch(`/live/${entry.id}.json`)).json()) as ReplayDoc
-        const r = doc.events.find((e): e is ResultEv => e.type === 'result')
-        if (!r || !r.runs) throw new Error('recorded result missing')
-        setRealResult({ samples: 0, fs_hz: 0, duration_s: entry.duration_s ?? 0, timing: null, t0_unix: null, runs: r.runs, timers_s: {}, answer: r.answer })
-        setReplay(true)
-      }
-      setProgress(STAGES.length)
-      log(engine.online ? 'Real recording analysed by local engine' : 'Recorded real-signal result replayed', entry.id, entry.station)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
-    } finally {
-      clearInterval(tick)
-      setRunning(false)
-    }
+  // Replaying recorded output needs no engine rights; running the engine does.
+  const canRun = engine.online ? mayAnalyse : true
+  const done = !!(pack || realResult)
+  const step = done ? STEPS.length : running ? 1 + Math.min(3, Math.floor(progress / 2)) : src ? 1 : 0
+
+  const post = async (q: URLSearchParams, body: ArrayBuffer) => {
+    const res = await api(`/api/analyze?${q}`, { method: 'POST', body })
+    const j = await res.json().catch(() => ({}))
+    if (!res.ok || !j.result) throw new Error(j.error ?? `Engine returned HTTP ${res.status}`)
+    return j as EvidencePack
   }
 
-  const run = async () => {
-    setError(null); setPack(null); setRecordId(null); setShowTech(false); setReplay(false)
+  const decode = async (s: Source) => {
+    if (running || !canRun) return
+    setSrc(s); setError(null); setPack(null); setTruth(null); setRealResult(null); setRecordId(null); setShowTech(false); setReplay(false)
     setRunning(true); setProgress(0)
     const tick = setInterval(() => setProgress((p) => Math.min(p + 1, STAGES.length - 1)), 420)
+    const t0 = Date.now()
     try {
-      let result: EvidencePack
-      const name = file?.name ?? sample!.name
-      const fmt = name.toLowerCase().endsWith('.wav') ? 'wav' : 'iq'
-      if (engine.online) {
-        const body = file ? await file.arrayBuffer() : await (await fetch(`/samples/${sample!.name}`)).arrayBuffer()
-        const q = new URLSearchParams({ format: fmt, ...(meta.fs.trim() ? { fs: meta.fs.trim() } : {}), name, station: meta.station, antenna: meta.antenna, captured_at: meta.captured, notes: meta.notes,
-          center_freq_hz: String(Number(meta.centerMHz) * 1e6), bandwidth_hz: String(Number(meta.bwKHz) * 1e3) })
-        const res = await api(`/api/analyze?${q}`, { method: 'POST', body })
-        const j = await res.json()
-        result = j as EvidencePack
-      } else if (sample) {
-        result = await loadPack(sample.evidence_id)
-        setReplay(true)
+      let status: Status
+      if (s.kind === 'real') {
+        const e = s.entry
+        if (engine.online) {
+          const c = (await (await api(`/api/recordings/${e.id}.json`)).json()).capture
+          const body = await (await api(`/api/recordings/${e.id}.wav`)).arrayBuffer()
+          // Blind: only the clock goes in (sample rate, GPS time). No station, no frequency.
+          const p = await post(new URLSearchParams({ format: 'wav', fs: String(c.fs_hz), name: `${s.label}.wav`, t0_unix: String(c.t0_unix), timing: c.timing }), body)
+          if (!p.real) throw new Error('The engine returned no real-signal result for this recording')
+          setPack(p); setRealResult(p.real)
+          status = p.real.answer.status
+        } else {
+          const doc = (await (await fetch(`/live/${e.id}.json`)).json()) as ReplayDoc
+          const r = doc.events.find((x): x is ResultEv => x.type === 'result')
+          if (!r?.runs) throw new Error('Recorded result missing for this recording')
+          setRealResult({ samples: 0, fs_hz: 0, duration_s: e.duration_s ?? 0, timing: null, t0_unix: null, runs: r.runs, timers_s: {}, answer: r.answer })
+          setReplay(true)
+          status = r.answer.status
+        }
       } else {
-        throw new Error('The local analysis engine is offline. Start it with "python server/app.py", or choose a sample capture to replay recorded engine output.')
+        let p: EvidencePack
+        if (engine.online) {
+          const name = s.kind === 'file' ? s.file.name : s.sample.name
+          const body = s.kind === 'file' ? await s.file.arrayBuffer() : await (await fetch(`/samples/${s.sample.name}`)).arrayBuffer()
+          const fs = s.kind === 'bench' ? String(s.sample.fs_hz) : meta.fs.trim()
+          const q = new URLSearchParams({ format: name.toLowerCase().endsWith('.wav') ? 'wav' : 'iq', name, ...(fs ? { fs } : {}) })
+          if (s.kind === 'file') {
+            if (meta.captured) q.set('captured_at', meta.captured)
+            if (meta.notes) q.set('notes', meta.notes)
+            if (session?.stationId) q.set('station', session.stationId)
+          }
+          p = await post(q, body)
+        } else if (s.kind === 'bench') {
+          p = await loadPack(s.sample.evidence_id)
+          setReplay(true)
+        } else {
+          throw new Error('The local analysis engine is offline. Start it with "python server/app.py", or pick a sample recording to replay recorded engine output.')
+        }
+        if (s.kind === 'bench') setTruth(await loadPack(s.sample.evidence_id).catch(() => null))
+        setPack(p)
+        status = p.result.status
       }
-      await new Promise((r) => setTimeout(r, Math.max(0, 420 * STAGES.length - 400)))
+      // Let the pipeline finish animating so the stages read as work, not a flash.
+      await new Promise((r) => setTimeout(r, Math.max(0, 420 * STAGES.length - (Date.now() - t0))))
       setProgress(STAGES.length)
-      setPack(result)
-      log(engine.online ? 'Capture analysed by local engine' : 'Recorded engine output replayed', result.id, result.result.status)
+      setSolved((m) => ({ ...m, [s.key]: status }))
+      log(engine.online ? 'Capture decoded by local engine' : 'Recorded engine output replayed', s.kind === 'file' ? s.file.name : s.label, status)
+      setTimeout(() => resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     } finally {
@@ -131,9 +198,28 @@ export default function Analysis() {
   const openRecord = () => {
     if (!pack) return
     if (pack.source.kind === 'BENCHMARK') { nav(`/app/signals/${pack.id}`); return }
-    const rec = recordId ? { id: recordId } : addUpload(pack, { stationId: meta.station, centerHz: Number(meta.centerMHz) * 1e6 || null, bandwidthHz: Number(meta.bwKHz) * 1e3 || null })
+    const rec = recordId ? { id: recordId } : addUpload(pack, { stationId: session?.stationId ?? 'MS-07', centerHz: null, bandwidthHz: null })
     setRecordId(rec.id)
     nav(`/app/signals/${rec.id}`)
+  }
+
+  const rows = realResult ? realRows(realResult, src?.kind === 'real' ? src.entry : null) : pack ? packRows(pack, truth) : null
+  const hasExpected = !!rows?.some((r) => r.expected)
+
+  const card = (s: Source) => {
+    const st = solved[s.key], on = src?.key === s.key
+    return (
+      <button key={s.key} className={`capcard${on ? ' on' : ''}`} disabled={running || !canRun} title={canRun ? 'Decode this recording' : cannotAnalyse}
+        onClick={() => decode(s)} aria-pressed={on}>
+        <span className="capcard-top">
+          <span className="capcard-name">{s.kind === 'file' ? s.file.name : s.label}</span>
+          {on && running ? <span className="spinner" /> : st ? <span className={`capcard-st st-${st}`}>{STATUS_LABEL[st]}</span> : <span className="capcard-go"><Icon name="analysis" size={13} /> Decode</span>}
+        </span>
+        <span className="capcard-facts">{facts(s).map((f) => <span key={f}>{f}</span>)}</span>
+        {st && s.kind === 'real' && <span className="capcard-reveal">{s.entry.station} · {khz(s.entry.frequency_khz)}</span>}
+        {st && s.kind === 'bench' && <span className="capcard-reveal">{s.sample.description}</span>}
+      </button>
+    )
   }
 
   return (
@@ -141,9 +227,9 @@ export default function Analysis() {
       <div className="page-head">
         <div className="grow">
           <h1 className="page-title">Analyse a capture</h1>
-          <div className="page-sub">Bring in an .IQ or .wav recording with its metadata. The engine infers structure, tests hypotheses and accepts only what the evidence supports.</div>
+          <div className="page-sub">Blind decoding: the engine gets the samples and their clock, nothing else. It has to find the signal, its structure and its content on its own, or refuse.</div>
         </div>
-        {engine.online ? <Tag kind="LIVE">Local engine v{engine.version}</Tag> : <Tag kind="BENCHMARK">Engine offline: replay only</Tag>}
+        {engine.online ? <Tag kind="LIVE">Local engine v{engine.version}</Tag> : <Tag kind="BENCHMARK">Engine offline: replaying recorded output</Tag>}
       </div>
 
       <div className="panel" style={{ padding: '12px 16px', marginBottom: 14 }}>
@@ -157,74 +243,78 @@ export default function Analysis() {
         </div>
       </div>
 
-      <div className="grid" style={{ gridTemplateColumns: 'minmax(360px, 0.8fr) minmax(0, 1.2fr)', alignItems: 'start' }}>
-        <div className="col" style={{ gap: 14 }}>
-          <Panel title="1 · Capture file">
+      <div className="analyse-grid">
+        <Panel title="1 · Choose a capture" sub="Click a recording to decode it. What it is stays hidden until the engine has answered.">
+          <div className="seg" style={{ width: '100%', marginBottom: 12 }} role="tablist">
+            <button role="tab" aria-selected={tab === 'real'} className={tab === 'real' ? 'on' : ''} style={{ flex: 1 }} onClick={() => setTab('real')}>Real · {realList.length}</button>
+            <button role="tab" aria-selected={tab === 'bench'} className={tab === 'bench' ? 'on' : ''} style={{ flex: 1 }} onClick={() => setTab('bench')}>Benchmark · {samples.length}</button>
+            <button role="tab" aria-selected={tab === 'file'} className={tab === 'file' ? 'on' : ''} style={{ flex: 1 }} onClick={() => setTab('file')}>Upload</button>
+          </div>
+
+          {!canRun && <div className="banner amber" style={{ marginBottom: 12 }}><Icon name="info" /><span>{cannotAnalyse}</span></div>}
+
+          {tab === 'real' && <div className="capcards">
+            {realList.map((e, i) => card({ kind: 'real', key: e.id, label: `Recording ${String(i + 1).padStart(2, '0')}`, entry: e }))}
+          </div>}
+          {tab === 'bench' && <div className="capcards">
+            {samples.map((s, i) => card({ kind: 'bench', key: s.name, label: `Benchmark ${String.fromCharCode(65 + i)}`, sample: s }))}
+          </div>}
+          {tab === 'file' && <>
             <div className={`drop${over ? ' over' : ''}`} onClick={() => inputRef.current?.click()}
               onDragOver={(e) => { e.preventDefault(); setOver(true) }} onDragLeave={() => setOver(false)}
-              onDrop={(e) => { e.preventDefault(); setOver(false); const f = e.dataTransfer.files[0]; if (f) { setFile(f); setSample(null) } }}>
-              <Icon name="upload" size={26} />
+              onDrop={(e) => { e.preventDefault(); setOver(false); const f = e.dataTransfer.files[0]; if (f) setFile(f) }}>
+              <Icon name="upload" size={24} />
               <div style={{ marginTop: 6 }}>{file ? <b>{file.name}</b> : 'Drop an .iq or .wav capture, or click to browse'}</div>
-              <div className="muted" style={{ fontSize: 12 }}>{file ? `${(file.size / 1024).toFixed(1)} KB` : '.iq = interleaved float32 I/Q · .wav = int16 stereo I/Q'}</div>
-              <input ref={inputRef} type="file" accept=".iq,.wav,.bin,.raw" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) { setFile(f); setSample(null) } }} />
+              <div className="muted" style={{ fontSize: 12 }}>{file ? kb(file.size) : '.iq = interleaved float32 I/Q · .wav = int16 stereo I/Q'}</div>
+              <input ref={inputRef} type="file" accept=".iq,.wav,.bin,.raw" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) setFile(f) }} />
             </div>
-            <div className="divider" style={{ margin: '16px 0 10px' }}>or choose a sample recording</div>
-            <div className="seg" style={{ width: '100%', marginBottom: 10 }} role="tablist">
-              <button role="tab" aria-selected={sampleTab === 'real'} className={sampleTab === 'real' ? 'on' : ''} style={{ flex: 1 }} onClick={() => setSampleTab('real')}>Real transmissions · {realList.length}</button>
-              <button role="tab" aria-selected={sampleTab === 'bench'} className={sampleTab === 'bench' ? 'on' : ''} style={{ flex: 1 }} onClick={() => setSampleTab('bench')}>Benchmark · {samples.length}</button>
-            </div>
-            {sampleTab === 'bench' && <div className="picker" role="radiogroup" aria-label="Benchmark captures">
-              {samples.map((s) => (
-                <button key={s.name} className="pick" role="radio" aria-checked={sample?.name === s.name}
-                  onClick={() => { setSample(s); setReal(null); setFile(null); setMeta({ ...meta, fs: String(s.fs_hz) }) }}>
-                  <span className="pick-name">{s.name}</span>
-                  <span className="pick-note">{s.description}</span>
-                </button>
-              ))}
-            </div>}
-            {sampleTab === 'real' && <div className="picker" role="radiogroup" aria-label="Real transmissions">
-              {realList.map((e) => (
-                <button key={e.id} className="pick" role="radio" aria-checked={real?.id === e.id}
-                  onClick={() => { setReal(e); setSample(null); setFile(null) }}>
-                  <span className="pick-name">{e.station}</span>
-                  <span className="mono muted" style={{ fontSize: 'var(--t-xs)' }}>{e.frequency_khz >= 1000 ? `${e.frequency_khz / 1000} MHz` : `${e.frequency_khz} kHz`}</span>
-                  <span className="pick-note">{e.operator.split(' — ')[0]} · {e.receiver}</span>
-                </button>
-              ))}
-            </div>}
-          </Panel>
-          <Panel title="2 · Capture metadata" right={<span className="muted" style={{ fontSize: 11.5 }}>recorded with the evidence</span>}>
+            <div className="section-label" style={{ margin: '16px 0 8px' }}>Basic capture info · all optional</div>
             <div className="form-grid">
-              <div className="field"><label>Monitoring station</label><select className="select" value={meta.station} onChange={(e) => setMeta({ ...meta, station: e.target.value })}>{STATIONS.map((s) => <option key={s.id} value={s.id}>{s.id} · {s.name}</option>)}</select></div>
-              <div className="field"><label>Receiver location</label><input className="input mono" readOnly value={st ? `${st.lat.toFixed(2)}°N ${st.lon.toFixed(2)}°E` : ''} /></div>
-              <div className="field"><label>Antenna</label><input className="input" value={meta.antenna} onChange={(e) => setMeta({ ...meta, antenna: e.target.value })} /></div>
+              <div className="field full"><label>Sampling rate (Hz) · {file?.name.toLowerCase().endsWith('.wav') ? 'read from the WAV header if blank' : 'a raw .iq has no header: leave blank if unknown'}</label>
+                <input className="input mono" inputMode="decimal" placeholder="Unknown" value={meta.fs} onChange={(e) => setMeta({ ...meta, fs: e.target.value })} /></div>
               <div className="field"><label>Capture time (IST)</label><input className="input" type="datetime-local" value={meta.captured} onChange={(e) => setMeta({ ...meta, captured: e.target.value })} /></div>
-              <div className="field"><label>Centre frequency (MHz)</label><input className="input mono" value={meta.centerMHz} onChange={(e) => setMeta({ ...meta, centerMHz: e.target.value })} /></div>
-              <div className="field"><label>Bandwidth (kHz)</label><input className="input mono" value={meta.bwKHz} onChange={(e) => setMeta({ ...meta, bwKHz: e.target.value })} /></div>
-              <div className="field full"><label>Sampling rate (Hz) {(file?.name ?? sample?.name ?? '').endsWith('.wav') ? '· read from the WAV header unless you enter a value' : '· a raw .iq file has no header: leave blank if unknown'}</label><input className="input mono" placeholder="Unknown — the engine works in samples per symbol" value={meta.fs} onChange={(e) => setMeta({ ...meta, fs: e.target.value })} /></div>
-              <div className="field full"><label>Operator notes</label><textarea className="textarea" value={meta.notes} onChange={(e) => setMeta({ ...meta, notes: e.target.value })} placeholder="Observed intermittently on the evening watch…" /></div>
+              <div className="field"><label>Notes</label><input className="input" value={meta.notes} onChange={(e) => setMeta({ ...meta, notes: e.target.value })} placeholder="Heard on the evening watch" /></div>
             </div>
-            <button className="btn btn-primary btn-lg" style={{ width: '100%', justifyContent: 'center', marginTop: 12 }} disabled={(!file && !sample && !real) || running || !mayAnalyse} title={cannotAnalyse} onClick={() => (real ? runReal(real) : run())}>
-              {running ? <><span className="spinner" /> Analysing…</> : <><Icon name="analysis" size={15} /> Analyse signal</>}
+            <button className="btn btn-primary btn-lg" style={{ width: '100%', justifyContent: 'center', marginTop: 12 }} disabled={!file || running || !canRun} title={cannotAnalyse}
+              onClick={() => file && decode({ kind: 'file', key: `file:${file.name}:${file.size}`, file })}>
+              {running ? <><span className="spinner" /> Decoding…</> : <><Icon name="analysis" size={15} /> Decode blind</>}
             </button>
-          </Panel>
-        </div>
+          </>}
+        </Panel>
 
-        <div className="col" style={{ gap: 14 }}>
-          <Panel title="3 · Analysis pipeline" right={replay ? <Tag kind="BENCHMARK">Replay: recorded engine output</Tag> : pack ? <Tag kind="LIVE" /> : null}>
-            {progress < 0 && !pack ? <div className="empty">Choose a capture and start the analysis. Each stage reports what it established.</div> : (
+        <div className="col" style={{ gap: 14, scrollMarginTop: 16 }} ref={resultRef}>
+          <Panel title="2 · Blind → Decoded" sub={src ? `${src.kind === 'file' ? src.file.name : src.label} · given: ${facts(src).join(' · ')}` : undefined}
+            right={replay ? <Tag kind="BENCHMARK">Replay</Tag> : done ? <Tag kind="LIVE">Engine result</Tag> : null}>
+            {!src && <div className="empty">Pick a recording on the left. This panel shows what the engine was given and what it established from the samples alone.</div>}
+            {src && !done && (
               <div className="pipeline">
-                {STAGES.map((s, i) => {
-                  const done = pack ? true : i < progress
-                  const on = !pack && i === progress && running
+                {STAGES.map((name, i) => {
+                  const ok = i < progress, on = i === progress && running
                   return (
-                    <motion.div key={s.key} className={`stage${on ? ' run' : ''}${done ? ' done' : ''}`} initial={{ opacity: 0, x: -8 }} animate={{ opacity: i <= Math.max(progress, pack ? 99 : 0) ? 1 : 0.35, x: 0 }}>
-                      <span>{done ? <Icon name="check" size={15} className="ok" /> : on ? <span className="spinner" /> : <Icon name="dash" size={14} />}</span>
-                      <span className="stage-name">{s.name}</span>
-                      <span className="stage-val">{pack ? stageValue(s.key, pack) : on ? 'running…' : ''}</span>
+                    <motion.div key={name} className={`stage${on ? ' run' : ''}${ok ? ' done' : ''}`} initial={{ opacity: 0, x: -8 }} animate={{ opacity: i <= progress ? 1 : 0.35, x: 0 }}>
+                      <span>{ok ? <Icon name="check" size={15} className="ok" /> : on ? <span className="spinner" /> : <Icon name="dash" size={14} />}</span>
+                      <span className="stage-name">{name}</span>
+                      <span className="stage-val">{on ? 'running…' : ''}</span>
                     </motion.div>
                   )
                 })}
+              </div>
+            )}
+            {rows && (
+              <div className="bdtab-wrap">
+                <table className="bdtab">
+                  <thead><tr><th>Property</th><th>Before</th><th>Decoded</th>{hasExpected && <th>Expected</th>}</tr></thead>
+                  <tbody>
+                    {rows.map((r) => (
+                      <tr key={r.k}>
+                        <th scope="row">{r.k}</th>
+                        <td className="muted mono">?</td>
+                        <td className={r.after ? '' : 'muted'}>{r.after ?? 'Not established'}</td>
+                        {hasExpected && <td className="muted">{r.expected ?? ''}{r.ok !== undefined && <b className={r.ok ? 'bdtab-ok' : 'bdtab-bad'}>{r.ok ? ' ✓' : ' ✗'}</b>}</td>}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
             {error && <div className="banner amber" style={{ marginTop: 12 }}><Icon name="info" /><span>{error}</span></div>}
@@ -233,8 +323,7 @@ export default function Analysis() {
           <AnimatePresence>
             {realResult && (
               <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
-                <Panel title="4 · Real-signal receivers" sub="Time codes, start-stop FSK and AM characterisation, run blind over the whole recording"
-                  right={replay ? <Tag kind="BENCHMARK">Recorded result</Tag> : <Tag kind="LIVE">Engine result</Tag>}>
+                <Panel title="3 · Decode" sub="Time codes, start-stop FSK and AM characterisation, run blind over the whole recording">
                   <div className="row-wrap" style={{ gap: 20, alignItems: 'center' }}>
                     <Stamp status={realResult.answer.status} size="xl" />
                     <div className="grow" style={{ minWidth: 240 }}>
@@ -242,21 +331,23 @@ export default function Analysis() {
                       {realResult.answer.verification && <div className="mono" style={{ fontSize: 12, marginTop: 6, color: 'var(--green)' }}>arrival − decoded = {realResult.answer.verification.arrival_minus_decoded_ms.toFixed(1)} ms by the receiver&apos;s {realResult.answer.verification.timing === 'gps' ? 'GPS' : 'network'} clock</div>}
                     </div>
                   </div>
-                  <div style={{ marginTop: 14 }}><BlindCatalogue runs={realResult.runs} /></div>
                   {realResult.runs.fsk?.status === 'DECODED' && realResult.runs.fsk.text && <div style={{ marginTop: 14 }}><Teletype text={realResult.runs.fsk.text} cps={400} /></div>}
                   {realResult.answer.receiver === 'am' && realResult.runs.am && <div style={{ marginTop: 14 }}><AmPanel am={realResult.runs.am} /></div>}
-                  {real && <div className="row-wrap" style={{ marginTop: 14 }}><button className="btn" onClick={() => nav(`/app/monitor?rec=${real.id}`)}><Icon name="monitor" size={14} /> Watch it arrive second by second</button></div>}
+                  <div className="row-wrap" style={{ marginTop: 14 }}>
+                    <button className="btn" onClick={() => setShowTech(!showTech)}><Icon name="eye" size={14} /> {showTech ? 'Hide' : 'Show'} every receiver tried</button>
+                    {src?.kind === 'real' && <button className="btn" onClick={() => nav(`/app/monitor?rec=${src.entry.id}`)}><Icon name="monitor" size={14} /> Watch it arrive second by second</button>}
+                  </div>
+                  {showTech && <div style={{ marginTop: 14 }}><ReceiversTried runs={realResult.runs} /><div style={{ marginTop: 12 }}><BlindCatalogue runs={realResult.runs} /></div></div>}
                 </Panel>
               </motion.div>
             )}
             {pack && !realResult && (
               <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
-                <Panel title="4 · Decision" right={<span className="mono muted" style={{ fontSize: 11.5 }}>{pack.id} · {pack.result.runtime.toFixed(2)} s</span>}>
+                <Panel title="3 · Decision" right={<span className="mono muted" style={{ fontSize: 11.5 }}>{pack.id} · {pack.result.runtime.toFixed(2)} s · {fmtFs(pack.capture)}</span>}>
                   <Verdict pack={pack} />
                   <div className="row-wrap" style={{ marginTop: 16 }}>
                     <button className="btn btn-primary" onClick={openRecord}><Icon name="signals" size={14} /> Open signal record</button>
                     <button className="btn" onClick={() => setShowTech(!showTech)}><Icon name="eye" size={14} /> {showTech ? 'Hide' : 'Show'} technical evidence</button>
-                    <button className="btn" onClick={() => { openRecord(); }}><Icon name="incidents" size={14} /> Create incident from record</button>
                     <button className="btn btn-ghost" onClick={() => nav(`/app/reports?signal=${pack.source.kind === 'BENCHMARK' ? pack.id : recordId ?? ''}`)}><Icon name="reports" size={14} /> Report</button>
                   </div>
                 </Panel>

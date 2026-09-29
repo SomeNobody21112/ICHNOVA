@@ -147,7 +147,8 @@ export function Globe({ points, anchor, selected, onPick, height = 520, spin = t
   const recentre = () => { setZoom(1); flyTo(anchor ? [-anchor.lon, -anchor.lat] : HOME) }
 
   const onPointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
-    e.currentTarget.setPointerCapture(e.pointerId)
+    // No pointer capture yet: capturing here retargets the click to the <svg>, so a marker or its
+    // name would never receive it. Capture starts in onPointerMove once this is really a drag.
     drag.current = { x: e.clientX, y: e.clientY, moved: 0, vx: 0, vy: 0, t: performance.now() }
     setDragging(true)
   }
@@ -164,6 +165,7 @@ export function Globe({ points, anchor, selected, onPick, height = 520, spin = t
     d.vx = (dx * k * 16) / dt
     d.vy = (dy * k * 16) / dt
     d.moved += Math.abs(dx) + Math.abs(dy)
+    if (d.moved > 6 && !e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.setPointerCapture(e.pointerId)
     d.x = e.clientX
     d.y = e.clientY
     d.t = now
@@ -323,6 +325,8 @@ export function Globe({ points, anchor, selected, onPick, height = 520, spin = t
               {on && <circle cx={x} cy={y} r={10} className="globe-halo" />}
               <polyline points={`${x},${y} ${lx - side * 4},${ly}`} className="globe-leader" />
               <circle cx={x} cy={y} r={isAnchor ? 5 : 3.6} className="globe-dot" />
+              {/* a 3.6 px dot is too small to hit; this invisible disc is the real target */}
+              <circle cx={x} cy={y} r={11} fill="transparent" />
               <text x={lx} y={ly} className="globe-name" textAnchor={side === 1 ? 'start' : 'end'}
                 dominantBaseline="middle">{p.name}</text>
             </g>
